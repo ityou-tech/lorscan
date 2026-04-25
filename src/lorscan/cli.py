@@ -11,6 +11,7 @@ from pathlib import Path
 from lorscan.config import Config, load_config
 from lorscan.services.catalog import sync_catalog
 from lorscan.services.matching import match_card
+from lorscan.services.photos import ensure_supported_format
 from lorscan.services.recognition.client import (
     CliInvocationError,
     CliNotInstalledError,
@@ -75,11 +76,17 @@ def scan_command(
         return 2
 
     try:
-        result = identify(
-            photo_path=photo_path,
-            model=config.anthropic_model,
-            max_budget_usd=config.per_scan_budget_usd,
-        )
+        with ensure_supported_format(photo_path) as scan_path:
+            if scan_path != photo_path:
+                print(f"Transcoded {photo_path.suffix} → JPEG for Claude vision compatibility.")
+            result = identify(
+                photo_path=scan_path,
+                model=config.anthropic_model,
+                max_budget_usd=config.per_scan_budget_usd,
+            )
+    except ValueError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
     except CliNotInstalledError as e:
         print(f"error: {e}", file=sys.stderr)
         return 3
