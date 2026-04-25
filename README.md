@@ -1,13 +1,13 @@
 # lorscan
 
 Local Disney Lorcana TCG collection manager. Photographs of binder pages
-go in via the CLI or web UI; Claude Opus 4.7 vision identifies the cards;
-matches against a local catalog synced from `lorcana-api.com`. Built to run
-on a Max-plan subscription via the Claude Code CLI — no separate API
-credits required.
+go in via the CLI or web UI; **local CLIP embeddings** identify each card
+visually against a catalog synced from `lorcana-api.com`. Fully offline
+after the one-time setup — no API keys, no rate limits, no cost.
 
-> **Status:** Plan 1 + Plan 2 MVP — recognition pipeline, web UI, scan
-> persistence, /collection, /missing, accept-into-collection workflow.
+> **Status:** Plan 1 + Plan 2 MVP + Phase A (CLIP recognition) — fast
+> local scanning, web UI, scan persistence, /collection, /missing,
+> accept-into-collection workflow.
 
 ---
 
@@ -19,30 +19,31 @@ git clone https://github.com/ityou-tech/lorscan.git
 cd lorscan
 uv sync
 
-# One-time auth (Max plan via Claude Code OAuth — keeps the keychain)
-claude setup-token
-
 # Initial catalog sync (~2300 cards across 11 sets, takes ~10s)
 uv run lorscan sync-catalog
+
+# Build the local CLIP image index (downloads catalog images + computes
+# embeddings; ~1–2 minutes on Apple Silicon, fully offline thereafter)
+uv run lorscan index-images
 ```
 
-That's it. Nothing else to configure.
+That's it. Nothing else to configure. No API keys, no auth.
 
 ---
 
 ## CLI
 
 ```bash
-# Identify cards in a photo
+# Identify cards in a photo (local CLIP, ~1 second)
 uv run lorscan scan path/to/binder-page.jpg
-
-# Restrict matching to a single Lorcana set (recommended)
-uv run lorscan scan path/to/binder-page.jpg --set ROF
 
 # Refresh the local catalog
 uv run lorscan sync-catalog
 
-# Run the web UI on http://localhost:8000
+# Rebuild the CLIP index (run after sync-catalog adds new sets)
+uv run lorscan index-images
+
+# Run the web UI on http://localhost:8000 (auto-reload on by default)
 uv run lorscan serve
 ```
 
@@ -112,17 +113,21 @@ once in the set surface as `(ambiguous: N candidates)` for manual pick.
 
 ---
 
-## How auth works
+## How recognition works
 
-lorscan invokes the `claude` CLI (Claude Code) as a subprocess in
-headless print mode (`claude -p ... --output-format json`). The CLI
-handles credential discovery — keychain (from `claude setup-token`), env
-vars, then `ANTHROPIC_API_KEY`. lorscan never touches your token
-directly.
+`lorscan index-images` downloads every catalog card image from
+`lorcana-api.com`, runs each through OpenCLIP ViT-B-32, and saves a
+512-dim L2-normalized embedding per card to `~/.lorscan/embeddings.npz`
+(~5MB for ~2300 cards).
 
-If you don't have a Max subscription, you can also set
-`ANTHROPIC_API_KEY` with a regular console.anthropic.com key — the
-CLI uses that automatically.
+At scan time, `lorscan` tiles your binder photo into 9 cells (with a
+small inset to ignore sleeve edges), embeds each cell through the same
+CLIP model, and finds the nearest neighbor in the catalog by cosine
+similarity. ~500ms total per binder page on Apple Silicon. Confidence
+scoring: similarity ≥ 0.85 → high, ≥ 0.70 → medium, < 0.70 → low.
+
+Empty sleeves come back as `clip_low_confidence` because their
+embeddings don't resemble any card.
 
 ---
 
@@ -130,17 +135,17 @@ CLI uses that automatically.
 
 ```bash
 uv sync
-uv run pytest          # 62 tests + 1 snapshot
+uv run pytest          # 44 tests
 uv run ruff check src tests
-uv run lorscan serve --reload   # dev mode with auto-reload
+uv run lorscan serve   # auto-reload is on by default
 ```
 
 Project structure:
 
 ```
 src/lorscan/
-├── cli.py             # `lorscan` entry point (scan, serve, sync-catalog, version)
-├── config.py          # TOML + env-var loader (auth optional)
+├── cli.py             # entry point (scan, serve, sync-catalog, index-images, version)
+├── config.py          # TOML + env-var loader
 ├── app/               # FastAPI web UI
 │   ├── main.py
 │   ├── routes/scan.py, collection.py
@@ -149,11 +154,10 @@ src/lorscan/
 ├── services/
 │   ├── catalog.py     # lorcana-api.com sync
 │   ├── photos.py      # hash, save, HEIC→JPEG transcode
-│   ├── matching.py    # suffix-aware catalog matching
-│   └── recognition/
-│       ├── prompt.py  # cached system prompt
-│       ├── parser.py  # strict JSON parser w/ fence + prose tolerance
-│       └── client.py  # `claude` CLI subprocess call
+│   ├── embeddings.py  # OpenCLIP wrapper + CardImageIndex
+│   ├── image_cache.py # async catalog-image downloader
+│   ├── visual_scan.py # tile-and-CLIP scanner
+│   └── scan_result.py # ParsedCard, ParsedScan, MatchResult dataclasses
 └── storage/
     ├── db.py          # SQLite wrapper (only place SQL lives)
     ├── models.py      # CardSet, Card, CollectionItem, Binder

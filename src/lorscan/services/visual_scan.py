@@ -18,7 +18,7 @@ from lorscan.services.embeddings import (
     _load_clip_model,
     encode_images_batch,
 )
-from lorscan.services.recognition.parser import ParsedCard, ParsedScan
+from lorscan.services.scan_result import ParsedCard, ParsedScan
 
 # Lorcana cards have a portrait aspect ratio (~5:7). Binder pages are typically
 # 3×3 with even spacing; we crop with a tiny inset so we don't accidentally

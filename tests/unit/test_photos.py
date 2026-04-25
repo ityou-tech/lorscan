@@ -1,4 +1,4 @@
-"""Photo service: hashing, saving, normalizing for the API."""
+"""Photo service: hashing, saving, format normalization."""
 
 from __future__ import annotations
 
@@ -11,7 +11,6 @@ from PIL import Image
 from lorscan.services.photos import (
     ensure_supported_format,
     hash_bytes,
-    normalize_for_api,
     save_original,
 )
 
@@ -47,33 +46,6 @@ def test_save_original_dedupes_same_bytes(tmp_path: Path):
     p2 = save_original(payload, photos_dir=tmp_path, extension="jpg")
     assert p1 == p2
     assert len(list(tmp_path.iterdir())) == 1
-
-
-def test_normalize_for_api_downscales_large_image():
-    big = _make_test_jpeg(3000, 2000)
-    normalized = normalize_for_api(big)
-    img = Image.open(io.BytesIO(normalized))
-    assert max(img.size) <= 1568
-
-
-def test_normalize_for_api_preserves_small_image():
-    small = _make_test_jpeg(800, 600)
-    normalized = normalize_for_api(small)
-    img = Image.open(io.BytesIO(normalized))
-    assert img.size == (800, 600)
-
-
-def test_normalize_for_api_strips_exif():
-    # Synthesize an image with EXIF.
-    img = Image.new("RGB", (1000, 1000), color=(10, 20, 30))
-    buf = io.BytesIO()
-    exif_data = img.getexif()
-    exif_data[0x0112] = 6  # Orientation
-    img.save(buf, format="JPEG", quality=90, exif=exif_data.tobytes())
-    src = buf.getvalue()
-    out = normalize_for_api(src)
-    out_img = Image.open(io.BytesIO(out))
-    assert out_img.getexif() == {} or len(out_img.getexif()) == 0
 
 
 def test_ensure_supported_format_passes_through_jpeg(tmp_path: Path):

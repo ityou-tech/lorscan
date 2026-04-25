@@ -1,25 +1,22 @@
-"""Scan upload + review routes."""
+"""Scan upload + review routes (CLIP-only).
+
+The web UI is now exclusively driven by local CLIP visual matching.
+The earlier LLM (Claude vision via the `claude` CLI) path was removed
+when CLIP proved sufficient — see commit history for context.
+"""
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 
 from lorscan.services.embeddings import CardImageIndex
-from lorscan.services.matching import MatchResult, match_card
 from lorscan.services.photos import ensure_supported_format, hash_bytes
-from lorscan.services.recognition.client import (
-    CliInvocationError,
-    CliNotInstalledError,
-    RecognitionResult,
-    identify,
-)
-from lorscan.services.recognition.parser import ParsedCard, ParseError
+from lorscan.services.scan_result import MatchResult, ParsedCard
 from lorscan.services.visual_scan import scan_with_clip, to_parsed_scan
 from lorscan.storage.db import Database
 from lorscan.storage.models import Card
@@ -29,13 +26,7 @@ router = APIRouter()
 
 @dataclass(frozen=True)
 class CellRow:
-    """One row in the scan-results table.
-
-    `matched_card` is the catalog row corresponding to `match.matched_card_id`,
-    pre-fetched so the template can display the canonical name / subtitle /
-    set / collector_number even when the recognition path didn't produce them
-    (e.g. CLIP-only mode).
-    """
+    """One row in the scan-results table."""
 
     card: ParsedCard
     match: MatchResult
@@ -46,15 +37,11 @@ class CellRow:
 @router.get("/", response_class=HTMLResponse)
 @router.get("/scan", response_class=HTMLResponse)
 async def scan_index(request: Request) -> HTMLResponse:
-    """Render the scan upload page with the set-selector dropdown + recent scans."""
+    """Scan upload page + recent scans list."""
     cfg = request.app.state.config
     db = Database.connect(str(cfg.db_path))
     db.migrate()
     try:
-        sets = sorted(
-            db.get_sets(),
-            key=lambda s: (s.released_on or "9999-99-99", s.set_code),
-        )
         recent = db.get_recent_scans(limit=8)
     finally:
         db.close()
@@ -67,7 +54,6 @@ async def scan_index(request: Request) -> HTMLResponse:
         request=request,
         name="scan/index.html",
         context={
-            "sets": sets,
             "recent_scans": recent,
             "clip_index_ready": clip_index_ready,
         },
@@ -78,17 +64,8 @@ async def scan_index(request: Request) -> HTMLResponse:
 async def scan_upload(
     request: Request,
     photo: Annotated[UploadFile, File(...)],
-    set_code: Annotated[str | None, Form()] = None,
-    mode: Annotated[str | None, Form()] = None,
 ) -> HTMLResponse:
-    """Receive a photo + optional set hint, run scan synchronously, render results.
-
-    `mode` selects the recognition path:
-      - "clip" (default if the embedding index exists): local CLIP, ~500ms,
-        no LLM, good for full-image card identification.
-      - "llm": Claude vision via the CLI, slower but reads text (collector
-        numbers when legible).
-    """
+    """Receive a photo, run CLIP scan synchronously, render results."""
     if not photo.filename:
         raise HTTPException(400, "No file uploaded.")
 
@@ -104,53 +81,39 @@ async def scan_upload(
     if not saved_path.exists():
         saved_path.write_bytes(payload)
 
-    binder_set_code = (set_code or "").strip() or None
-
     db = Database.connect(str(cfg.db_path))
     db.migrate()
     scan_id = db.insert_scan(photo_hash=digest, photo_path=str(saved_path))
 
     embeddings_path = cfg.data_dir / "embeddings.npz"
-    selected_mode = (mode or "").strip().lower()
-    if selected_mode == "":
-        selected_mode = "clip" if embeddings_path.exists() else "llm"
-
-    parsed_scan = None
-    transcoded = False
-    response_text = ""
-    request_payload: dict = {}
-    cost_usd: float | None = None
+    if not embeddings_path.exists():
+        db.update_scan_failed(
+            scan_id,
+            error_message="CLIP index not built. Run `lorscan index-images` first.",
+        )
+        db.close()
+        templates = request.app.state.templates
+        return templates.TemplateResponse(
+            request=request,
+            name="scan/error.html",
+            context={
+                "error": (
+                    "CLIP index not built yet. From a terminal in this project, run:\n"
+                    "    uv run lorscan index-images\n\n"
+                    "This is a one-time setup that downloads the catalog images "
+                    "and builds the local visual index."
+                )
+            },
+            status_code=400,
+        )
 
     try:
         with ensure_supported_format(saved_path) as scan_path:
             transcoded = scan_path != saved_path
-
-            if selected_mode == "clip":
-                if not embeddings_path.exists():
-                    raise FileNotFoundError(
-                        "CLIP index not built. Run `lorscan index-images` first, "
-                        "or pick the LLM mode in the form."
-                    )
-                index = CardImageIndex.load(embeddings_path)
-                tile_matches = scan_with_clip(scan_path, index)
-                parsed_scan = to_parsed_scan(tile_matches)
-            else:
-                recog: RecognitionResult = identify(
-                    photo_path=scan_path,
-                    model=cfg.anthropic_model,
-                    max_budget_usd=cfg.per_scan_budget_usd,
-                )
-                parsed_scan = recog.parsed
-                response_text = recog.response_text
-                request_payload = recog.request_payload
-                cost_usd = recog.cost_usd
-    except (
-        CliInvocationError,
-        CliNotInstalledError,
-        ParseError,
-        ValueError,
-        FileNotFoundError,
-    ) as e:
+            index = CardImageIndex.load(embeddings_path)
+            tile_matches = scan_with_clip(scan_path, index)
+            parsed_scan = to_parsed_scan(tile_matches)
+    except (ValueError, FileNotFoundError) as e:
         db.update_scan_failed(scan_id, error_message=str(e))
         db.close()
         templates = request.app.state.templates
@@ -158,56 +121,49 @@ async def scan_upload(
             request=request,
             name="scan/error.html",
             context={"error": str(e)},
-            status_code=502 if isinstance(e, CliInvocationError) else 400,
+            status_code=400,
         )
 
-    # Persist completed scan + per-cell results.
     try:
         db.update_scan_completed(
             scan_id,
-            api_request_payload=json.dumps(request_payload, default=str),
-            api_response_payload=response_text,
-            cost_usd=cost_usd,
+            api_request_payload=None,
+            api_response_payload=None,
+            cost_usd=None,
         )
         cells: list[CellRow] = []
         for c in parsed_scan.cards:
-            if selected_mode == "clip" and c.candidates:
-                # CLIP path: best similarity is in candidates[0]; promote it
-                # to a matched_card_id when similarity >= 'medium' threshold.
-                best = c.candidates[0]
-                if c.confidence in ("high", "medium"):
-                    match = MatchResult(
-                        matched_card_id=best["card_id"],
-                        match_method="clip_visual",
-                        confidence=c.confidence,
-                        candidates=c.candidates,
-                    )
-                else:
-                    match = MatchResult(
-                        matched_card_id=None,
-                        match_method="clip_low_confidence",
-                        confidence=c.confidence,
-                        candidates=c.candidates,
-                    )
+            best_id = c.candidates[0]["card_id"] if c.candidates else None
+            if best_id and c.confidence in ("high", "medium"):
+                match = MatchResult(
+                    matched_card_id=best_id,
+                    match_method="clip_visual",
+                    confidence=c.confidence,
+                    candidates=c.candidates,
+                )
             else:
-                match = match_card(c, db=db, binder_set_code=binder_set_code)
+                match = MatchResult(
+                    matched_card_id=None,
+                    match_method="clip_low_confidence",
+                    confidence=c.confidence,
+                    candidates=c.candidates,
+                )
+
             sr_id = db.insert_scan_result(
                 scan_id=scan_id,
                 grid_position=c.grid_position,
-                claude_name=c.name,
-                claude_subtitle=c.subtitle,
-                claude_collector_number=c.collector_number,
-                claude_set_hint=c.set_hint,
-                claude_ink_color=c.ink_color,
+                claude_name=None,
+                claude_subtitle=None,
+                claude_collector_number=None,
+                claude_set_hint=None,
+                claude_ink_color=None,
                 claude_finish=c.finish,
                 confidence=c.confidence,
                 matched_card_id=match.matched_card_id,
                 match_method=match.match_method,
             )
             matched_card = (
-                db.get_card_by_id(match.matched_card_id)
-                if match.matched_card_id
-                else None
+                db.get_card_by_id(match.matched_card_id) if match.matched_card_id else None
             )
             cells.append(
                 CellRow(
@@ -217,13 +173,6 @@ async def scan_upload(
                     matched_card=matched_card,
                 )
             )
-
-        binder_set_name = None
-        if binder_set_code:
-            for s in db.get_sets():
-                if s.set_code == binder_set_code:
-                    binder_set_name = s.name
-                    break
     finally:
         db.close()
 
@@ -235,12 +184,9 @@ async def scan_upload(
             "scan_id": scan_id,
             "filename": photo.filename,
             "transcoded": transcoded,
-            "binder_set_code": binder_set_code,
-            "binder_set_name": binder_set_name,
             "page_type": parsed_scan.page_type,
             "cells": cells,
             "issues": parsed_scan.issues,
-            "mode": selected_mode,
         },
     )
 
@@ -257,30 +203,18 @@ async def scan_detail(request: Request, scan_id: int) -> HTMLResponse:
             raise HTTPException(404, "Scan not found.")
         result_rows = db.get_scan_results(scan_id)
         cells: list[CellRow] = []
-        # Reconstruct CellRow + MatchResult shape from the stored rows.
         for r in result_rows:
             parsed = ParsedCard(
                 grid_position=r["grid_position"],
-                name=r["claude_name"],
-                subtitle=r["claude_subtitle"],
-                set_hint=r["claude_set_hint"],
-                collector_number=r["claude_collector_number"],
-                ink_color=r["claude_ink_color"],
                 finish=r["claude_finish"] or "regular",
                 confidence=r["confidence"],
-                candidates=[],
             )
             match = MatchResult(
                 matched_card_id=r["matched_card_id"],
-                match_method=r["match_method"] or "unmatched",
+                match_method=r["match_method"] or "clip_low_confidence",
                 confidence=r["confidence"],
-                candidates=[],
             )
-            matched_card = (
-                db.get_card_by_id(r["matched_card_id"])
-                if r["matched_card_id"]
-                else None
-            )
+            matched_card = db.get_card_by_id(r["matched_card_id"]) if r["matched_card_id"] else None
             cells.append(
                 CellRow(
                     card=parsed,
@@ -289,14 +223,6 @@ async def scan_detail(request: Request, scan_id: int) -> HTMLResponse:
                     matched_card=matched_card,
                 )
             )
-
-        # Look up binder set name if this scan had one.
-        binder_set_code = None
-        binder_set_name = None
-        if scan["binder_id"] is not None:
-            # binder_id support is Plan 2.5; for now, use binder_set_code from a future col.
-            pass
-
         applied_count = sum(1 for r in result_rows if r["applied_at"] is not None)
     finally:
         db.close()
@@ -309,8 +235,6 @@ async def scan_detail(request: Request, scan_id: int) -> HTMLResponse:
             "scan": scan,
             "scan_id": scan_id,
             "cells": cells,
-            "binder_set_code": binder_set_code,
-            "binder_set_name": binder_set_name,
             "applied_count": applied_count,
         },
     )
@@ -318,7 +242,7 @@ async def scan_detail(request: Request, scan_id: int) -> HTMLResponse:
 
 @router.get("/scan/{scan_id}/photo")
 async def scan_photo(request: Request, scan_id: int) -> FileResponse:
-    """Serve the original photo for a scan (so templates can <img> embed it)."""
+    """Serve the original photo for a scan."""
     cfg = request.app.state.config
     db = Database.connect(str(cfg.db_path))
     db.migrate()
@@ -329,7 +253,6 @@ async def scan_photo(request: Request, scan_id: int) -> FileResponse:
     if scan is None:
         raise HTTPException(404, "Scan not found.")
     photo_path = Path(scan["photo_path"])
-    # Defensive: the photo path must live under photos_dir (no traversal).
     try:
         photo_path.resolve().relative_to(cfg.photos_dir.resolve())
     except ValueError:
@@ -355,7 +278,7 @@ async def scan_apply(request: Request, scan_id: int) -> RedirectResponse:
             if r["matched_card_id"] is None:
                 continue
             if r["applied_at"] is not None:
-                continue  # already applied
+                continue
             db.upsert_collection_item(
                 card_id=r["matched_card_id"],
                 finish=r["claude_finish"] or "regular",
@@ -369,4 +292,4 @@ async def scan_apply(request: Request, scan_id: int) -> RedirectResponse:
     return RedirectResponse(url=f"/scan/{scan_id}", status_code=303)
 
 
-__all__ = ["router", "CellRow"]
+__all__ = ["CellRow", "router"]

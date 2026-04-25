@@ -1,33 +1,29 @@
-"""Photo service: hashing, saving, in-memory normalization for the API."""
+"""Photo service: hashing, saving, format normalization (HEIC→JPEG)."""
 
 from __future__ import annotations
 
 import contextlib
 import hashlib
-import io
 import tempfile
 from collections.abc import Iterator
 from pathlib import Path
 
 from PIL import Image
 
-# Register HEIF/HEIC support. iPhone photos default to HEIC, which Claude
-# vision does not accept directly — we have to transcode to JPEG before
-# sending. pillow-heif registers the format as a Pillow plugin.
+# Register HEIF/HEIC support. iPhone photos default to HEIC, which Pillow
+# (and downstream consumers like CLIP's preprocessor) doesn't read natively.
 try:
     from pillow_heif import register_heif_opener
 
     register_heif_opener()
-except ImportError:  # pragma: no cover — pillow-heif is in deps; only triggers in dev
+except ImportError:  # pragma: no cover — pillow-heif is in deps
     pass
 
-MAX_LONG_EDGE_PX = 1568  # Anthropic's recommended max for vision input
-NORMALIZED_QUALITY = 85
 JPEG_TRANSCODE_QUALITY = 92
 
-# Image formats Claude vision accepts directly. Anything else (notably
-# HEIC/HEIF from iPhones) must be transcoded to JPEG first.
-SUPPORTED_FOR_VISION = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+# Image formats every downstream consumer can handle directly. HEIC/HEIF
+# get transcoded; anything else is rejected.
+SUPPORTED_FOR_PROCESSING = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 
 
 def hash_bytes(payload: bytes) -> str:
@@ -47,20 +43,18 @@ def save_original(payload: bytes, *, photos_dir: Path, extension: str) -> Path:
 
 @contextlib.contextmanager
 def ensure_supported_format(photo_path: Path) -> Iterator[Path]:
-    """Yield a Path to an image Claude vision can process directly.
+    """Yield a Path to an image in a directly-processable format.
 
-    If the input is already in a supported format (JPEG, PNG, GIF, WEBP),
-    yields the original path unchanged.
-
-    If the input is HEIC/HEIF (iPhone default), transcodes to a temporary
-    JPEG and yields its path. The temp file is deleted on exit.
+    If the input is already JPEG/PNG/GIF/WEBP, yields the original path.
+    If the input is HEIC/HEIF, transcodes to a temporary JPEG and yields
+    its path; the temp file is deleted on exit.
 
     Raises:
         ValueError: extension not recognized as a supported or convertible
             image format.
     """
     suffix = photo_path.suffix.lower()
-    if suffix in SUPPORTED_FOR_VISION:
+    if suffix in SUPPORTED_FOR_PROCESSING:
         yield photo_path
         return
 
@@ -80,30 +74,5 @@ def ensure_supported_format(photo_path: Path) -> Iterator[Path]:
 
     raise ValueError(
         f"Unsupported image format: {suffix!r}. "
-        f"Use one of {sorted(SUPPORTED_FOR_VISION | {'.heic', '.heif'})}."
+        f"Use one of {sorted(SUPPORTED_FOR_PROCESSING | {'.heic', '.heif'})}."
     )
-
-
-def normalize_for_api(payload: bytes) -> bytes:
-    """Build a normalized derivative for the Anthropic vision API.
-
-    - Downscales long edge to MAX_LONG_EDGE_PX if larger.
-    - Strips EXIF.
-    - Re-encodes JPEG @ NORMALIZED_QUALITY.
-    """
-    src = Image.open(io.BytesIO(payload))
-    src.load()
-
-    if src.mode not in ("RGB", "L"):
-        src = src.convert("RGB")
-
-    long_edge = max(src.size)
-    if long_edge > MAX_LONG_EDGE_PX:
-        scale = MAX_LONG_EDGE_PX / long_edge
-        new_size = (int(src.size[0] * scale), int(src.size[1] * scale))
-        src = src.resize(new_size, Image.Resampling.LANCZOS)
-
-    out = io.BytesIO()
-    # exif=b"" strips EXIF; subsampling=2 is JPEG default; optimize for size.
-    src.save(out, format="JPEG", quality=NORMALIZED_QUALITY, optimize=True, exif=b"")
-    return out.getvalue()

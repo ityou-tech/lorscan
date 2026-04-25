@@ -6,13 +6,6 @@
     <h1>Scan results</h1>
     <div class="meta">
       <div><span class="label">File</span> {{ filename }}{% if transcoded %} (transcoded to JPEG){% endif %}</div>
-      <div><span class="label">Page type</span> {{ page_type }}</div>
-      {% if binder_set_code %}
-      <div>
-        <span class="label">Restricted to</span>
-        {{ binder_set_name or binder_set_code }} ({{ binder_set_code }})
-      </div>
-      {% endif %}
       <div><span class="label">Cards detected</span> {{ cells | length }}</div>
     </div>
   </header>
@@ -68,39 +61,6 @@
       {% endfor %}
     </tbody>
   </table>
-
-  {% set ambiguous = cells | selectattr('match.match_method', 'equalto', 'ambiguous_suffix') | list %}
-  {% if ambiguous %}
-  <section class="ambiguous-block">
-    <h2>Ambiguous matches</h2>
-    <p class="subtitle">Catalog has multiple cards with these names. Pick manually for now.</p>
-    {% for cell in ambiguous %}
-    <details class="ambiguous-cell" open>
-      <summary>
-        <code>{{ cell.card.grid_position }}</code> — <strong>{{ cell.card.name }}</strong>
-        ({{ cell.match.candidates | length }} candidates)
-      </summary>
-      <ul class="candidates">
-        {% for c in cell.match.candidates %}
-        <li>
-          <code>[{{ c.set_code }}/{{ c.collector_number }}]</code>
-          {{ c.name }}{% if c.subtitle %} — <em>{{ c.subtitle }}</em>{% endif %}
-        </li>
-        {% endfor %}
-      </ul>
-    </details>
-    {% endfor %}
-  </section>
-  {% endif %}
-
-  {% if issues %}
-  <section class="issues-block">
-    <h2>Model notes</h2>
-    <ul>
-      {% for issue in issues %}<li>{{ issue }}</li>{% endfor %}
-    </ul>
-  </section>
-  {% endif %}
 
   <footer class="result-actions">
     {% if scan_id %}
