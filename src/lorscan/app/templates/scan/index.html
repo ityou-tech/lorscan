@@ -11,7 +11,11 @@
   <form id="scan-form" method="post" action="/scan/upload" enctype="multipart/form-data" class="upload-form">
     <label class="field">
       <span class="label">Photo (JPEG, PNG, HEIC/HEIF)</span>
-      <input type="file" name="photo" accept="image/jpeg,image/png,image/heic,image/heif,.heic,.heif" required>
+      <input id="photo-input" type="file" name="photo" accept="image/jpeg,image/png,image/heic,image/heif,.heic,.heif" required>
+      <div id="photo-preview" class="photo-preview" hidden>
+        <img id="photo-preview-img" alt="Selected photo preview">
+        <div id="photo-preview-meta" class="photo-preview-meta"></div>
+      </div>
     </label>
 
     <label class="field">
@@ -74,6 +78,10 @@
   const button = document.getElementById('scan-submit');
   const overlay = document.getElementById('loading-overlay');
   const substep = document.getElementById('loading-substep');
+  const photoInput = document.getElementById('photo-input');
+  const preview = document.getElementById('photo-preview');
+  const previewImg = document.getElementById('photo-preview-img');
+  const previewMeta = document.getElementById('photo-preview-meta');
   const messages = [
     "Sending photo to Claude...",
     "Claude is reading the binder page...",
@@ -83,12 +91,41 @@
     "Still working — Opus is thorough.",
   ];
 
+  // Live thumbnail preview when a file is chosen.
+  photoInput.addEventListener('change', function(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) {
+      preview.hidden = true;
+      return;
+    }
+    const sizeKb = (file.size / 1024).toFixed(0);
+    const sizeMb = (file.size / 1024 / 1024).toFixed(1);
+    const sizeStr = file.size > 1024 * 1024 ? sizeMb + ' MB' : sizeKb + ' KB';
+    previewMeta.textContent = file.name + ' · ' + sizeStr;
+
+    // Browsers can't render HEIC inline; show a placeholder for those.
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (ext === 'heic' || ext === 'heif') {
+      previewImg.src = '';
+      previewImg.style.display = 'none';
+      preview.hidden = false;
+      previewMeta.textContent += ' (HEIC — preview unavailable, will be transcoded to JPEG before scanning)';
+      return;
+    }
+    previewImg.style.display = '';
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      previewImg.src = ev.target.result;
+      preview.hidden = false;
+    };
+    reader.readAsDataURL(file);
+  });
+
   form.addEventListener('submit', function() {
     button.disabled = true;
     button.textContent = 'Scanning...';
     overlay.hidden = false;
 
-    // Cycle the substep message every ~25s for a sense of progress.
     let i = 0;
     setInterval(function() {
       i = (i + 1) % messages.length;

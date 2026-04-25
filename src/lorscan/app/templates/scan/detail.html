@@ -2,6 +2,9 @@
 {% block title %}Scan #{{ scan_id }} · lorscan{% endblock %}
 {% block content %}
 <section class="card">
+  <div class="scan-detail-photo">
+    <img src="/scan/{{ scan_id }}/photo" alt="Scanned binder page" loading="lazy">
+  </div>
   <header class="results-header">
     <h1>Scan #{{ scan_id }}</h1>
     <div class="scan-detail-meta">

@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 
 from lorscan.services.matching import MatchResult, match_card
 from lorscan.services.photos import ensure_supported_format, hash_bytes
@@ -213,6 +213,29 @@ async def scan_detail(request: Request, scan_id: int) -> HTMLResponse:
             "applied_count": applied_count,
         },
     )
+
+
+@router.get("/scan/{scan_id}/photo")
+async def scan_photo(request: Request, scan_id: int) -> FileResponse:
+    """Serve the original photo for a scan (so templates can <img> embed it)."""
+    cfg = request.app.state.config
+    db = Database.connect(str(cfg.db_path))
+    db.migrate()
+    try:
+        scan = db.get_scan(scan_id)
+    finally:
+        db.close()
+    if scan is None:
+        raise HTTPException(404, "Scan not found.")
+    photo_path = Path(scan["photo_path"])
+    # Defensive: the photo path must live under photos_dir (no traversal).
+    try:
+        photo_path.resolve().relative_to(cfg.photos_dir.resolve())
+    except ValueError:
+        raise HTTPException(404, "Photo unavailable.") from None
+    if not photo_path.exists():
+        raise HTTPException(404, "Photo file missing on disk.")
+    return FileResponse(photo_path)
 
 
 @router.post("/scan/{scan_id}/apply", response_class=HTMLResponse)
