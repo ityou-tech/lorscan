@@ -376,6 +376,8 @@ def index_images_command(*, config: Config, limit: int | None = None) -> int:
     from PIL import Image
 
     from lorscan.services.embeddings import (
+        DEFAULT_MODEL_NAME,
+        EMBEDDING_DIM,
         CardImageIndex,
         _load_clip_model,
         encode_images_batch,
@@ -425,7 +427,7 @@ def index_images_command(*, config: Config, limit: int | None = None) -> int:
             print(f"    - {r.card_id}: {r.error}", file=sys.stderr)
     print(f"  ↳ image fetch took {time.time() - t0:.1f}s")
 
-    print("Loading CLIP model (ViT-B-32) ...")
+    print(f"Loading CLIP model ({DEFAULT_MODEL_NAME}) ...")
     t0 = time.time()
     model, preprocess, device = _load_clip_model()
     print(f"  ↳ model on {device}, loaded in {time.time() - t0:.1f}s")
@@ -476,7 +478,7 @@ def index_images_command(*, config: Config, limit: int | None = None) -> int:
     if embeddings_chunks:
         all_embeddings = np.concatenate(embeddings_chunks, axis=0)
     else:
-        all_embeddings = np.zeros((0, 512), dtype=np.float32)
+        all_embeddings = np.zeros((0, EMBEDDING_DIM), dtype=np.float32)
     index = CardImageIndex(card_ids=indexed_card_ids, embeddings=all_embeddings)
     index.save(embeddings_path)
     print(f"Wrote index → {embeddings_path}")

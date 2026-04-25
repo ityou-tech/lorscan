@@ -1,12 +1,19 @@
-"""Local card-image recognition via CLIP embeddings.
+"""Local card-image recognition via SigLIP embeddings.
 
 Pipeline:
 1. Download every catalog card image once (cached in ~/.lorscan/cache/images/)
-2. Run each through OpenCLIP ViT-B-32 → 512-dim float32 embedding
+2. Run each through SigLIP ViT-B-16 → 768-dim float32 embedding
 3. Store all embeddings + their card_ids in ~/.lorscan/embeddings.npz
-4. At scan time: tile the binder photo into N cells, embed each cell, find
-   the nearest catalog embedding by cosine similarity. ~50ms per cell on
-   Apple Silicon MPS, brute-force over ~2300 vectors.
+4. At scan time: detect/warp each card, embed it, find the nearest catalog
+   embedding by cosine similarity. ~80ms per card on Apple Silicon MPS,
+   brute-force over ~2300 vectors.
+
+Why SigLIP over the original ViT-B-32: SigLIP is trained with sigmoid loss
+specifically for fine-grained instance retrieval (image ↔ caption alignment
+without the full softmax across the batch), and uses 16×16 patches instead
+of 32×32, giving ~4× more spatial detail per image. On Lorcana cards, the
+coarse ViT-B-32 latched onto dominant color palettes (every orange-toned
+Location looked alike); SigLIP can distinguish actual artwork content.
 
 This bypasses the LLM entirely for the "is this catalog card X?" question,
 which is what binder organization needs.
@@ -21,9 +28,11 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-DEFAULT_MODEL_NAME = "ViT-B-32"
-DEFAULT_PRETRAINED = "laion2b_s34b_b79k"
-EMBEDDING_DIM = 512  # ViT-B-32 output
+# SigLIP ViT-B-16 from the WebLI dataset. Loads via OpenCLIP; the model
+# weights live on HuggingFace and are downloaded + cached on first use.
+DEFAULT_MODEL_NAME = "ViT-B-16-SigLIP"
+DEFAULT_PRETRAINED = "webli"
+EMBEDDING_DIM = 768  # SigLIP-B/16 output dimension
 
 
 @dataclass(frozen=True)
@@ -46,7 +55,7 @@ def _detect_device() -> str:
 
 
 def _load_clip_model(device: str | None = None):
-    """Load OpenCLIP ViT-B-32 + its preprocessor. ~150MB first time, cached after."""
+    """Load SigLIP ViT-B/16 + its preprocessor. ~750MB first time, cached after."""
     import open_clip
 
     device = device or _detect_device()
@@ -97,7 +106,15 @@ class CardImageIndex:
     @classmethod
     def load(cls, path: Path) -> CardImageIndex:
         data = np.load(path, allow_pickle=True)
-        return cls(list(data["card_ids"]), data["embeddings"])
+        embeddings = data["embeddings"]
+        if embeddings.ndim == 2 and embeddings.shape[1] != EMBEDDING_DIM:
+            raise ValueError(
+                f"embedding-dim mismatch: index at {path} has dim "
+                f"{embeddings.shape[1]} but the current model produces "
+                f"{EMBEDDING_DIM}. Re-run `lorscan index-images` to rebuild "
+                f"with the new model."
+            )
+        return cls(list(data["card_ids"]), embeddings)
 
     def find_matches(self, query_embedding: np.ndarray, *, top_k: int = 5) -> list[Match]:
         """Cosine similarity nearest-neighbor lookup.
@@ -116,7 +133,7 @@ class CardImageIndex:
 
 
 def encode_image(model, preprocess, device: str, image: Image.Image) -> np.ndarray:
-    """Run a single PIL image through CLIP. Returns a (512,) float32 vector."""
+    """Run a single PIL image through CLIP. Returns a (EMBEDDING_DIM,) float32 vector."""
     import torch
 
     if image.mode != "RGB":
@@ -140,7 +157,7 @@ def encode_images_batch(
     device: str,
     images: list[Image.Image],
 ) -> np.ndarray:
-    """Batch-encode multiple images. Returns (N, 512) float32 array.
+    """Batch-encode multiple images. Returns (N, EMBEDDING_DIM) float32 array.
 
     Batching gives a meaningful speedup (~3–5×) on MPS/CUDA.
     """
