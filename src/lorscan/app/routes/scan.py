@@ -23,6 +23,25 @@ from lorscan.storage.models import Card
 
 router = APIRouter()
 
+# Canonical Lorcana main-set release order. The catalog sync fills
+# `released_on` with NULL (the lorcana-api response doesn't include it),
+# so we keep the order as a code-side constant of stable Disney facts.
+# Anything not in this list is treated as a "supplementary" set and
+# rendered after a divider in the upload-form dropdown.
+LORCANA_RELEASE_ORDER: tuple[str, ...] = (
+    "TFC",  # 1. The First Chapter
+    "ROF",  # 2. Rise of the Floodborn
+    "INK",  # 3. Into the Inklands
+    "URS",  # 4. Ursula's Return
+    "SSK",  # 5. Shimmering Skies
+    "AZS",  # 6. Azurite Sea
+    "ARI",  # 7. Archazia's Island
+    "ROJ",  # 8. Reign of Jafar
+    "FAB",  # 9. Fabled
+    "WHI",  # 10. Whispers in the Well
+    "WIN",  # 11. Winterspell
+)
+
 
 @dataclass(frozen=True)
 class CellRow:
@@ -139,14 +158,16 @@ async def scan_index(request: Request) -> HTMLResponse:
     db.migrate()
     try:
         recent = db.get_recent_scans(limit=8)
-        sets = [
+        all_sets = [
             dict(r)
             for r in db.connection.execute(
-                "SELECT set_code, name, total_cards FROM sets ORDER BY released_on DESC, set_code"
+                "SELECT set_code, name, total_cards FROM sets"
             ).fetchall()
         ]
     finally:
         db.close()
+
+    main_sets, other_sets = _split_sets_for_dropdown(all_sets)
 
     embeddings_path = cfg.data_dir / "embeddings.npz"
     clip_index_ready = embeddings_path.exists()
@@ -158,9 +179,35 @@ async def scan_index(request: Request) -> HTMLResponse:
         context={
             "recent_scans": recent,
             "clip_index_ready": clip_index_ready,
-            "sets": sets,
+            "main_sets": main_sets,
+            "other_sets": other_sets,
         },
     )
+
+
+def _split_sets_for_dropdown(
+    sets: list[dict],
+) -> tuple[list[dict], list[dict]]:
+    """Split sets into (release-ordered main sets, leftover supplementary sets).
+
+    Main sets are prefixed with their release-order index ("1.", "2.", ...).
+    Anything outside `LORCANA_RELEASE_ORDER` (e.g., the Adventure Set 99,
+    promo printings) lands in `other_sets`, sorted by name. The template
+    renders a divider between the two groups.
+    """
+    by_code = {s["set_code"]: s for s in sets}
+    main: list[dict] = []
+    for idx, code in enumerate(LORCANA_RELEASE_ORDER, start=1):
+        s = by_code.pop(code, None)
+        if s is None:
+            continue
+        main.append({**s, "label": f"{idx}. {s['name']} ({code} · {s['total_cards']} cards)"})
+    others = sorted(by_code.values(), key=lambda s: s["name"])
+    others = [
+        {**s, "label": f"{s['name']} ({s['set_code']} · {s['total_cards']} cards)"}
+        for s in others
+    ]
+    return main, others
 
 
 def _card_ids_in_set(db: Database, set_code: str) -> set[str]:
