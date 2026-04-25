@@ -151,7 +151,14 @@ async def scan_upload(
         )
         for c in parsed_scan.cards:
             best_id = c.candidates[0]["card_id"] if c.candidates else None
-            if best_id and c.confidence in ("high", "medium"):
+            if c.confidence == "empty":
+                match = MatchResult(
+                    matched_card_id=None,
+                    match_method="empty_slot",
+                    confidence=c.confidence,
+                    candidates=[],
+                )
+            elif best_id and c.confidence in ("high", "medium"):
                 match = MatchResult(
                     matched_card_id=best_id,
                     match_method="clip_visual",

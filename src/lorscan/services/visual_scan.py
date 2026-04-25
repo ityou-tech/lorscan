@@ -3,6 +3,12 @@
 Splits a binder photo into a grid of cells, embeds each cell with CLIP,
 and looks up the nearest catalog match. Fully local; ~500ms total for a
 3×3 page on Apple Silicon.
+
+Empty-slot detection: each tile is also cheaply analyzed for visual
+"flatness" (low pixel std-dev = uniform plastic sleeve). Combined with a
+low max-similarity score, this distinguishes "empty sleeve" from "card
+we can't identify" — important for the misplacement-detection workflow
+in Phase C, where empty slots are expected, not anomalies.
 """
 
 from __future__ import annotations
@@ -10,6 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import numpy as np
 from PIL import Image
 
 from lorscan.services.embeddings import (
@@ -25,6 +32,38 @@ from lorscan.services.scan_result import ParsedCard, ParsedScan
 # include neighboring sleeves.
 DEFAULT_INSET_PCT = 0.02
 
+# Empty-slot detection thresholds (see _is_empty_tile).
+EMPTY_SIMILARITY_HARD = 0.45  # very low → almost certainly not a known card
+EMPTY_SIMILARITY_SOFT = 0.55  # combined with low variance → empty
+EMPTY_VARIANCE_THRESHOLD = 35.0  # 0–255 std-dev. Cards typically > 50.
+
+# Confidence thresholds.
+HIGH_CONFIDENCE_SIM = 0.85
+MEDIUM_CONFIDENCE_SIM = 0.70
+
+
+def _tile_pixel_std(tile: Image.Image, *, sample_size: int = 64) -> float:
+    """Cheap visual-flatness signal. Empty sleeves are uniform color → low std.
+
+    Downsamples to `sample_size`×`sample_size` first so the cost is constant
+    regardless of input resolution.
+    """
+    small = tile.convert("RGB").resize((sample_size, sample_size), Image.Resampling.BILINEAR)
+    arr = np.asarray(small, dtype=np.float32)
+    return float(arr.std())
+
+
+def _is_empty_tile(top_similarity: float, pixel_std: float) -> bool:
+    """Return True if a tile likely contains no card.
+
+    Two paths to True:
+      - Very low similarity (no catalog card looks remotely like this), OR
+      - Moderately low similarity AND visually flat (sleeve color, no art).
+    """
+    if top_similarity < EMPTY_SIMILARITY_HARD:
+        return True
+    return top_similarity < EMPTY_SIMILARITY_SOFT and pixel_std < EMPTY_VARIANCE_THRESHOLD
+
 
 @dataclass(frozen=True)
 class TileMatch:
@@ -32,6 +71,8 @@ class TileMatch:
 
     grid_position: str
     matches: list[Match] = field(default_factory=list)
+    pixel_std: float = 0.0  # visual flatness, used for empty-slot detection
+    is_empty: bool = False
 
     @property
     def best(self) -> Match | None:
@@ -39,13 +80,18 @@ class TileMatch:
 
     @property
     def confidence_label(self) -> str:
-        """Translate cosine similarity into a human-readable confidence."""
+        """Translate cosine similarity into a human-readable confidence.
+
+        Returns one of: 'high', 'medium', 'low', 'empty'.
+        """
+        if self.is_empty:
+            return "empty"
         if not self.matches:
             return "low"
         sim = self.matches[0].similarity
-        if sim >= 0.85:
+        if sim >= HIGH_CONFIDENCE_SIM:
             return "high"
-        if sim >= 0.70:
+        if sim >= MEDIUM_CONFIDENCE_SIM:
             return "medium"
         return "low"
 
@@ -90,7 +136,7 @@ def scan_with_clip(
     top_k: int = 5,
     model_bundle=None,
 ) -> list[TileMatch]:
-    """Tile a binder photo and look up each cell against the CLIP index.
+    """Tile a binder photo, run each cell through CLIP, and detect empty slots.
 
     `model_bundle` is an optional (model, preprocess, device) tuple to avoid
     reloading the model on repeated calls. If None, loads once internally.
@@ -109,24 +155,33 @@ def scan_with_clip(
     cell_images = [t[1] for t in tiles]
     embeddings = encode_images_batch(model, preprocess, device, cell_images)
 
-    return [
-        TileMatch(
-            grid_position=tiles[i][0],
-            matches=index.find_matches(embeddings[i], top_k=top_k),
+    results: list[TileMatch] = []
+    for i, (grid_pos, tile_img) in enumerate(tiles):
+        matches = index.find_matches(embeddings[i], top_k=top_k)
+        top_sim = matches[0].similarity if matches else 0.0
+        std = _tile_pixel_std(tile_img)
+        empty = _is_empty_tile(top_sim, std)
+        results.append(
+            TileMatch(
+                grid_position=grid_pos,
+                matches=matches,
+                pixel_std=std,
+                is_empty=empty,
+            )
         )
-        for i in range(len(tiles))
-    ]
+    return results
 
 
 def to_parsed_scan(tile_matches: list[TileMatch]) -> ParsedScan:
     """Adapt TileMatch results into the ParsedScan shape used by the rest of
-    the app, so the CLIP path can flow through the same matching/persistence
-    code as the LLM path. Card name + collector_number are NOT populated;
-    instead we surface the matched_card_id as a candidate.
+    the app. Empty cells are flagged via confidence='empty'.
     """
     cards: list[ParsedCard] = []
     for tm in tile_matches:
-        candidates = [{"card_id": m.card_id, "similarity": m.similarity} for m in tm.matches]
+        if tm.is_empty:
+            candidates: list[dict] = []
+        else:
+            candidates = [{"card_id": m.card_id, "similarity": m.similarity} for m in tm.matches]
         cards.append(
             ParsedCard(
                 grid_position=tm.grid_position,
@@ -145,6 +200,9 @@ def to_parsed_scan(tile_matches: list[TileMatch]) -> ParsedScan:
 
 __all__ = [
     "DEFAULT_INSET_PCT",
+    "EMPTY_SIMILARITY_HARD",
+    "EMPTY_SIMILARITY_SOFT",
+    "EMPTY_VARIANCE_THRESHOLD",
     "TileMatch",
     "crop_grid",
     "scan_with_clip",

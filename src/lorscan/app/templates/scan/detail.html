@@ -33,10 +33,13 @@
     </thead>
     <tbody>
       {% for cell in cells %}
-      <tr class="cell {{ 'matched' if cell.match.matched_card_id else 'unmatched' }}">
+      {% set is_empty = cell.match.match_method == 'empty_slot' or cell.card.confidence == 'empty' %}
+      <tr class="cell {% if is_empty %}empty-slot{% elif cell.match.matched_card_id %}matched{% else %}unmatched{% endif %}">
         <td><code>{{ cell.card.grid_position }}</code></td>
         <td>
-          {% if cell.matched_card %}
+          {% if is_empty %}
+            <em class="empty-slot-label">empty slot</em>
+          {% elif cell.matched_card %}
             <strong>{{ cell.matched_card.name }}</strong>
             {% if cell.matched_card.subtitle %}<br><span class="subtitle">{{ cell.matched_card.subtitle }}</span>{% endif %}
           {% else %}
@@ -46,19 +49,21 @@
         </td>
         <td>
           <code>
-            {% if cell.matched_card %}{{ cell.matched_card.collector_number }}{% else %}{{ cell.card.collector_number or '?' }}{% endif %}
+            {% if cell.matched_card %}{{ cell.matched_card.collector_number }}{% elif is_empty %}—{% else %}{{ cell.card.collector_number or '?' }}{% endif %}
           </code>
         </td>
         <td>
           {% if cell.matched_card %}
             <code>{{ cell.matched_card.set_code }}</code>
           {% else %}
-            {{ cell.card.set_hint or '—' }}
+            —
           {% endif %}
         </td>
         <td><span class="conf conf-{{ cell.card.confidence }}">{{ cell.card.confidence }}</span></td>
         <td>
-          {% if cell.match.matched_card_id %}
+          {% if is_empty %}
+            <span class="match-empty">no card</span>
+          {% elif cell.match.matched_card_id %}
             <code class="match-ok">{{ cell.match.matched_card_id }}</code>
             <small>via {{ cell.match.match_method }}</small>
           {% else %}

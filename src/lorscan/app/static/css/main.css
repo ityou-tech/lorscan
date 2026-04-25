@@ -118,7 +118,10 @@ button.primary:hover { filter: brightness(1.1); }
 }
 .cell.matched { background: rgba(110, 231, 163, 0.04); }
 .cell.unmatched { opacity: 0.85; }
+.cell.empty-slot { opacity: 0.55; background: repeating-linear-gradient(45deg, transparent, transparent 8px, rgba(154,160,170,0.04) 8px, rgba(154,160,170,0.04) 16px); }
 .cell .subtitle { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.empty-slot-label { color: var(--muted); }
+.match-empty { color: var(--muted); font-style: italic; }
 
 /* Confidence badges */
 .conf {
@@ -133,6 +136,11 @@ button.primary:hover { filter: brightness(1.1); }
 .conf-high { background: rgba(110, 231, 163, 0.15); color: var(--ok); }
 .conf-medium { background: rgba(240, 182, 95, 0.12); color: var(--warn); }
 .conf-low { background: rgba(239, 107, 107, 0.10); color: var(--err); }
+.conf-empty {
+  background: rgba(154, 160, 170, 0.12);
+  color: var(--muted);
+  font-style: italic;
+}
 
 /* Match cell */
 .match-ok { color: var(--ok); }
