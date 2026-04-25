@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Form, HTTPException, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 from lorscan.services.sets import release_index, release_sort_key
 from lorscan.storage.db import Database
@@ -67,6 +67,35 @@ async def missing_index(request: Request) -> HTMLResponse:
         name="missing/index.html",
         context={"sets": sets_with_missing},
     )
+
+
+@router.post("/collection/{item_id}/adjust")
+async def collection_adjust(
+    request: Request,
+    item_id: int,
+    action: str = Form(...),
+) -> RedirectResponse:
+    """Bump quantity (action=inc/dec) or remove a collection_item (action=remove).
+
+    Quantity is clamped at 0 — a 'dec' that would go below 0 just stays at 0.
+    'remove' deletes the row entirely so the card disappears from the page.
+    """
+    if action not in ("inc", "dec", "remove"):
+        raise HTTPException(400, "action must be 'inc', 'dec', or 'remove'")
+    cfg = request.app.state.config
+    db = Database.connect(str(cfg.db_path))
+    db.migrate()
+    try:
+        if action == "remove":
+            db.delete_collection_item(item_id)
+        else:
+            delta = 1 if action == "inc" else -1
+            new_qty = db.adjust_collection_item(item_id, delta=delta)
+            if new_qty <= 0:
+                db.delete_collection_item(item_id)
+    finally:
+        db.close()
+    return RedirectResponse(url="/collection", status_code=303)
 
 
 __all__ = ["router"]

@@ -365,6 +365,34 @@ class Database:
             )
         self.connection.commit()
 
+    def adjust_collection_item(self, item_id: int, *, delta: int) -> int:
+        """Bump an existing collection_item's quantity by `delta`.
+
+        Returns the resulting quantity. Caller is responsible for deciding
+        whether to delete the row when the result is <= 0; we don't auto-
+        delete here because the row may still need to exist briefly while
+        the UI re-renders.
+        """
+        row = self.connection.execute(
+            "SELECT id, quantity FROM collection_items WHERE id = ?", (item_id,)
+        ).fetchone()
+        if row is None:
+            return 0
+        new_qty = max(int(row["quantity"]) + delta, 0)
+        self.connection.execute(
+            "UPDATE collection_items SET quantity = ?, updated_at = ? WHERE id = ?",
+            (new_qty, datetime.now(UTC).isoformat(), item_id),
+        )
+        self.connection.commit()
+        return new_qty
+
+    def delete_collection_item(self, item_id: int) -> None:
+        """Remove a collection_item entirely (any finish, any quantity)."""
+        self.connection.execute(
+            "DELETE FROM collection_items WHERE id = ?", (item_id,)
+        )
+        self.connection.commit()
+
     def get_collection_with_cards(self) -> list[sqlite3.Row]:
         """All collection items joined to the cards table for display."""
         rows = self.connection.execute(

@@ -27,6 +27,22 @@
         <div class="card-thumb-name">{{ it.name }}</div>
         {% if it.subtitle %}<div class="card-thumb-sub">{{ it.subtitle }}</div>{% endif %}
       </div>
+      <div class="qty-controls">
+        <form method="post" action="/collection/{{ it.id }}/adjust" class="qty-form">
+          <input type="hidden" name="action" value="dec">
+          <button type="submit" aria-label="Remove one">−</button>
+        </form>
+        <span class="qty-display">{{ it.quantity }}</span>
+        <form method="post" action="/collection/{{ it.id }}/adjust" class="qty-form">
+          <input type="hidden" name="action" value="inc">
+          <button type="submit" aria-label="Add one">+</button>
+        </form>
+        <form method="post" action="/collection/{{ it.id }}/adjust" class="qty-form qty-form--remove"
+              onsubmit="return confirm('Remove {{ it.name }}{% if it.subtitle %} — {{ it.subtitle }}{% endif %} from your collection?');">
+          <input type="hidden" name="action" value="remove">
+          <button type="submit" aria-label="Remove from collection" title="Remove">×</button>
+        </form>
+      </div>
     </article>
     {% endfor %}
   </div>
