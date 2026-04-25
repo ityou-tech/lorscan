@@ -278,13 +278,15 @@ class Database:
         confidence: str,
         matched_card_id: str | None,
         match_method: str | None,
+        rotation_degrees: int = 0,
     ) -> int:
         cursor = self.connection.execute(
             "INSERT INTO scan_results "
             "  (scan_id, grid_position, claude_name, claude_subtitle, "
             "   claude_collector_number, claude_set_hint, claude_ink_color, "
-            "   claude_finish, confidence, matched_card_id, match_method) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "   claude_finish, confidence, matched_card_id, match_method, "
+            "   rotation_degrees) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 scan_id,
                 grid_position,
@@ -297,6 +299,7 @@ class Database:
                 confidence,
                 matched_card_id,
                 match_method,
+                int(rotation_degrees),
             ),
         )
         self.connection.commit()

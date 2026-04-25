@@ -151,6 +151,7 @@ async def scan_upload(
         )
         for c in parsed_scan.cards:
             best_id = c.candidates[0]["card_id"] if c.candidates else None
+            rotation = int(c.candidates[0].get("rotation_degrees", 0)) if c.candidates else 0
             if c.confidence == "empty":
                 match = MatchResult(
                     matched_card_id=None,
@@ -185,6 +186,7 @@ async def scan_upload(
                 confidence=c.confidence,
                 matched_card_id=match.matched_card_id,
                 match_method=match.match_method,
+                rotation_degrees=rotation,
             )
     finally:
         db.close()
@@ -205,10 +207,22 @@ async def scan_detail(request: Request, scan_id: int) -> HTMLResponse:
         result_rows = db.get_scan_results(scan_id)
         cells: list[CellRow] = []
         for r in result_rows:
+            # Surface stored rotation via the candidates list so the template
+            # renders the badge identically on fresh and historical scans.
+            try:
+                row_rotation = int(r["rotation_degrees"] or 0)
+            except (IndexError, KeyError, TypeError):
+                row_rotation = 0
+            candidates_for_template: list[dict] = (
+                [{"card_id": r["matched_card_id"], "rotation_degrees": row_rotation}]
+                if row_rotation
+                else []
+            )
             parsed = ParsedCard(
                 grid_position=r["grid_position"],
                 finish=r["claude_finish"] or "regular",
                 confidence=r["confidence"],
+                candidates=candidates_for_template,
             )
             match = MatchResult(
                 matched_card_id=r["matched_card_id"],

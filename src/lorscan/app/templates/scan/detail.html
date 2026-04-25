@@ -34,6 +34,7 @@
     <tbody>
       {% for cell in cells %}
       {% set is_empty = cell.match.match_method == 'empty_slot' or cell.card.confidence == 'empty' %}
+      {% set rotation = cell.card.candidates[0].rotation_degrees if cell.card.candidates and cell.card.candidates[0].rotation_degrees is defined else 0 %}
       <tr class="cell {% if is_empty %}empty-slot{% elif cell.match.matched_card_id %}matched{% else %}unmatched{% endif %}">
         <td><code>{{ cell.card.grid_position }}</code></td>
         <td>
@@ -42,6 +43,7 @@
           {% elif cell.matched_card %}
             <strong>{{ cell.matched_card.name }}</strong>
             {% if cell.matched_card.subtitle %}<br><span class="subtitle">{{ cell.matched_card.subtitle }}</span>{% endif %}
+            {% if rotation %}<br><span class="rotation-badge">↻ {{ rotation }}°</span>{% endif %}
           {% else %}
             <strong>{{ cell.card.name or '?' }}</strong>
             {% if cell.card.subtitle %}<br><span class="subtitle">{{ cell.card.subtitle }}</span>{% endif %}
