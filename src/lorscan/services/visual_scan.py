@@ -19,6 +19,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
+from lorscan.services.card_detection import detect_and_warp_card
 from lorscan.services.embeddings import (
     CardImageIndex,
     Match,
@@ -149,10 +150,16 @@ def scan_single_card(
     if image.mode != "RGB":
         image = image.convert("RGB")
 
-    embeddings = encode_images_batch(model, preprocess, device, [image])
+    # Isolate the card from the background so CLIP encodes art, not table/hand.
+    # If detection fails (no clean 4-corner quadrilateral), fall back to the full
+    # frame — a missed detection is better than a bad warp.
+    detected = detect_and_warp_card(image)
+    encode_image = detected if detected is not None else image
+
+    embeddings = encode_images_batch(model, preprocess, device, [encode_image])
     matches = index.find_matches(embeddings[0], top_k=top_k)
     top_sim = matches[0].similarity if matches else 0.0
-    std = _tile_pixel_std(image)
+    std = _tile_pixel_std(encode_image)
     empty = _is_empty_tile(top_sim, std)
     if empty:
         matches = []
@@ -189,14 +196,21 @@ def scan_with_clip(
         image = image.convert("RGB")
 
     tiles = crop_grid(image, rows=rows, cols=cols)
-    cell_images = [t[1] for t in tiles]
+    # Per-tile boundary detection corrects perspective skew (binder photos are
+    # rarely perfectly top-down). Falls back to the raw tile when detection
+    # can't find a clean quadrilateral — common for empty sleeves.
+    cell_images: list[Image.Image] = []
+    for _, tile_img in tiles:
+        warped = detect_and_warp_card(tile_img)
+        cell_images.append(warped if warped is not None else tile_img)
     embeddings = encode_images_batch(model, preprocess, device, cell_images)
 
     results: list[TileMatch] = []
-    for i, (grid_pos, tile_img) in enumerate(tiles):
+    for i, (grid_pos, _) in enumerate(tiles):
+        encoded_img = cell_images[i]
         matches = index.find_matches(embeddings[i], top_k=top_k)
         top_sim = matches[0].similarity if matches else 0.0
-        std = _tile_pixel_std(tile_img)
+        std = _tile_pixel_std(encoded_img)
         empty = _is_empty_tile(top_sim, std)
         if empty:
             matches = []
