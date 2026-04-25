@@ -41,3 +41,4 @@ testpaths = ["tests"]
 markers = [
     "live: hits real external APIs; requires --runlive flag",
 ]
+asyncio_mode = "auto"
