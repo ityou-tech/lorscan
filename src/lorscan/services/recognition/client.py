@@ -21,7 +21,7 @@ from pathlib import Path
 from lorscan.services.recognition.parser import ParsedScan, ParseError, parse_response
 from lorscan.services.recognition.prompt import build_system_prompt
 
-DEFAULT_TIMEOUT_SECONDS = 300
+DEFAULT_TIMEOUT_SECONDS = 600
 
 
 class CliNotInstalledError(RuntimeError):
