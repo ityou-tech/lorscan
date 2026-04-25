@@ -90,6 +90,7 @@ def _best_rotation_match(
     device: str,
     index: CardImageIndex,
     top_k: int,
+    allowed_card_ids: set[str] | None = None,
 ) -> list[Match]:
     """Encode all 4 rotations of `image`, return the top-k from the best one.
 
@@ -101,7 +102,9 @@ def _best_rotation_match(
     best_matches: list[Match] = []
     best_sim = -1.0
     for emb in embeddings:
-        candidates = index.find_matches(emb, top_k=top_k)
+        candidates = index.find_matches(
+            emb, top_k=top_k, allowed_card_ids=allowed_card_ids
+        )
         sim = candidates[0].similarity if candidates else 0.0
         if sim > best_sim:
             best_sim = sim
@@ -177,11 +180,12 @@ def scan_single_card(
     *,
     top_k: int = 5,
     model_bundle=None,
+    allowed_card_ids: set[str] | None = None,
 ) -> TileMatch:
     """Scan a photo as a single card (no grid cropping).
 
-    Used for the live webcam mode where the user holds one card up to the
-    camera. Returns a single TileMatch (grid_position='single').
+    Returns a single TileMatch (grid_position='single'). Used by the
+    diagnostic CLI command and any future single-card workflows.
     """
     if model_bundle is None:
         model, preprocess, device = _load_clip_model()
@@ -206,6 +210,7 @@ def scan_single_card(
         device=device,
         index=index,
         top_k=top_k,
+        allowed_card_ids=allowed_card_ids,
     )
     top_sim = matches[0].similarity if matches else 0.0
     std = _tile_pixel_std(encode_img)
@@ -228,6 +233,7 @@ def scan_with_clip(
     cols: int = 3,
     top_k: int = 5,
     model_bundle=None,
+    allowed_card_ids: set[str] | None = None,
 ) -> list[TileMatch]:
     """Tile a binder photo, run each cell through CLIP, and detect empty slots.
 
@@ -267,7 +273,11 @@ def scan_with_clip(
         best_matches: list[Match] = []
         best_sim = -1.0
         for r in range(4):
-            cand = index.find_matches(embeddings[i * 4 + r], top_k=top_k)
+            cand = index.find_matches(
+                embeddings[i * 4 + r],
+                top_k=top_k,
+                allowed_card_ids=allowed_card_ids,
+            )
             sim = cand[0].similarity if cand else 0.0
             if sim > best_sim:
                 best_sim = sim

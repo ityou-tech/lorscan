@@ -116,10 +116,21 @@ class CardImageIndex:
             )
         return cls(list(data["card_ids"]), embeddings)
 
-    def find_matches(self, query_embedding: np.ndarray, *, top_k: int = 5) -> list[Match]:
+    def find_matches(
+        self,
+        query_embedding: np.ndarray,
+        *,
+        top_k: int = 5,
+        allowed_card_ids: set[str] | None = None,
+    ) -> list[Match]:
         """Cosine similarity nearest-neighbor lookup.
 
-        query_embedding: 1D vector of shape (dim,) or 2D (1, dim). Will be L2-normalized.
+        query_embedding: 1D vector of shape (dim,) or 2D (1, dim).
+        Will be L2-normalized.
+
+        `allowed_card_ids`: if set, restrict matches to only these card_ids.
+        Used to constrain matching to a single set ("this binder only
+        contains ROF cards") — masks out everything else before sorting.
         """
         if self.size == 0:
             return []
@@ -128,8 +139,19 @@ class CardImageIndex:
             q = q.reshape(1, -1)
         # (N, dim) @ (dim,) → (N,)
         sims = (self.embeddings @ q[0]).astype(float)
+        if allowed_card_ids is not None:
+            mask = np.fromiter(
+                (cid in allowed_card_ids for cid in self.card_ids),
+                dtype=bool,
+                count=self.size,
+            )
+            sims = np.where(mask, sims, -np.inf)
         top_idx = np.argsort(-sims)[:top_k]
-        return [Match(card_id=self.card_ids[i], similarity=float(sims[i])) for i in top_idx]
+        return [
+            Match(card_id=self.card_ids[i], similarity=float(sims[i]))
+            for i in top_idx
+            if np.isfinite(sims[i])
+        ]
 
 
 def encode_image(model, preprocess, device: str, image: Image.Image) -> np.ndarray:

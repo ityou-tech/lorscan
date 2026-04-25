@@ -58,16 +58,6 @@ def main(argv: list[str] | None = None) -> int:
         default=True,
         help="Auto-reload on file changes (default: on; use --no-reload to disable)",
     )
-    serve_p.add_argument(
-        "--https",
-        action="store_true",
-        help=(
-            "Serve over HTTPS using a self-signed cert generated under "
-            "~/.lorscan/. Required for phone-as-webcam over the LAN — "
-            "modern browsers block camera access on plain http:// for "
-            "non-localhost origins."
-        ),
-    )
 
     sub.add_parser("version", help="Print version and exit.")
 
@@ -95,7 +85,6 @@ def main(argv: list[str] | None = None) -> int:
             host=args.host,
             port=args.port,
             reload=args.reload,
-            https=args.https,
         )
     return 2
 
@@ -324,48 +313,18 @@ def _print_diag_top5(
         print(f"  {m.similarity:<6.3f}{m.card_id:<14}{name}{sub}")
 
 
-def serve_command(*, host: str, port: int, reload: bool, https: bool = False) -> int:
-    """Run the FastAPI web UI via uvicorn, optionally over self-signed HTTPS."""
+def serve_command(*, host: str, port: int, reload: bool) -> int:
+    """Run the FastAPI web UI via uvicorn."""
     import uvicorn
 
-    cfg = load_config(env=os.environ)
-
-    kwargs: dict = {
-        "host": host,
-        "port": port,
-        "reload": reload,
-        "factory": True,
-    }
-
-    if https:
-        from lorscan.services.cert import ensure_self_signed_cert
-        from lorscan.services.network import detect_lan_ip
-
-        cert_path, key_path = ensure_self_signed_cert(cfg.data_dir)
-        kwargs["ssl_certfile"] = str(cert_path)
-        kwargs["ssl_keyfile"] = str(key_path)
-        scheme = "https"
-        # When binding 0.0.0.0, also surface the LAN URL for the phone QR.
-        lan_ip = detect_lan_ip()
-        print(f"Starting lorscan web UI at {scheme}://{host}:{port} ...")
-        if host in ("0.0.0.0", "::"):
-            print(f"  · phone-accessible: {scheme}://{lan_ip}:{port}/scan/webcam")
-        print(f"  · self-signed cert: {cert_path}")
-        print(
-            "  · Phones will show a security warning on first connect — accept "
-            "it once and the camera will work."
-        )
-    else:
-        print(f"Starting lorscan web UI at http://{host}:{port} ...")
-        if host == "0.0.0.0":
-            print(
-                "  · note: --host 0.0.0.0 without --https means phones on the LAN "
-                "won't be able to use their camera (browsers block camera access "
-                "over plain http:// for non-localhost origins). Add --https to "
-                "enable phone-as-webcam."
-            )
-
-    uvicorn.run("lorscan.app.main:create_app", **kwargs)
+    print(f"Starting lorscan web UI at http://{host}:{port} ...")
+    uvicorn.run(
+        "lorscan.app.main:create_app",
+        host=host,
+        port=port,
+        reload=reload,
+        factory=True,
+    )
     return 0
 
 

@@ -15,8 +15,6 @@ dependencies = [
     "open_clip_torch>=2.30",
     "torch>=2.5",
     "numpy>=2.0",
-    "qrcode>=8.0",
-    "cryptography>=44.0",
     "opencv-python-headless>=4.10",
 ]
 

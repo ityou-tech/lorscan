@@ -26,6 +26,22 @@
       </div>
     </label>
 
+    <label class="field">
+      <span class="label">Restrict to set <small style="color:var(--muted);font-weight:normal">(optional, recommended)</small></span>
+      <select name="set_code">
+        <option value="">— any set —</option>
+        {% for s in sets %}
+          <option value="{{ s.set_code }}">
+            {{ s.name }} ({{ s.set_code }}{% if s.total_cards %} · {{ s.total_cards }} cards{% endif %})
+          </option>
+        {% endfor %}
+      </select>
+      <span class="hint">
+        Picking a set tells the matcher to only consider cards from that set —
+        far fewer false positives when you're scanning a single-set binder.
+      </span>
+    </label>
+
     <button id="scan-submit" type="submit" class="primary">Scan</button>
     <p class="hint">Local CLIP scan — typically under 2 seconds.</p>
   </form>

@@ -12,18 +12,12 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import (
-    FileResponse,
-    HTMLResponse,
-    RedirectResponse,
-    Response,
-    StreamingResponse,
-)
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 
 from lorscan.services.embeddings import CardImageIndex
 from lorscan.services.photos import ensure_supported_format, hash_bytes
 from lorscan.services.scan_result import MatchResult, ParsedCard
-from lorscan.services.visual_scan import scan_single_card, scan_with_clip, to_parsed_scan
+from lorscan.services.visual_scan import scan_with_clip, to_parsed_scan
 from lorscan.storage.db import Database
 from lorscan.storage.models import Card
 
@@ -50,16 +44,21 @@ class ScanRunResult:
 
 
 def _run_clip_scan_for_payload(
-    payload: bytes, filename: str, *, cfg, db: Database, mode: str = "grid"
+    payload: bytes,
+    filename: str,
+    *,
+    cfg,
+    db: Database,
+    set_filter: str | None = None,
 ) -> ScanRunResult:
-    """Persist the photo, run CLIP, store results. Returns the scan id.
+    """Persist the photo, run CLIP on a 3×3 binder grid, store results.
 
     Idempotent: if the photo's sha256 already maps to a completed scan, we
     return its id with duplicate=True and skip the CLIP run entirely.
 
-    `mode`:
-      - "grid": split the photo into a 3×3 grid (binder pages)
-      - "single": treat the entire frame as one card (live webcam single-card)
+    `set_filter`: optional set_code (e.g. "ROF") restricting catalog
+    matches to that set — useful when you know the binder page is from
+    a single set and want to avoid cross-set false positives.
     """
     cfg.photos_dir.mkdir(parents=True, exist_ok=True)
 
@@ -85,10 +84,12 @@ def _run_clip_scan_for_payload(
     try:
         with ensure_supported_format(saved_path) as scan_path:
             index = CardImageIndex.load(embeddings_path)
-            if mode == "single":
-                tile_matches = [scan_single_card(scan_path, index)]
-            else:
-                tile_matches = scan_with_clip(scan_path, index)
+            allowed_ids = (
+                _card_ids_in_set(db, set_filter) if set_filter else None
+            )
+            tile_matches = scan_with_clip(
+                scan_path, index, allowed_card_ids=allowed_ids
+            )
             parsed_scan = to_parsed_scan(tile_matches)
     except (ValueError, FileNotFoundError) as e:
         db.update_scan_failed(scan_id, error_message=str(e))
@@ -129,35 +130,6 @@ def _run_clip_scan_for_payload(
     return ScanRunResult(scan_id=scan_id, duplicate=False)
 
 
-def _scan_to_json(scan_id: int, *, db: Database, duplicate: bool = False) -> dict:
-    """Render a stored scan as a JSON-serializable dict for the webcam UI."""
-    scan = db.get_scan(scan_id)
-    if scan is None:
-        return {"scan_id": scan_id, "error": "Scan not found"}
-
-    cells_json: list[dict] = []
-    for r in db.get_scan_results(scan_id):
-        matched = db.get_card_by_id(r["matched_card_id"]) if r["matched_card_id"] else None
-        cells_json.append(
-            {
-                "grid_position": r["grid_position"],
-                "matched_card_id": r["matched_card_id"],
-                "match_method": r["match_method"],
-                "confidence": r["confidence"],
-                "name": matched.name if matched else None,
-                "subtitle": matched.subtitle if matched else None,
-                "set_code": matched.set_code if matched else None,
-                "collector_number": matched.collector_number if matched else None,
-            }
-        )
-    return {
-        "scan_id": scan_id,
-        "status": scan["status"],
-        "duplicate": duplicate,
-        "cells": cells_json,
-    }
-
-
 @router.get("/", response_class=HTMLResponse)
 @router.get("/scan", response_class=HTMLResponse)
 async def scan_index(request: Request) -> HTMLResponse:
@@ -167,6 +139,12 @@ async def scan_index(request: Request) -> HTMLResponse:
     db.migrate()
     try:
         recent = db.get_recent_scans(limit=8)
+        sets = [
+            dict(r)
+            for r in db.connection.execute(
+                "SELECT set_code, name, total_cards FROM sets ORDER BY released_on DESC, set_code"
+            ).fetchall()
+        ]
     finally:
         db.close()
 
@@ -180,186 +158,32 @@ async def scan_index(request: Request) -> HTMLResponse:
         context={
             "recent_scans": recent,
             "clip_index_ready": clip_index_ready,
+            "sets": sets,
         },
     )
 
 
-@router.get("/scan/webcam", response_class=HTMLResponse)
-async def scan_webcam(request: Request) -> HTMLResponse:
-    """Live webcam scanner page."""
-    from lorscan.services.network import detect_lan_ip
-
-    cfg = request.app.state.config
-    embeddings_path = cfg.data_dir / "embeddings.npz"
-
-    # Build a phone-accessible URL. Prefer https on a real LAN IP so
-    # `getUserMedia` works in mobile browsers; fall back to plain http
-    # if the server isn't running TLS.
-    lan_ip = detect_lan_ip()
-    server_port = getattr(request.url, "port", None) or 8000
-    is_https = request.url.scheme == "https"
-    scheme = "https" if is_https else "http"
-    # Send phones to the streamer page, not the webcam page.
-    phone_url = f"{scheme}://{lan_ip}:{server_port}/scan/phone"
-
-    templates = request.app.state.templates
-    return templates.TemplateResponse(
-        request=request,
-        name="scan/webcam.html",
-        context={
-            "clip_index_ready": embeddings_path.exists(),
-            "phone_url": phone_url,
-            "is_https": is_https,
-        },
-    )
-
-
-@router.get("/scan/phone", response_class=HTMLResponse)
-async def scan_phone(request: Request) -> HTMLResponse:
-    """Mobile-optimized page that streams the phone camera to the Mac."""
-    templates = request.app.state.templates
-    return templates.TemplateResponse(request=request, name="scan/phone.html", context={})
-
-
-def _get_frame_event(request: Request):
-    """Lazy-create the asyncio.Event in the running loop's context."""
-    import asyncio
-
-    if request.app.state.frame_event is None:
-        request.app.state.frame_event = asyncio.Event()
-    return request.app.state.frame_event
-
-
-@router.post("/api/stream/frame")
-async def stream_frame_upload(request: Request, frame: Annotated[UploadFile, File(...)]) -> dict:
-    """Phone uploads one JPEG frame; cached in memory + signal subscribers."""
-    import time
-
-    payload = await frame.read()
-    if not payload:
-        raise HTTPException(400, "Empty frame")
-    request.app.state.latest_frame_bytes = payload
-    request.app.state.latest_frame_ts = time.time()
-    event = _get_frame_event(request)
-    event.set()
-    event.clear()
-    return {"ok": True, "size": len(payload)}
-
-
-@router.get("/api/stream/latest.jpg")
-async def stream_frame_latest(request: Request) -> Response:
-    """Single-shot frame fetch (used as a fallback if MJPEG isn't supported)."""
-    import time
-
-    bytes_ = request.app.state.latest_frame_bytes
-    ts = request.app.state.latest_frame_ts
-    if bytes_ is None or (time.time() - ts) > 5.0:
-        return Response(status_code=204)
-    return Response(
-        content=bytes_,
-        media_type="image/jpeg",
-        headers={"Cache-Control": "no-store"},
-    )
-
-
-@router.get("/api/stream/live.mjpg")
-async def stream_live_mjpeg(request: Request) -> StreamingResponse:
-    """Persistent MJPEG stream — browsers render this via a plain <img>.
-
-    multipart/x-mixed-replace tells the browser "every part replaces the
-    previous one." Each part is a JPEG. The browser auto-displays each
-    frame as it arrives, no JS required.
-    """
-    import asyncio
-
-    boundary = "lorscanframe"
-
-    async def gen():
-        # If a frame already exists, send it immediately — otherwise the
-        # browser would render nothing until the phone uploads.
-        if request.app.state.latest_frame_bytes is not None:
-            frame = request.app.state.latest_frame_bytes
-            yield (
-                (
-                    f"--{boundary}\r\n"
-                    f"Content-Type: image/jpeg\r\n"
-                    f"Content-Length: {len(frame)}\r\n\r\n"
-                ).encode()
-                + frame
-                + b"\r\n"
-            )
-
-        event = _get_frame_event(request)
-        while True:
-            try:
-                # If no frame arrives within the timeout, send a tiny keep-alive
-                # so the connection doesn't get reaped by intermediate proxies.
-                await asyncio.wait_for(event.wait(), timeout=10.0)
-            except TimeoutError:
-                continue
-            frame = request.app.state.latest_frame_bytes
-            if frame:
-                yield (
-                    (
-                        f"--{boundary}\r\n"
-                        f"Content-Type: image/jpeg\r\n"
-                        f"Content-Length: {len(frame)}\r\n\r\n"
-                    ).encode()
-                    + frame
-                    + b"\r\n"
-                )
-
-    return StreamingResponse(
-        gen(),
-        media_type=f"multipart/x-mixed-replace; boundary={boundary}",
-        headers={"Cache-Control": "no-store"},
-    )
-
-
-@router.get("/api/stream/status")
-async def stream_status(request: Request) -> dict:
-    """Desktop uses this to detect 'phone is currently streaming'."""
-    import time
-
-    ts = request.app.state.latest_frame_ts
-    age = time.time() - ts if ts else None
-    return {
-        "active": age is not None and age < 5.0,
-        "age_seconds": age,
-    }
-
-
-@router.get("/qr.png")
-async def qr_png(url: str) -> Response:
-    """Return a PNG QR code for the given URL with explicit black-on-white pixels.
-
-    PNG is preferable to SVG here because the QR is displayed on a dark page
-    theme — without an explicit white background, the SVG paths blend into
-    the page color and become unreadable.
-    """
-    import io
-
-    import qrcode
-
-    qr = qrcode.QRCode(box_size=10, border=2, error_correction=qrcode.constants.ERROR_CORRECT_M)
-    qr.add_data(url)
-    qr.make(fit=True)
-    img = qr.make_image(fill_color="black", back_color="white")
-    buf = io.BytesIO()
-    img.save(buf, format="PNG")
-    return Response(
-        content=buf.getvalue(),
-        media_type="image/png",
-        headers={"Cache-Control": "public, max-age=300"},
-    )
+def _card_ids_in_set(db: Database, set_code: str) -> set[str]:
+    """Return every catalog card_id belonging to a set, used as an
+    allow-list when restricting CLIP matches to a known set."""
+    rows = db.connection.execute(
+        "SELECT card_id FROM cards WHERE set_code = ?", (set_code,)
+    ).fetchall()
+    return {r["card_id"] for r in rows}
 
 
 @router.post("/scan/upload")
 async def scan_upload(
     request: Request,
     photo: Annotated[UploadFile, File(...)],
+    set_code: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
-    """File-upload form: scan + redirect to /scan/<id> (POST/Redirect/GET)."""
+    """File-upload form: scan + redirect to /scan/<id> (POST/Redirect/GET).
+
+    Optional `set_code` restricts CLIP matches to a single set, useful
+    when you know the binder page is from one set and want to avoid
+    cross-set false positives.
+    """
     if not photo.filename:
         raise HTTPException(400, "No file uploaded.")
 
@@ -368,10 +192,13 @@ async def scan_upload(
     if not payload:
         raise HTTPException(400, "Uploaded file is empty.")
 
+    set_filter = set_code.strip() or None
     db = Database.connect(str(cfg.db_path))
     db.migrate()
     try:
-        result = _run_clip_scan_for_payload(payload, photo.filename, cfg=cfg, db=db)
+        result = _run_clip_scan_for_payload(
+            payload, photo.filename, cfg=cfg, db=db, set_filter=set_filter
+        )
     finally:
         db.close()
 
@@ -385,39 +212,6 @@ async def scan_upload(
         )
 
     return RedirectResponse(url=f"/scan/{result.scan_id}", status_code=303)
-
-
-@router.post("/api/scan")
-async def api_scan(
-    request: Request,
-    photo: Annotated[UploadFile, File(...)],
-    mode: Annotated[str, Form()] = "grid",
-) -> dict:
-    """Webcam-friendly JSON variant of scan/upload.
-
-    `mode`:
-      - "grid" (default): 3×3 binder-page scan
-      - "single": treat the whole frame as one card
-
-    Returns: {scan_id, status, duplicate, cells: [...], error?}
-    """
-    cfg = request.app.state.config
-    if not photo.filename:
-        raise HTTPException(400, "No file uploaded.")
-
-    payload = await photo.read()
-    if not payload:
-        raise HTTPException(400, "Uploaded file is empty.")
-
-    db = Database.connect(str(cfg.db_path))
-    db.migrate()
-    try:
-        result = _run_clip_scan_for_payload(payload, photo.filename, cfg=cfg, db=db, mode=mode)
-        if result.error:
-            return {"scan_id": result.scan_id, "error": result.error, "cells": []}
-        return _scan_to_json(result.scan_id, db=db, duplicate=result.duplicate)
-    finally:
-        db.close()
 
 
 @router.get("/scan/{scan_id}", response_class=HTMLResponse)

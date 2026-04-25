@@ -38,13 +38,6 @@ def create_app(config: Config | None = None) -> FastAPI:
     )
     app.state.config = cfg
     app.state.templates = TEMPLATES
-    # In-memory frame buffer for the phone→desktop streaming feature.
-    # Single-slot (one phone at a time, fits the personal-use model).
-    app.state.latest_frame_bytes: bytes | None = None
-    app.state.latest_frame_ts: float = 0.0
-    # asyncio.Event lazily created on first use (lifespan happens before
-    # we have a running loop the way we want).
-    app.state.frame_event = None
 
     app.mount(
         "/static",
