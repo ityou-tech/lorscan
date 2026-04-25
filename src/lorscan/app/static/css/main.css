@@ -1,24 +1,48 @@
-/* lorscan — minimal v0 styles */
+/* lorscan — Lorcana-flavored dark theme.
+   Deep midnight base with a faint blue cast (suggests night-sky / fairytale),
+   warm Lorcana-gold primary, and a teal accent for a hint of the game's
+   "magical" art direction. Designed to make the binder pages feel like
+   a real photo album sitting on a desk under a desk lamp. */
 :root {
-  --bg: #0e0f12;
-  --panel: #181a20;
-  --panel-2: #1f222a;
-  --border: #2a2e38;
-  --text: #e7e9ee;
-  --muted: #9aa0aa;
-  --primary: #c9a566;
-  --primary-fg: #1a1410;
-  --ok: #6ee7a3;
-  --warn: #f0b65f;
+  --bg: #0a0d15;
+  --bg-deep: #06080d;
+  --panel: #131826;
+  --panel-2: #1a2030;
+  --panel-3: #222a3d;
+  --border: #2a3247;
+  --border-strong: #3a455f;
+  --text: #ecedf3;
+  --text-soft: #c5cad6;
+  --muted: #8189a0;
+  --muted-2: #5e667c;
+  --primary: #e2b366;          /* warm gold — Lorcana logo color */
+  --primary-soft: #b8924c;
+  --primary-fg: #1a1308;
+  --primary-glow: rgba(226, 179, 102, 0.30);
+  --accent: #6ec3b9;            /* magical teal */
+  --accent-soft: rgba(110, 195, 185, 0.18);
+  --ok: #7ad99e;
+  --warn: #f0b665;
   --err: #ef6b6b;
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.3);
+  --radius: 10px;
+  --radius-lg: 14px;
 }
 * { box-sizing: border-box; }
 html, body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  background: var(--bg);
+  background:
+    radial-gradient(ellipse 1200px 800px at 50% -200px, rgba(226, 179, 102, 0.04), transparent 60%),
+    radial-gradient(ellipse 800px 600px at 80% 120%, rgba(110, 195, 185, 0.03), transparent 70%),
+    var(--bg);
+  background-attachment: fixed;
   color: var(--text);
-  line-height: 1.45;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 a { color: var(--primary); text-decoration: none; }
 a:hover { text-decoration: underline; }
@@ -28,19 +52,30 @@ code { font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace; 
 .topbar {
   display: flex;
   align-items: center;
-  gap: 24px;
-  padding: 12px 24px;
-  background: var(--panel);
+  gap: 28px;
+  padding: 14px 28px;
+  background: linear-gradient(180deg, var(--panel-2) 0%, var(--panel) 100%);
   border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03), 0 4px 14px rgba(0, 0, 0, 0.30);
 }
 .brand {
   font-weight: 700;
-  font-size: 18px;
+  font-size: 19px;
   color: var(--primary);
+  letter-spacing: -0.01em;
+  text-shadow: 0 0 24px var(--primary-glow);
 }
 nav a {
-  margin-right: 16px;
-  color: var(--muted);
+  margin-right: 18px;
+  color: var(--text-soft);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+  transition: color 0.15s;
+}
+nav a:hover {
+  color: var(--primary);
+  text-decoration: none;
 }
 
 /* Layout */
@@ -58,11 +93,12 @@ nav a {
 
 /* Cards */
 .card {
-  background: var(--panel);
+  background: linear-gradient(180deg, var(--panel) 0%, var(--panel-2) 100%);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 24px 28px;
+  border-radius: var(--radius-lg);
+  padding: 26px 30px;
   margin-bottom: 24px;
+  box-shadow: var(--shadow-sm);
 }
 .card h1 { margin: 0 0 4px; font-size: 24px; }
 .card h2 { margin: 24px 0 8px; font-size: 18px; color: var(--text); }
@@ -83,17 +119,24 @@ nav a {
 }
 .field select { cursor: pointer; }
 button.primary {
-  background: var(--primary);
+  background: linear-gradient(180deg, var(--primary) 0%, var(--primary-soft) 100%);
   color: var(--primary-fg);
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: 8px;
-  padding: 12px 20px;
+  padding: 11px 22px;
   font-weight: 600;
   font-size: 15px;
+  letter-spacing: 0.005em;
   cursor: pointer;
   align-self: flex-start;
+  box-shadow: 0 2px 8px var(--primary-glow), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  transition: filter 0.15s, transform 0.05s, box-shadow 0.15s;
 }
-button.primary:hover { filter: brightness(1.1); }
+button.primary:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 4px 14px var(--primary-glow), inset 0 1px 0 rgba(255, 255, 255, 0.20);
+}
+button.primary:active { transform: translateY(1px); }
 
 /* Results */
 .results-header { display: flex; flex-direction: column; gap: 4px; margin-bottom: 16px; }
@@ -1268,46 +1311,156 @@ button.primary:disabled {
   background: linear-gradient(90deg, var(--warn), #d99745);
 }
 
-/* Pages container — a slightly inset area with a subtle paper-ish wash. */
-.binder-pages {
-  padding: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
+/* The book wraps the pages-stack and the flip nav. Perspective on this
+   element lets child pages do real 3D rotations. */
+.binder-book {
+  position: relative;
+  padding: 22px 22px 16px;
   background:
-    radial-gradient(ellipse at top, rgba(255, 255, 255, 0.025), transparent 60%),
+    radial-gradient(ellipse 600px 300px at 50% -50px, rgba(226, 179, 102, 0.05), transparent 70%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.20) 0%, rgba(0, 0, 0, 0.30) 100%),
     var(--panel-2);
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 4px 18px rgba(0, 0, 0, 0.35);
+  perspective: 1600px;
 }
 
-/* One physical-page sheet. The label sits to the right like a tab. */
-.binder-page {
-  position: relative;
-  padding: 14px 14px 16px;
-  background: rgba(0, 0, 0, 0.20);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 10px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+/* Pages container — uses a single-cell grid so every page sits in the
+   same spot, overlapping. Container height grows to whichever page has
+   the most content (in practice they all match). No fragile aspect-ratio
+   guessing. */
+.binder-pages {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+  width: 100%;
+  transform-style: preserve-3d;
 }
+
+/* One physical-page sheet. Pages are stacked in the same grid cell; only
+   .is-active is visible. is-before pages flip off to the left, is-after
+   pages wait off to the right. */
+.binder-page {
+  grid-area: 1 / 1;
+  position: relative;
+  padding: 18px 18px 22px;
+  background:
+    radial-gradient(ellipse 700px 200px at 50% 0, rgba(255, 255, 255, 0.04), transparent 60%),
+    linear-gradient(180deg, var(--panel-3) 0%, var(--panel-2) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--radius);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 8px 24px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  visibility: hidden;
+  transform-origin: left center;
+  transform: rotateY(-90deg) translateZ(-2px);
+  transition:
+    opacity 0.35s ease,
+    transform 0.55s cubic-bezier(0.5, 0, 0.4, 1),
+    visibility 0s linear 0.55s;
+  pointer-events: none;
+}
+.binder-page.is-active {
+  opacity: 1;
+  visibility: visible;
+  transform: rotateY(0deg);
+  transition:
+    opacity 0.25s ease 0.15s,
+    transform 0.55s cubic-bezier(0.2, 0, 0.3, 1),
+    visibility 0s;
+  pointer-events: auto;
+  z-index: 2;
+}
+.binder-page.is-before {
+  opacity: 0;
+  transform: rotateY(120deg) translateZ(-2px);
+  transform-origin: left center;
+}
+.binder-page.is-after {
+  opacity: 0;
+  transform: translateX(40px);
+  transform-origin: right center;
+}
+
 .binder-page-label {
   position: absolute;
   top: -1px;
-  right: 14px;
+  right: 18px;
   font-size: 10px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.10em;
   text-transform: uppercase;
   color: var(--muted);
   background: var(--panel-2);
-  padding: 2px 8px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 3px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-top: none;
-  border-radius: 0 0 5px 5px;
+  border-radius: 0 0 6px 6px;
+  z-index: 1;
 }
+.binder-page-of { color: var(--muted-2); }
 .binder-page-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  gap: 12px;
 }
+
+/* Flip-nav strip at the bottom of the book. Big arrow buttons + tabular
+   page indicator. Sticks to the bottom inside the book. */
+.binder-flip-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+.flip-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, var(--panel-3) 0%, var(--panel) 100%);
+  color: var(--text-soft);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, color 0.15s, background 0.15s, transform 0.05s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.flip-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: linear-gradient(180deg, var(--panel-3) 0%, var(--panel-2) 100%);
+}
+.flip-btn:active:not(:disabled) { transform: translateY(1px); }
+.flip-btn:disabled {
+  opacity: 0.30;
+  cursor: not-allowed;
+}
+.flip-indicator {
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 60px;
+  text-align: center;
+}
+.flip-current {
+  color: var(--primary);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+}
+.flip-sep { margin: 0 6px; color: var(--muted-2); }
+.flip-total { font-weight: 500; }
 
 /* A pocket = one card slot in a binder page. The inset shadow simulates
    the depth of a plastic sleeve; rounded corners mimic a pocket cutout. */

@@ -34,10 +34,16 @@
     </div>
   </summary>
 
-  <div class="binder-pages">
+  <div class="binder-book"
+       data-binder="{{ binder.set_code }}"
+       data-page-count="{{ binder.pages | length }}"
+       style="--page-count: {{ binder.pages | length }};">
+    <div class="binder-pages">
     {% for page in binder.pages %}
-    <div class="binder-page">
-      <span class="binder-page-label">Page {{ loop.index }}</span>
+    <div class="binder-page{% if loop.index0 == 0 %} is-active{% endif %}"
+         data-page-index="{{ loop.index0 }}"
+         aria-hidden="{% if loop.index0 == 0 %}false{% else %}true{% endif %}">
+      <span class="binder-page-label">Page {{ loop.index }} <span class="binder-page-of">/ {{ binder.pages | length }}</span></span>
       <div class="binder-page-grid">
         {% for card in page %}
         <article class="pocket {% if card.owned %}pocket--owned{% else %}pocket--missing{% endif %}">
@@ -94,5 +100,15 @@
       </div>
     </div>
     {% endfor %}
+    </div>
+    <nav class="binder-flip-nav" aria-label="Page navigation">
+      <button type="button" class="flip-btn flip-btn--prev" data-flip="prev" aria-label="Previous page">‹</button>
+      <span class="flip-indicator">
+        <span class="flip-current" data-flip-current>1</span>
+        <span class="flip-sep">/</span>
+        <span class="flip-total">{{ binder.pages | length }}</span>
+      </span>
+      <button type="button" class="flip-btn flip-btn--next" data-flip="next" aria-label="Next page">›</button>
+    </nav>
   </div>
 </details>
