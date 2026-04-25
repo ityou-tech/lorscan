@@ -11,17 +11,21 @@
   </header>
 
   {% if items %}
-  <div class="collection-grid">
+  <div class="card-thumb-grid">
     {% for it in items %}
-    <article class="coll-card">
-      <header class="coll-card-header">
-        <span class="coll-card-id">[{{ it.set_code }}/{{ it.collector_number }}]</span>
-        <span class="coll-card-qty">×{{ it.quantity }}</span>
-      </header>
-      <div class="coll-card-name">{{ it.name }}</div>
-      {% if it.subtitle %}<div class="coll-card-sub">{{ it.subtitle }}</div>{% endif %}
-      <div class="coll-card-finish">
-        {{ it.finish }}{% if it.finish_label %} · {{ it.finish_label }}{% endif %}
+    <article class="card-thumb card-thumb--owned">
+      <img class="card-thumb-img"
+           src="/card/{{ it.card_id }}/image"
+           alt="{{ it.name }}"
+           loading="lazy"
+           onerror="this.style.visibility='hidden'">
+      {% if it.quantity > 1 %}
+      <span class="card-thumb-qty">×{{ it.quantity }}</span>
+      {% endif %}
+      <div class="card-thumb-info">
+        <code class="card-thumb-id">{{ it.set_code }}-{{ it.collector_number }}</code>
+        <div class="card-thumb-name">{{ it.name }}</div>
+        {% if it.subtitle %}<div class="card-thumb-sub">{{ it.subtitle }}</div>{% endif %}
       </div>
     </article>
     {% endfor %}

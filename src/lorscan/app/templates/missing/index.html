@@ -16,9 +16,14 @@
     {% for s in sets %}
     <section class="set-progress">
       <header class="set-progress-header">
-        <span class="set-progress-name">{{ s.name }} ({{ s.set_code }})</span>
+        <span class="set-progress-name">
+          {% if s.chapter %}<span class="set-chapter">{{ s.chapter }}.</span>{% endif %}
+          {{ s.name }}
+          <code class="set-progress-code">{{ s.set_code }}</code>
+        </span>
         <span class="set-progress-stats">
-          {{ s.owned }} / {{ s.total }} ({{ ((s.owned / s.total * 100) | round(1)) if s.total else 0 }}%)
+          {{ s.owned }} / {{ s.total }}
+          <span class="set-progress-pct">({{ ((s.owned / s.total * 100) | round(1)) if s.total else 0 }}%)</span>
         </span>
       </header>
       <div class="progress-bar">
@@ -30,12 +35,19 @@
         <summary class="hint" style="cursor:pointer;margin-top:12px">
           Show {{ s.missing | length }} missing cards
         </summary>
-        <div class="missing-cards">
+        <div class="card-thumb-grid">
           {% for c in s.missing %}
-          <article class="missing-card">
-            <code>[{{ s.set_code }}/{{ c.collector_number }}]</code>
-            <div class="name">{{ c.name }}</div>
-            {% if c.subtitle %}<div class="subtitle">{{ c.subtitle }}</div>{% endif %}
+          <article class="card-thumb card-thumb--missing">
+            <img class="card-thumb-img"
+                 src="/card/{{ c.card_id }}/image"
+                 alt="{{ c.name }}"
+                 loading="lazy"
+                 onerror="this.style.visibility='hidden'">
+            <div class="card-thumb-info">
+              <code class="card-thumb-id">{{ s.set_code }}-{{ c.collector_number }}</code>
+              <div class="card-thumb-name">{{ c.name }}</div>
+              {% if c.subtitle %}<div class="card-thumb-sub">{{ c.subtitle }}</div>{% endif %}
+            </div>
           </article>
           {% endfor %}
         </div>

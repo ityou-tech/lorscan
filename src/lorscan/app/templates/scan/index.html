@@ -1,6 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Scan a binder page · lorscan{% endblock %}
 {% block content %}
+{% if request.query_params.get('reset') %}
+<section class="card" style="border-color: rgba(110, 231, 163, 0.35); padding: 12px 16px;">
+  <p style="margin:0;color:var(--ok)">Scans cleared. Catalog and collection are untouched.</p>
+</section>
+{% endif %}
 <section class="card upload-card">
   <h1>Scan a binder page</h1>
   <p class="subtitle">
@@ -68,6 +73,18 @@
   </ul>
 </section>
 {% endif %}
+
+<section class="card">
+  <form method="post" action="/scan/reset" class="danger-zone"
+        onsubmit="return confirm('Delete all scans, scan results, and uploaded photos?\n\nYour catalog, embeddings, and accepted collection cards will not be touched.');">
+    <div>
+      <strong style="font-size:13px">Reset scan history</strong>
+      <p class="hint">Deletes all scans, results, and uploaded photo files. Catalog and collection are kept.</p>
+    </div>
+    <button type="submit">Reset</button>
+  </form>
+</section>
+
 
 <div id="loading-overlay" class="loading-overlay" hidden>
   <div class="spinner" aria-hidden="true"></div>

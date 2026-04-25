@@ -21,30 +21,12 @@ from lorscan.services.photos import (
     jpeg_preview_path,
 )
 from lorscan.services.scan_result import MatchResult, ParsedCard
+from lorscan.services.sets import LORCANA_RELEASE_ORDER
 from lorscan.services.visual_scan import scan_with_clip, to_parsed_scan
 from lorscan.storage.db import Database
 from lorscan.storage.models import Card
 
 router = APIRouter()
-
-# Canonical Lorcana main-set release order. The catalog sync fills
-# `released_on` with NULL (the lorcana-api response doesn't include it),
-# so we keep the order as a code-side constant of stable Disney facts.
-# Anything not in this list is treated as a "supplementary" set and
-# rendered after a divider in the upload-form dropdown.
-LORCANA_RELEASE_ORDER: tuple[str, ...] = (
-    "TFC",  # 1. The First Chapter
-    "ROF",  # 2. Rise of the Floodborn
-    "INK",  # 3. Into the Inklands
-    "URS",  # 4. Ursula's Return
-    "SSK",  # 5. Shimmering Skies
-    "AZS",  # 6. Azurite Sea
-    "ARI",  # 7. Archazia's Island
-    "ROJ",  # 8. Reign of Jafar
-    "FAB",  # 9. Fabled
-    "WHI",  # 10. Whispers in the Well
-    "WIN",  # 11. Winterspell
-)
 
 
 @dataclass(frozen=True)
@@ -403,6 +385,37 @@ async def scan_photo(request: Request, scan_id: int) -> FileResponse:
     if preview != photo_path and preview.exists():
         return FileResponse(preview)
     return FileResponse(photo_path)
+
+
+@router.post("/scan/reset")
+async def scan_reset(request: Request) -> RedirectResponse:
+    """Wipe all scans, scan_results, and saved photo files.
+
+    Local-only convenience for iterating on the scanner — the catalog,
+    embeddings index, and accepted collection items are NOT touched, so
+    you don't have to re-sync or re-curate anything after a reset.
+    """
+    cfg = request.app.state.config
+    db = Database.connect(str(cfg.db_path))
+    db.migrate()
+    try:
+        db.connection.execute("DELETE FROM scan_results")
+        db.connection.execute("DELETE FROM scans")
+        db.connection.execute(
+            "DELETE FROM sqlite_sequence WHERE name IN ('scans','scan_results')"
+        )
+        db.connection.commit()
+    finally:
+        db.close()
+
+    # Delete saved upload bytes + transcoded HEIC previews + diag dumps.
+    photos_dir = cfg.photos_dir
+    if photos_dir.exists():
+        for f in photos_dir.iterdir():
+            if f.is_file():
+                f.unlink(missing_ok=True)
+
+    return RedirectResponse(url="/scan?reset=1", status_code=303)
 
 
 @router.post("/scan/{scan_id}/apply", response_class=HTMLResponse)
