@@ -35,11 +35,15 @@ async def sync_catalog(db: Database, *, base_url: str) -> SyncResult:
             )
             response.raise_for_status()
             payload = response.json()
+            if not isinstance(payload, list):
+                raise TypeError(
+                    f"Expected a JSON array from /cards/all, got {type(payload).__name__}"
+                )
             if not payload:
                 break
 
             for raw in payload:
-                set_code = str(raw.get("Set_Num"))
+                set_code = str(raw["Set_Num"])
                 set_name = raw.get("Set_Name", f"Set {set_code}")
                 if set_code not in sets_seen:
                     # Upsert a provisional set row so the FK constraint is satisfied
@@ -84,7 +88,7 @@ def _parse_card(raw: dict, set_code: str) -> Card:
     return Card(
         card_id=str(raw["Unique_ID"]),
         set_code=set_code,
-        collector_number=str(raw.get("Card_Number")),
+        collector_number=str(raw["Card_Number"]),
         name=str(raw["Name"]),
         subtitle=raw.get("Subtitle") or None,
         rarity=str(raw.get("Rarity") or "Common"),
