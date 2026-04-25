@@ -8,7 +8,7 @@
     Restrict matching to a specific set for cleaner results.
   </p>
 
-  <form method="post" action="/scan/upload" enctype="multipart/form-data" class="upload-form">
+  <form id="scan-form" method="post" action="/scan/upload" enctype="multipart/form-data" class="upload-form">
     <label class="field">
       <span class="label">Photo (JPEG, PNG, HEIC/HEIF)</span>
       <input type="file" name="photo" accept="image/jpeg,image/png,image/heic,image/heif,.heic,.heif" required>
@@ -33,8 +33,68 @@
       </span>
     </label>
 
-    <button type="submit" class="primary">Scan</button>
-    <p class="hint">First scan in a 1-hour window takes ~1–2 minutes (Claude prompt-cache warm-up). Subsequent scans are much faster.</p>
+    <button id="scan-submit" type="submit" class="primary">Scan</button>
+    <p class="hint">First scan in a cache window takes ~1–4 minutes. Subsequent scans within an hour are much faster.</p>
   </form>
 </section>
+
+{% if recent_scans %}
+<section class="card">
+  <h2>Recent scans</h2>
+  <ul class="recent-scans">
+    {% for scan in recent_scans %}
+    <li>
+      <a href="/scan/{{ scan.id }}">
+        <span class="scan-status status-{{ scan.status }}">{{ scan.status }}</span>
+        <span class="scan-file">{{ scan.photo_path.split('/')[-1] }}</span>
+        {% if scan.binder_set_code %}
+          <span class="scan-set">{{ scan.binder_set_code }}</span>
+        {% endif %}
+        <span class="scan-time">{{ scan.created_at }}</span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<!-- Loading overlay shown on form submit; full-page navigation will replace it when results arrive. -->
+<div id="loading-overlay" class="loading-overlay" hidden>
+  <div class="spinner" aria-hidden="true"></div>
+  <h2 class="loading-title">Scanning...</h2>
+  <p class="loading-message">
+    Asking Claude to identify the cards. First scan in a cache window can take 1–4 minutes.
+  </p>
+  <p class="loading-message dim" id="loading-substep">Sending photo to Claude...</p>
+</div>
+
+<script>
+(function() {
+  const form = document.getElementById('scan-form');
+  const button = document.getElementById('scan-submit');
+  const overlay = document.getElementById('loading-overlay');
+  const substep = document.getElementById('loading-substep');
+  const messages = [
+    "Sending photo to Claude...",
+    "Claude is reading the binder page...",
+    "Identifying card names and details...",
+    "Matching against your local catalog...",
+    "Almost there — finalizing results...",
+    "Still working — Opus is thorough.",
+  ];
+
+  form.addEventListener('submit', function() {
+    button.disabled = true;
+    button.textContent = 'Scanning...';
+    overlay.hidden = false;
+
+    // Cycle the substep message every ~25s for a sense of progress.
+    let i = 0;
+    setInterval(function() {
+      i = (i + 1) % messages.length;
+      substep.textContent = messages[i];
+    }, 25000);
+  });
+})();
+</script>
 {% endblock %}

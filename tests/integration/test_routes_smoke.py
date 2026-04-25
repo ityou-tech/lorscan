@@ -108,5 +108,73 @@ def test_scan_upload_runs_pipeline_with_stubbed_identify(client: TestClient):
     assert "Chip the Teacup" in body
     # Friendly set name appears in the 'restricted to' chip.
     assert "The First Chapter" in body
-    # Cost line.
-    assert "$0.0120" in body
+    # The Accept-into-collection button is shown.
+    assert "Accept matched cards into collection" in body
+    # Cost line is removed for Max-plan-friendly UI.
+    assert "$0.0120" not in body
+    assert "Tokens" not in body
+
+
+def test_collection_index_empty_state(client: TestClient):
+    response = client.get("/collection")
+    assert response.status_code == 200
+    assert "No cards yet" in response.text
+
+
+def test_missing_index_renders_set_progress(client: TestClient):
+    response = client.get("/missing")
+    assert response.status_code == 200
+    body = response.text
+    assert "The First Chapter" in body
+    assert "Rise of the Floodborn" in body
+
+
+def test_scan_apply_adds_matched_cards_to_collection(client: TestClient):
+    """End-to-end: upload → results persist → apply → collection has the card."""
+    fake_result = RecognitionResult(
+        parsed=parse_response(FIXTURE.read_text()),
+        usage=TokenUsage(input_tokens=1500, output_tokens=400),
+        request_payload={},
+        response_text=FIXTURE.read_text(),
+        cost_usd=0.012,
+    )
+
+    import io
+
+    from PIL import Image
+
+    img = Image.new("RGB", (200, 200), color=(0, 0, 0))
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG")
+    payload = buf.getvalue()
+
+    # Upload a scan; the fixture's r1c1 (Hermes) will match tfc-127 in the seeded DB
+    # only if we restrict to TFC and Hermes is the unique name there.
+    # Our seeded card is "Hermes" with collector_number "127" in set TFC, but the
+    # fixture's r1c1 reports collector_number "127" + name "Hermes" + set_hint "1".
+    # With set_code "TFC" passed, the matcher will look up TFC + collector_number "127"
+    # → tfc-127. Confirmed.
+    with patch("lorscan.app.routes.scan.identify", return_value=fake_result):
+        upload_response = client.post(
+            "/scan/upload",
+            files={"photo": ("page.jpg", payload, "image/jpeg")},
+            data={"set_code": "TFC"},
+        )
+    assert upload_response.status_code == 200
+
+    # Find the scan_id from the rendered apply form action.
+    body = upload_response.text
+    import re
+
+    match = re.search(r'action="/scan/(\d+)/apply"', body)
+    assert match, "Expected an apply form in the results page"
+    scan_id = int(match.group(1))
+
+    # Apply the matched cards.
+    apply_response = client.post(f"/scan/{scan_id}/apply", follow_redirects=False)
+    assert apply_response.status_code == 303
+
+    # Collection now has at least one card.
+    coll_response = client.get("/collection")
+    assert "No cards yet" not in coll_response.text
+    assert "Hermes" in coll_response.text

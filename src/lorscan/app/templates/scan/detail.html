@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Scan #{{ scan_id }} · lorscan{% endblock %}
+{% block content %}
+<section class="card">
+  <header class="results-header">
+    <h1>Scan #{{ scan_id }}</h1>
+    <div class="scan-detail-meta">
+      <div><span class="label">Status</span> {{ scan.status }}</div>
+      <div><span class="label">Created</span> {{ scan.created_at }}</div>
+      {% if scan.completed_at %}
+      <div><span class="label">Completed</span> {{ scan.completed_at }}</div>
+      {% endif %}
+      <div><span class="label">Cards detected</span> {{ cells | length }}</div>
+      {% if applied_count %}
+      <div><span class="label">Applied to collection</span> {{ applied_count }} <span class="applied-badge">applied</span></div>
+      {% endif %}
+    </div>
+  </header>
+
+  <table class="results-table">
+    <thead>
+      <tr>
+        <th>Pos</th>
+        <th>Name</th>
+        <th>#</th>
+        <th>Set hint</th>
+        <th>Conf</th>
+        <th>Match</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for cell in cells %}
+      <tr class="cell {{ 'matched' if cell.match.matched_card_id else 'unmatched' }}">
+        <td><code>{{ cell.card.grid_position }}</code></td>
+        <td>
+          <strong>{{ cell.card.name or '?' }}</strong>
+          {% if cell.card.subtitle %}<br><span class="subtitle">{{ cell.card.subtitle }}</span>{% endif %}
+        </td>
+        <td><code>{{ cell.card.collector_number or '?' }}</code></td>
+        <td>{{ cell.card.set_hint or '—' }}</td>
+        <td><span class="conf conf-{{ cell.card.confidence }}">{{ cell.card.confidence }}</span></td>
+        <td>
+          {% if cell.match.matched_card_id %}
+            <code class="match-ok">{{ cell.match.matched_card_id }}</code>
+            <small>via {{ cell.match.match_method }}</small>
+          {% else %}
+            <span class="match-miss">{{ cell.match.match_method }}</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if applied_count == 0 and cells %}
+  <footer class="result-actions">
+    <form method="post" action="/scan/{{ scan_id }}/apply" class="apply-form">
+      <button type="submit" class="primary">Accept matched cards into collection</button>
+      <span class="hint">Only cells with a confirmed match will be added.</span>
+    </form>
+  </footer>
+  {% endif %}
+</section>
+
+<p class="back-link"><a href="/scan">← Back to Scan</a></p>
+{% endblock %}

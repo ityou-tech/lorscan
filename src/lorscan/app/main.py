@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from lorscan.app.routes import scan
+from lorscan.app.routes import collection, scan
 from lorscan.config import Config, load_config
 from lorscan.storage.db import Database
 
@@ -46,4 +46,5 @@ def create_app(config: Config | None = None) -> FastAPI:
     )
 
     app.include_router(scan.router)
+    app.include_router(collection.router)
     return app

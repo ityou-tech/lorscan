@@ -87,13 +87,12 @@
   </section>
   {% endif %}
 
-  <footer class="cost-footer">
-    <span class="label">Tokens</span>
-    input: {{ usage.input_tokens }} ·
-    output: {{ usage.output_tokens }} ·
-    cache_read: {{ usage.cache_read_tokens }}
-    {% if cost_usd is not none %}
-    <span class="cost">${{ '%.4f' % cost_usd }}</span>
+  <footer class="result-actions">
+    {% if scan_id %}
+    <form method="post" action="/scan/{{ scan_id }}/apply" class="apply-form">
+      <button type="submit" class="primary">Accept matched cards into collection</button>
+      <span class="hint">Only cells with a confirmed match (single card_id) will be added.</span>
+    </form>
     {% endif %}
   </footer>
 </section>

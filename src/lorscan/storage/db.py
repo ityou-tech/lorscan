@@ -201,3 +201,211 @@ class Database:
             image_url=row["image_url"],
             api_payload=row["api_payload"],
         )
+
+    # ---------- scan ops ----------
+
+    def insert_scan(
+        self,
+        *,
+        photo_hash: str,
+        photo_path: str,
+        binder_set_code: str | None = None,
+    ) -> int:
+        """Insert a new scan row in 'pending' status. Returns the new id."""
+        cursor = self.connection.execute(
+            "INSERT INTO scans (photo_hash, photo_path, status, binder_id, "
+            "                   page_number, created_at) "
+            "VALUES (?, ?, 'pending', NULL, NULL, ?) "
+            "ON CONFLICT(photo_hash) DO UPDATE SET "
+            "  photo_path = excluded.photo_path, "
+            "  status = 'pending', "
+            "  created_at = excluded.created_at",
+            (photo_hash, photo_path, datetime.now(UTC).isoformat()),
+        )
+        self.connection.commit()
+        # Need to look up the id whether INSERT or UPDATE happened.
+        if cursor.lastrowid:
+            row = self.connection.execute(
+                "SELECT id FROM scans WHERE photo_hash = ?", (photo_hash,)
+            ).fetchone()
+            return int(row["id"])
+        row = self.connection.execute(
+            "SELECT id FROM scans WHERE photo_hash = ?", (photo_hash,)
+        ).fetchone()
+        return int(row["id"])
+
+    def update_scan_completed(
+        self,
+        scan_id: int,
+        *,
+        api_request_payload: str | None,
+        api_response_payload: str | None,
+        cost_usd: float | None,
+    ) -> None:
+        self.connection.execute(
+            "UPDATE scans SET status = 'completed', "
+            "  api_request_payload = ?, api_response_payload = ?, "
+            "  cost_usd = ?, completed_at = ? "
+            "WHERE id = ?",
+            (
+                api_request_payload,
+                api_response_payload,
+                cost_usd,
+                datetime.now(UTC).isoformat(),
+                scan_id,
+            ),
+        )
+        self.connection.commit()
+
+    def update_scan_failed(self, scan_id: int, *, error_message: str) -> None:
+        self.connection.execute(
+            "UPDATE scans SET status = 'failed', error_message = ?, completed_at = ? WHERE id = ?",
+            (error_message, datetime.now(UTC).isoformat(), scan_id),
+        )
+        self.connection.commit()
+
+    def insert_scan_result(
+        self,
+        *,
+        scan_id: int,
+        grid_position: str,
+        claude_name: str | None,
+        claude_subtitle: str | None,
+        claude_collector_number: str | None,
+        claude_set_hint: str | None,
+        claude_ink_color: str | None,
+        claude_finish: str | None,
+        confidence: str,
+        matched_card_id: str | None,
+        match_method: str | None,
+    ) -> int:
+        cursor = self.connection.execute(
+            "INSERT INTO scan_results "
+            "  (scan_id, grid_position, claude_name, claude_subtitle, "
+            "   claude_collector_number, claude_set_hint, claude_ink_color, "
+            "   claude_finish, confidence, matched_card_id, match_method) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                scan_id,
+                grid_position,
+                claude_name,
+                claude_subtitle,
+                claude_collector_number,
+                claude_set_hint,
+                claude_ink_color,
+                claude_finish,
+                confidence,
+                matched_card_id,
+                match_method,
+            ),
+        )
+        self.connection.commit()
+        return int(cursor.lastrowid or 0)
+
+    def get_recent_scans(self, *, limit: int = 10) -> list[sqlite3.Row]:
+        rows = self.connection.execute(
+            "SELECT id, photo_hash, photo_path, status, binder_id, "
+            "       cost_usd, created_at, completed_at "
+            "FROM scans ORDER BY created_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        return list(rows)
+
+    def get_scan(self, scan_id: int) -> sqlite3.Row | None:
+        return self.connection.execute("SELECT * FROM scans WHERE id = ?", (scan_id,)).fetchone()
+
+    def get_scan_results(self, scan_id: int) -> list[sqlite3.Row]:
+        rows = self.connection.execute(
+            "SELECT * FROM scan_results WHERE scan_id = ? ORDER BY id",
+            (scan_id,),
+        ).fetchall()
+        return list(rows)
+
+    # ---------- collection ops ----------
+
+    def upsert_collection_item(
+        self,
+        *,
+        card_id: str,
+        finish: str = "regular",
+        finish_label: str | None = None,
+        quantity_delta: int = 1,
+    ) -> None:
+        """Add `quantity_delta` to an existing item or insert a new one."""
+        existing = self.connection.execute(
+            "SELECT id, quantity FROM collection_items "
+            "WHERE card_id = ? AND finish = ? "
+            "  AND COALESCE(finish_label, '') = COALESCE(?, '')",
+            (card_id, finish, finish_label),
+        ).fetchone()
+        now = datetime.now(UTC).isoformat()
+        if existing is None:
+            self.connection.execute(
+                "INSERT INTO collection_items "
+                "  (card_id, finish, finish_label, quantity, updated_at) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (card_id, finish, finish_label, max(quantity_delta, 1), now),
+            )
+        else:
+            new_qty = max(int(existing["quantity"]) + quantity_delta, 0)
+            self.connection.execute(
+                "UPDATE collection_items SET quantity = ?, updated_at = ? WHERE id = ?",
+                (new_qty, now, existing["id"]),
+            )
+        self.connection.commit()
+
+    def get_collection_with_cards(self) -> list[sqlite3.Row]:
+        """All collection items joined to the cards table for display."""
+        rows = self.connection.execute(
+            "SELECT ci.id, ci.card_id, ci.finish, ci.finish_label, ci.quantity, "
+            "       c.name, c.subtitle, c.set_code, c.collector_number, c.rarity, "
+            "       c.ink_color, s.name AS set_name "
+            "FROM collection_items ci "
+            "JOIN cards c ON c.card_id = ci.card_id "
+            "LEFT JOIN sets s ON s.set_code = c.set_code "
+            "ORDER BY c.set_code, c.collector_number"
+        ).fetchall()
+        return list(rows)
+
+    def get_collection_count(self) -> int:
+        (n,) = self.connection.execute(
+            "SELECT COALESCE(SUM(quantity), 0) FROM collection_items"
+        ).fetchone()
+        return int(n)
+
+    def get_set_completion(self) -> list[sqlite3.Row]:
+        """Per-set: total cards in set + how many distinct ones the user owns."""
+        rows = self.connection.execute(
+            "SELECT s.set_code, s.name, s.total_cards, "
+            "  COUNT(DISTINCT ci.card_id) AS owned "
+            "FROM sets s "
+            "LEFT JOIN cards c ON c.set_code = s.set_code "
+            "LEFT JOIN collection_items ci ON ci.card_id = c.card_id "
+            "GROUP BY s.set_code, s.name, s.total_cards "
+            "HAVING s.total_cards > 0 "
+            "ORDER BY s.set_code"
+        ).fetchall()
+        return list(rows)
+
+    def get_missing_in_set(self, set_code: str) -> list[sqlite3.Row]:
+        rows = self.connection.execute(
+            "SELECT c.card_id, c.collector_number, c.name, c.subtitle, c.rarity, "
+            "       c.ink_color, c.image_url "
+            "FROM cards c "
+            "LEFT JOIN collection_items ci ON ci.card_id = c.card_id "
+            "WHERE c.set_code = ? AND ci.id IS NULL "
+            "ORDER BY c.collector_number",
+            (set_code,),
+        ).fetchall()
+        return list(rows)
+
+    def mark_scan_results_applied(self, scan_id: int, applied_ids: list[int]) -> None:
+        if not applied_ids:
+            return
+        placeholders = ",".join("?" for _ in applied_ids)
+        self.connection.execute(
+            f"UPDATE scan_results SET user_decision = 'accepted', applied_at = ? "
+            f"WHERE scan_id = ? AND id IN ({placeholders})",
+            (datetime.now(UTC).isoformat(), scan_id, *applied_ids),
+        )
+        self.connection.commit()

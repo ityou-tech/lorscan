@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Collection · lorscan{% endblock %}
+{% block content %}
+<section class="card">
+  <header class="results-header">
+    <h1>Collection</h1>
+    <div class="meta">
+      <div><span class="label">Cards owned</span> {{ total }}</div>
+      <div><span class="label">Distinct entries</span> {{ items | length }}</div>
+    </div>
+  </header>
+
+  {% if items %}
+  <div class="collection-grid">
+    {% for it in items %}
+    <article class="coll-card">
+      <header class="coll-card-header">
+        <span class="coll-card-id">[{{ it.set_code }}/{{ it.collector_number }}]</span>
+        <span class="coll-card-qty">×{{ it.quantity }}</span>
+      </header>
+      <div class="coll-card-name">{{ it.name }}</div>
+      {% if it.subtitle %}<div class="coll-card-sub">{{ it.subtitle }}</div>{% endif %}
+      <div class="coll-card-finish">
+        {{ it.finish }}{% if it.finish_label %} · {{ it.finish_label }}{% endif %}
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <h2>No cards yet</h2>
+    <p>Your collection is empty. Scan a binder page, review the matches, then click <strong>Accept matched cards into collection</strong> to add them here.</p>
+    <p style="margin-top:20px"><a href="/scan" class="primary" style="background:var(--primary);color:var(--primary-fg);padding:10px 18px;border-radius:8px;text-decoration:none">→ Go to Scan</a></p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}
