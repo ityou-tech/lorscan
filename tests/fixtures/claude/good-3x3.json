@@ -1,0 +1,15 @@
+{
+  "page_type": "binder_3x3",
+  "cards": [
+    {"grid_position": "r1c1", "name": "Hermes", "subtitle": "Messenger of the Gods",
+     "set_hint": "1", "collector_number": "127", "ink_color": "Amber",
+     "finish": "regular", "confidence": "high", "candidates": []},
+    {"grid_position": "r1c2", "name": "Fairy Godmother", "subtitle": null,
+     "set_hint": "1", "collector_number": "12", "ink_color": "Amethyst",
+     "finish": "regular", "confidence": "high", "candidates": []},
+    {"grid_position": "r1c3", "name": "Chip the Teacup", "subtitle": null,
+     "set_hint": "1", "collector_number": "45", "ink_color": "Amethyst",
+     "finish": "regular", "confidence": "medium", "candidates": []}
+  ],
+  "issues": []
+}
