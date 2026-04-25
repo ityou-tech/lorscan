@@ -66,6 +66,49 @@ def _is_empty_tile(top_similarity: float, pixel_std: float) -> bool:
     return top_similarity < EMPTY_SIMILARITY_SOFT and pixel_std < EMPTY_VARIANCE_THRESHOLD
 
 
+def _four_rotations(image: Image.Image) -> list[Image.Image]:
+    """Return [0°, 90°, 180°, 270°] rotations of an image.
+
+    Used to make CLIP recognition rotation-invariant: minAreaRect and
+    `_order_corners` can't reliably tell which corner of a card is the
+    "top", so we let the catalog match itself vote — the correct rotation
+    has by far the highest similarity to the right card.
+    """
+    return [
+        image,
+        image.transpose(Image.Transpose.ROTATE_90),
+        image.transpose(Image.Transpose.ROTATE_180),
+        image.transpose(Image.Transpose.ROTATE_270),
+    ]
+
+
+def _best_rotation_match(
+    image: Image.Image,
+    *,
+    model,
+    preprocess,
+    device: str,
+    index: CardImageIndex,
+    top_k: int,
+) -> list[Match]:
+    """Encode all 4 rotations of `image`, return the top-k from the best one.
+
+    "Best" = the rotation whose top-1 catalog similarity is highest. This
+    handles cards photographed sideways or upside-down without requiring
+    the user to pre-orient them.
+    """
+    embeddings = encode_images_batch(model, preprocess, device, _four_rotations(image))
+    best_matches: list[Match] = []
+    best_sim = -1.0
+    for emb in embeddings:
+        candidates = index.find_matches(emb, top_k=top_k)
+        sim = candidates[0].similarity if candidates else 0.0
+        if sim > best_sim:
+            best_sim = sim
+            best_matches = candidates
+    return best_matches
+
+
 @dataclass(frozen=True)
 class TileMatch:
     """One CLIP-based result for a binder cell."""
@@ -154,12 +197,18 @@ def scan_single_card(
     # If detection fails (no clean 4-corner quadrilateral), fall back to the full
     # frame — a missed detection is better than a bad warp.
     detected = detect_and_warp_card(image)
-    encode_image = detected if detected is not None else image
+    encode_img = detected if detected is not None else image
 
-    embeddings = encode_images_batch(model, preprocess, device, [encode_image])
-    matches = index.find_matches(embeddings[0], top_k=top_k)
+    matches = _best_rotation_match(
+        encode_img,
+        model=model,
+        preprocess=preprocess,
+        device=device,
+        index=index,
+        top_k=top_k,
+    )
     top_sim = matches[0].similarity if matches else 0.0
-    std = _tile_pixel_std(encode_image)
+    std = _tile_pixel_std(encode_img)
     empty = _is_empty_tile(top_sim, std)
     if empty:
         matches = []
@@ -203,21 +252,34 @@ def scan_with_clip(
     for _, tile_img in tiles:
         warped = detect_and_warp_card(tile_img)
         cell_images.append(warped if warped is not None else tile_img)
-    embeddings = encode_images_batch(model, preprocess, device, cell_images)
+
+    # Batch all 4 rotations of every cell into a single CLIP forward pass —
+    # 4N images, one model call. Much faster than per-cell loops on MPS/CUDA.
+    rotated_batch: list[Image.Image] = []
+    for img in cell_images:
+        rotated_batch.extend(_four_rotations(img))
+    embeddings = encode_images_batch(model, preprocess, device, rotated_batch)
 
     results: list[TileMatch] = []
     for i, (grid_pos, _) in enumerate(tiles):
         encoded_img = cell_images[i]
-        matches = index.find_matches(embeddings[i], top_k=top_k)
-        top_sim = matches[0].similarity if matches else 0.0
+        # Pick the rotation whose top-1 catalog match is strongest.
+        best_matches: list[Match] = []
+        best_sim = -1.0
+        for r in range(4):
+            cand = index.find_matches(embeddings[i * 4 + r], top_k=top_k)
+            sim = cand[0].similarity if cand else 0.0
+            if sim > best_sim:
+                best_sim = sim
+                best_matches = cand
         std = _tile_pixel_std(encoded_img)
-        empty = _is_empty_tile(top_sim, std)
+        empty = _is_empty_tile(best_sim if best_matches else 0.0, std)
         if empty:
-            matches = []
+            best_matches = []
         results.append(
             TileMatch(
                 grid_position=grid_pos,
-                matches=matches,
+                matches=best_matches,
                 pixel_std=std,
                 is_empty=empty,
             )
