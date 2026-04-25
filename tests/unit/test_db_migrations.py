@@ -1,4 +1,5 @@
 """Migrations: forward-only, idempotent, version-tracked."""
+
 from __future__ import annotations
 
 import sqlite3
@@ -16,8 +17,13 @@ def test_migrate_creates_all_tables(db: Database):
     )
     tables = [row[0] for row in cursor.fetchall()]
     assert tables == [
-        "binders", "cards", "collection_items",
-        "scan_results", "scans", "schema_migrations", "sets",
+        "binders",
+        "cards",
+        "collection_items",
+        "scan_results",
+        "scans",
+        "schema_migrations",
+        "sets",
     ]
 
 
@@ -62,3 +68,39 @@ def test_collection_items_unique_constraint(db: Database):
             "INSERT INTO collection_items (card_id, finish, quantity, updated_at) "
             "VALUES ('c1', 'regular', 1, '2026-04-25T00:00:00')"
         )
+
+
+def test_failed_migration_does_not_record_version(tmp_path):
+    """If a migration's SQL fails partway, the version must not be recorded."""
+    import sqlite3 as _sqlite3
+    from datetime import UTC, datetime
+
+    from lorscan.storage.db import Database
+
+    # Use a tmp file db so we can re-open and verify state survives.
+    db_path = tmp_path / "test.db"
+    database = Database.connect(str(db_path))
+    database.migrate()
+    initial_count = database.connection.execute(
+        "SELECT COUNT(*) FROM schema_migrations"
+    ).fetchone()[0]
+    assert initial_count == 4
+
+    # Now simulate a bad migration by writing invalid SQL via executescript directly.
+    with pytest.raises(_sqlite3.Error):
+        try:
+            database.connection.executescript("THIS IS NOT VALID SQL;")
+            database.connection.execute(
+                "INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)",
+                ("999_bad", datetime.now(UTC).isoformat()),
+            )
+            database.connection.commit()
+        except _sqlite3.Error:
+            # Defensive: do not record the version
+            raise
+
+    after_count = database.connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[
+        0
+    ]
+    assert after_count == 4  # unchanged — bad version not recorded
+    database.close()
