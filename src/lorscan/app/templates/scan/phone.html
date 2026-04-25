@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Phone camera · lorscan{% endblock %}
+{% block content %}
+<section class="card phone-streamer-card">
+  <header>
+    <h1>Streaming to Mac</h1>
+    <p class="subtitle">Hold the phone over a binder page. The Mac shows your camera live and scans automatically.</p>
+  </header>
+
+  <div class="phone-feed">
+    <video id="cam" playsinline muted autoplay></video>
+    <canvas id="cam-canvas" hidden></canvas>
+    <div id="cam-status" class="cam-status">Starting camera...</div>
+  </div>
+
+  <div class="phone-stats">
+    <span class="stat" id="stat-fps">— fps</span>
+    <span class="stat" id="stat-bytes">— KB</span>
+    <span class="stat" id="stat-status">offline</span>
+  </div>
+</section>
+
+<script>
+(function() {
+  const video = document.getElementById('cam');
+  const canvas = document.getElementById('cam-canvas');
+  const ctx = canvas.getContext('2d');
+  const status = document.getElementById('cam-status');
+  const fpsEl = document.getElementById('stat-fps');
+  const bytesEl = document.getElementById('stat-bytes');
+  const statusEl = document.getElementById('stat-status');
+
+  const FRAME_INTERVAL_MS = 500;  // 2 fps — gentle on the network
+  const TARGET_WIDTH = 960;        // downscale to keep frame small
+
+  let stream = null;
+  let lastUploadTs = 0;
+  let uploads = 0;
+  let lastBytesUploaded = 0;
+
+  async function startCamera() {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        audio: false,
+      });
+      video.srcObject = stream;
+      await video.play();
+      status.hidden = true;
+      statusEl.textContent = 'streaming';
+      tick();
+    } catch (err) {
+      status.textContent = 'Camera unavailable: ' + (err.message || err);
+    }
+  }
+
+  async function tick() {
+    if (video.videoWidth === 0) {
+      setTimeout(tick, 100);
+      return;
+    }
+    const ratio = video.videoHeight / video.videoWidth;
+    const w = Math.min(TARGET_WIDTH, video.videoWidth);
+    const h = Math.round(w * ratio);
+    canvas.width = w; canvas.height = h;
+    ctx.drawImage(video, 0, 0, w, h);
+    canvas.toBlob(async (blob) => {
+      if (blob) {
+        try {
+          const fd = new FormData();
+          fd.append('frame', blob, 'frame.jpg');
+          await fetch('/api/stream/frame', { method: 'POST', body: fd });
+          uploads++;
+          lastBytesUploaded = blob.size;
+          updateStats();
+        } catch {}
+      }
+      setTimeout(tick, FRAME_INTERVAL_MS);
+    }, 'image/jpeg', 0.7);
+  }
+
+  function updateStats() {
+    const now = Date.now();
+    if (lastUploadTs) {
+      const dt = (now - lastUploadTs) / 1000;
+      if (dt > 0) fpsEl.textContent = (1 / dt).toFixed(1) + ' fps';
+    }
+    lastUploadTs = now;
+    bytesEl.textContent = (lastBytesUploaded / 1024).toFixed(0) + ' KB';
+  }
+
+  startCamera();
+})();
+</script>
+{% endblock %}

@@ -135,6 +135,57 @@ button.primary:hover { filter: brightness(1.1); }
   border-radius: 999px;
 }
 
+/* Phone-handoff QR block */
+.phone-handoff {
+  margin: 16px 0 8px;
+  padding: 12px 16px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.phone-handoff > summary { cursor: pointer; padding: 4px 0; color: var(--primary); }
+.phone-handoff-body {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 20px;
+  align-items: start;
+  margin-top: 12px;
+}
+@media (max-width: 700px) {
+  .phone-handoff-body { grid-template-columns: 1fr; }
+}
+.qr-block {
+  background: white;
+  padding: 8px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.qr-code { width: 200px; height: 200px; display: block; }
+.phone-handoff-text { font-size: 14px; line-height: 1.5; }
+.phone-handoff-text p { margin: 0 0 12px; }
+.phone-url code {
+  display: inline-block;
+  padding: 4px 8px;
+  background: var(--panel);
+  border-radius: 4px;
+  word-break: break-all;
+}
+.phone-warning {
+  background: rgba(240, 182, 95, 0.10);
+  border-left: 3px solid var(--warn);
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--text);
+}
+.phone-warning code {
+  background: rgba(0,0,0,0.2);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
 /* Webcam page */
 .webcam-card { padding-bottom: 12px; }
 .webcam-stage {
@@ -156,11 +207,55 @@ button.primary:hover { filter: brightness(1.1); }
   align-items: center;
   justify-content: center;
 }
-.webcam-feed video {
+.webcam-feed video,
+.webcam-feed .phone-stream {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
+}
+.source-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(110, 231, 163, 0.85);
+  color: var(--primary-fg);
+  border-radius: 999px;
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* Phone streamer page */
+.phone-streamer-card { max-width: 720px; margin: 0 auto; }
+.phone-feed {
+  position: relative;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  aspect-ratio: 3/4;
+  margin: 16px 0;
+}
+.phone-feed video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.phone-stats {
+  display: flex;
+  gap: 14px;
+  font-size: 12px;
+  color: var(--muted);
+  justify-content: center;
+}
+.phone-stats .stat {
+  background: var(--panel-2);
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
 }
 .cam-status {
   position: absolute;

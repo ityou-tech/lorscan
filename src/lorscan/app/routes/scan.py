@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 
 from lorscan.services.embeddings import CardImageIndex
 from lorscan.services.photos import ensure_supported_format, hash_bytes
@@ -174,13 +174,108 @@ async def scan_index(request: Request) -> HTMLResponse:
 @router.get("/scan/webcam", response_class=HTMLResponse)
 async def scan_webcam(request: Request) -> HTMLResponse:
     """Live webcam scanner page."""
+    from lorscan.services.network import detect_lan_ip
+
     cfg = request.app.state.config
     embeddings_path = cfg.data_dir / "embeddings.npz"
+
+    # Build a phone-accessible URL. Prefer https on a real LAN IP so
+    # `getUserMedia` works in mobile browsers; fall back to plain http
+    # if the server isn't running TLS.
+    lan_ip = detect_lan_ip()
+    server_port = getattr(request.url, "port", None) or 8000
+    is_https = request.url.scheme == "https"
+    scheme = "https" if is_https else "http"
+    # Send phones to the streamer page, not the webcam page.
+    phone_url = f"{scheme}://{lan_ip}:{server_port}/scan/phone"
+
     templates = request.app.state.templates
     return templates.TemplateResponse(
         request=request,
         name="scan/webcam.html",
-        context={"clip_index_ready": embeddings_path.exists()},
+        context={
+            "clip_index_ready": embeddings_path.exists(),
+            "phone_url": phone_url,
+            "is_https": is_https,
+        },
+    )
+
+
+@router.get("/scan/phone", response_class=HTMLResponse)
+async def scan_phone(request: Request) -> HTMLResponse:
+    """Mobile-optimized page that streams the phone camera to the Mac."""
+    templates = request.app.state.templates
+    return templates.TemplateResponse(request=request, name="scan/phone.html", context={})
+
+
+@router.post("/api/stream/frame")
+async def stream_frame_upload(request: Request, frame: Annotated[UploadFile, File(...)]) -> dict:
+    """Phone uploads one JPEG frame; we cache it in memory for the desktop."""
+    import time
+
+    payload = await frame.read()
+    if not payload:
+        raise HTTPException(400, "Empty frame")
+    request.app.state.latest_frame_bytes = payload
+    request.app.state.latest_frame_ts = time.time()
+    return {"ok": True, "size": len(payload)}
+
+
+@router.get("/api/stream/latest.jpg")
+async def stream_frame_latest(request: Request) -> Response:
+    """Desktop polls this to display the most recent phone frame.
+
+    Returns 204 No Content if no frame has been received in the last 5 seconds
+    so the desktop can fall back to its local camera.
+    """
+    import time
+
+    bytes_ = request.app.state.latest_frame_bytes
+    ts = request.app.state.latest_frame_ts
+    if bytes_ is None or (time.time() - ts) > 5.0:
+        return Response(status_code=204)
+    return Response(
+        content=bytes_,
+        media_type="image/jpeg",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@router.get("/api/stream/status")
+async def stream_status(request: Request) -> dict:
+    """Desktop uses this to detect 'phone is currently streaming'."""
+    import time
+
+    ts = request.app.state.latest_frame_ts
+    age = time.time() - ts if ts else None
+    return {
+        "active": age is not None and age < 5.0,
+        "age_seconds": age,
+    }
+
+
+@router.get("/qr.png")
+async def qr_png(url: str) -> Response:
+    """Return a PNG QR code for the given URL with explicit black-on-white pixels.
+
+    PNG is preferable to SVG here because the QR is displayed on a dark page
+    theme — without an explicit white background, the SVG paths blend into
+    the page color and become unreadable.
+    """
+    import io
+
+    import qrcode
+
+    qr = qrcode.QRCode(box_size=10, border=2, error_correction=qrcode.constants.ERROR_CORRECT_M)
+    qr.add_data(url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return Response(
+        content=buf.getvalue(),
+        media_type="image/png",
+        headers={"Cache-Control": "public, max-age=300"},
     )
 
 

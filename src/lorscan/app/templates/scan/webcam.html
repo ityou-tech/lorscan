@@ -10,6 +10,35 @@
     </p>
   </header>
 
+  {% if phone_url %}
+  <details class="phone-handoff" {% if not is_https %}open{% endif %}>
+    <summary><strong>Use your phone as the camera</strong></summary>
+    <div class="phone-handoff-body">
+      <div class="qr-block">
+        <img src="/qr.png?url={{ phone_url | urlencode }}" alt="QR code" class="qr-code">
+      </div>
+      <div class="phone-handoff-text">
+        <p>Scan this on your phone — it opens the same scan page in the phone's browser, using the phone camera.</p>
+        <p class="phone-url"><code>{{ phone_url }}</code></p>
+        {% if not is_https %}
+        <p class="phone-warning">
+          <strong>HTTPS recommended.</strong> Phone browsers (Safari, Chrome on Android)
+          block camera access on plain <code>http://</code> over the LAN. Restart the server with
+          <code>lorscan serve --https --host 0.0.0.0</code> so the QR points to <code>https://</code>
+          and your phone can use its camera. The first connection will show a "not trusted"
+          warning — accept it (it's a self-signed certificate generated locally).
+        </p>
+        {% else %}
+        <p class="phone-warning">
+          The first connection will show a "not trusted" warning — that's the local self-signed
+          certificate. Tap <strong>Visit Site</strong> / <strong>Advanced → Proceed</strong> to continue.
+        </p>
+        {% endif %}
+      </div>
+    </div>
+  </details>
+  {% endif %}
+
   {% if not clip_index_ready %}
   <div class="empty-state">
     <h2>Index not built yet</h2>
@@ -19,8 +48,10 @@
   <div class="webcam-stage">
     <div class="webcam-feed">
       <video id="cam" playsinline muted autoplay></video>
+      <img id="phone-stream" class="phone-stream" alt="Phone camera stream" hidden>
       <canvas id="cam-canvas" hidden></canvas>
       <div id="cam-status" class="cam-status">Starting camera...</div>
+      <div id="source-badge" class="source-badge" hidden>📱 phone stream</div>
     </div>
 
     <aside class="webcam-results">
@@ -43,6 +74,8 @@
 <script>
 (function() {
   const video = document.getElementById('cam');
+  const phoneStream = document.getElementById('phone-stream');
+  const sourceBadge = document.getElementById('source-badge');
   const canvas = document.getElementById('cam-canvas');
   const ctx = canvas?.getContext('2d');
   const captureBtn = document.getElementById('capture-btn');
@@ -55,6 +88,8 @@
 
   let stream = null;
   let scanInFlight = false;
+  let phoneStreamingActive = false;
+  let lastPhoneRefresh = 0;
 
   // Tiny perceptual hash for "did the frame change/stabilize?" decisions.
   // Average a 16x16 grayscale grid, threshold against the global mean → 256 bits.
@@ -117,11 +152,53 @@
   }
 
   function captureToBlob() {
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0);
+    if (phoneStreamingActive) {
+      // Capture the phone-stream <img> instead of the local <video>.
+      // The img is loaded with cross-origin-safe blob URLs (same origin),
+      // so drawImage works.
+      if (!phoneStream.naturalWidth) {
+        return Promise.reject(new Error('phone stream not ready'));
+      }
+      canvas.width = phoneStream.naturalWidth;
+      canvas.height = phoneStream.naturalHeight;
+      ctx.drawImage(phoneStream, 0, 0);
+    } else {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0);
+    }
     return new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
   }
+
+  // Poll for phone streaming status every 1.5s. When the phone starts
+  // streaming, hide the local video and show the streamed frames; when it
+  // stops (no frame in 5s), revert to local camera.
+  async function pollPhoneStream() {
+    try {
+      const r = await fetch('/api/stream/status');
+      const j = await r.json();
+      if (j.active && !phoneStreamingActive) {
+        phoneStreamingActive = true;
+        video.style.display = 'none';
+        phoneStream.hidden = false;
+        sourceBadge.hidden = false;
+      } else if (!j.active && phoneStreamingActive) {
+        phoneStreamingActive = false;
+        video.style.display = '';
+        phoneStream.hidden = true;
+        sourceBadge.hidden = true;
+      }
+      if (phoneStreamingActive) {
+        // Refresh the streamed image (cache-bust).
+        const ts = Date.now();
+        if (ts - lastPhoneRefresh > 400) {
+          phoneStream.src = '/api/stream/latest.jpg?t=' + ts;
+          lastPhoneRefresh = ts;
+        }
+      }
+    } catch {}
+  }
+  setInterval(pollPhoneStream, 600);
 
   async function postCapture(blob) {
     const fd = new FormData();
@@ -222,11 +299,24 @@
   setInterval(() => {
     if (!autoToggle.checked) return;
     if (scanInFlight) return;
-    if (video.videoWidth === 0) return;
 
-    const w = 320, h = Math.round(320 * video.videoHeight / video.videoWidth);
+    // Pick the right source: phone-stream image if active, else local video.
+    let srcW, srcH, drawSrc;
+    if (phoneStreamingActive && phoneStream.naturalWidth) {
+      srcW = phoneStream.naturalWidth;
+      srcH = phoneStream.naturalHeight;
+      drawSrc = phoneStream;
+    } else if (video.videoWidth) {
+      srcW = video.videoWidth;
+      srcH = video.videoHeight;
+      drawSrc = video;
+    } else {
+      return;
+    }
+
+    const w = 320, h = Math.round(320 * srcH / srcW);
     canvas.width = w; canvas.height = h;
-    ctx.drawImage(video, 0, 0, w, h);
+    ctx.drawImage(drawSrc, 0, 0, w, h);
     const hash = pHash(canvas);
     const distFromPrev = hashDistance(prevHash, hash);
     const distFromLastScanned = hashDistance(lastScannedHash, hash);
