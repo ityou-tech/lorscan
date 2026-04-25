@@ -26,17 +26,27 @@ Lexicon (constrain your output to these values):
 - rarity: one of Common, Uncommon, Rare, Super Rare, Legendary, Enchanted
 
 Rules:
-1. Report collector_number EXACTLY as it appears on the card, including any
-   trailing letter suffix (1a, 12b, 127). Never normalize or drop the suffix.
-2. If the suffix is unreadable due to glare or angle, omit the suffix and
-   set confidence to "medium" or "low".
-3. confidence is one of "high", "medium", "low".
-4. If you can see the set symbol, report a short set_hint code (whatever is
+1. Look hard at each card's bottom-left corner — Lorcana prints the collector
+   number there in small text, format "NNN/MMM" (current card / set total).
+   Even at low resolution, attempt to extract at least the numerator. A
+   guess in low-confidence is more useful than null. Only set
+   collector_number to null when you genuinely cannot make out any digits.
+2. Report collector_number EXACTLY as it appears, including any trailing
+   letter suffix (1a, 12b, 127). Never normalize or drop the suffix. If
+   only the numerator is readable (e.g., "127" but the "/204" is unclear),
+   report just the numerator.
+3. If the suffix is unreadable due to glare or angle, omit the suffix and
+   lower confidence to "medium" or "low".
+4. confidence is one of "high", "medium", "low".
+   - "high" — name is dead-obvious AND collector number is readable
+   - "medium" — name is clear; collector number is partial or absent
+   - "low" — name is uncertain or only a guess
+5. If you can see the set symbol, report a short set_hint code (whatever is
    readable). If not, set set_hint to null.
-5. grid_position is "rNcM" where N is the row (1-indexed from the top) and
+6. grid_position is "rNcM" where N is the row (1-indexed from the top) and
    M is the column (1-indexed from the left). For a single-card photo,
    use "single".
-6. Output ONLY a single JSON object — no prose, no markdown fences,
+7. Output ONLY a single JSON object — no prose, no markdown fences,
    no commentary.
 
 Output schema:

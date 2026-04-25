@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import os
 import sys
 from pathlib import Path
 
 from lorscan.config import Config, load_config
+from lorscan.services.catalog import sync_catalog
 from lorscan.services.matching import match_card
 from lorscan.services.recognition.client import (
     CliInvocationError,
@@ -41,8 +43,8 @@ def main(argv: list[str] | None = None) -> int:
         print(__version__)
         return 0
     elif args.command == "sync-catalog":
-        print("sync-catalog: not yet wired in Plan 1; coming in Plan 2.", file=sys.stderr)
-        return 2
+        cfg = load_config(env=os.environ)
+        return sync_catalog_command(config=cfg)
     return 2
 
 
@@ -105,5 +107,23 @@ def scan_command(
     if result.cost_usd is not None:
         print(f"Cost: ${result.cost_usd:.4f}")
 
+    db.close()
+    return 0
+
+
+def sync_catalog_command(*, config: Config) -> int:
+    """Sync the master Lorcana catalog from lorcana-api.com into the local DB."""
+    db = Database.connect(str(config.db_path))
+    db.migrate()
+
+    print(f"Syncing catalog from {config.catalog_api_base} ...")
+    try:
+        result = asyncio.run(sync_catalog(db, base_url=config.catalog_api_base))
+    except Exception as e:
+        print(f"error: catalog sync failed: {e}", file=sys.stderr)
+        db.close()
+        return 5
+
+    print(f"Done. {result.cards_synced} cards across {result.sets_synced} sets.")
     db.close()
     return 0
