@@ -86,6 +86,26 @@ def scan_command(
         print(f"error: photo not found: {photo_path}", file=sys.stderr)
         return 2
 
+    # Validate --set against the synced catalog so typos fail loud.
+    if binder_set_code:
+        db_for_check = Database.connect(str(db_path or config.db_path))
+        db_for_check.migrate()
+        try:
+            valid_codes = {s.set_code for s in db_for_check.get_sets()}
+        finally:
+            db_for_check.close()
+        if valid_codes and binder_set_code not in valid_codes:
+            close_matches = sorted(
+                code for code in valid_codes if code.lower().startswith(binder_set_code[:2].lower())
+            )
+            hint = f" Did you mean: {', '.join(close_matches)}?" if close_matches else ""
+            print(
+                f"error: unknown set code '{binder_set_code}'.{hint}\n"
+                f"Available: {', '.join(sorted(valid_codes)) or '(none — run lorscan sync-catalog)'}",
+                file=sys.stderr,
+            )
+            return 2
+
     try:
         with ensure_supported_format(photo_path) as scan_path:
             if scan_path != photo_path:
@@ -121,7 +141,7 @@ def scan_command(
         (c, match_card(c, db=db, binder_set_code=binder_set_code)) for c in result.parsed.cards
     ]
 
-    header = f"{'pos':<6}{'name':<32}{'#':<6}{'set':<5}{'conf':<8}{'match'}"
+    header = f"{'pos':<6}{'name':<32}{'#':<6}{'hint':<5}{'conf':<8}{'match'}"
     print(header)
     print("-" * len(header))
 
