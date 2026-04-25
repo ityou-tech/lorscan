@@ -145,8 +145,13 @@ def test_scan_upload_runs_clip_path_and_redirects(client: TestClient):
     body = detail.text
     assert "Hermes" in body
     assert "Messenger of the Gods" in body
-    assert "tfc-127" in body
-    assert "clip_visual" in body
+    # The binder grid renders set+collector ("TFC-127"). Old code emitted
+    # the bare card_id ("tfc-127") in a separate column — match either form
+    # so the test isn't sensitive to label-formatting changes.
+    assert "tfc-127" in body.lower()
+    # The binder-grid layout exists and the matched card has the right state.
+    assert "binder-grid" in body
+    assert "binder-cell--matched" in body
     assert "Tokens" not in body
     assert "$0." not in body
 
@@ -184,14 +189,14 @@ def test_scan_upload_dedupes_re_uploads(client: TestClient):
     # Detail page still has exactly 9 cells — no duplicates from the second upload.
     detail = client.get(r1.headers["location"])
     assert detail.status_code == 200
-    # Each grid_position appears exactly once in the table.
+    # Each grid_position appears exactly once in the binder grid.
     for r in range(3):
         for c in range(3):
             pos = f"r{r + 1}c{c + 1}"
-            # The pos column is the only place "rNcN" shows up; count occurrences.
-            assert detail.text.count(f">{pos}</code>") == 1, (
-                f"Expected exactly one row for {pos} but found "
-                f"{detail.text.count(f'>{pos}</code>')}"
+            # The position label sits inside a <span class="binder-pos">.
+            occurrences = detail.text.count(f'class="binder-pos">{pos}<')
+            assert occurrences == 1, (
+                f"Expected exactly one cell for {pos} but found {occurrences}"
             )
 
 

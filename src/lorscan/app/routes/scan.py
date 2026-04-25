@@ -456,6 +456,8 @@ async def scan_detail(request: Request, scan_id: int) -> HTMLResponse:
     finally:
         db.close()
 
+    binder_rows = _arrange_cells_as_binder(cells)
+
     templates = request.app.state.templates
     return templates.TemplateResponse(
         request=request,
@@ -464,9 +466,71 @@ async def scan_detail(request: Request, scan_id: int) -> HTMLResponse:
             "scan": scan,
             "scan_id": scan_id,
             "cells": cells,
+            "binder_rows": binder_rows,
             "applied_count": applied_count,
         },
     )
+
+
+def _arrange_cells_as_binder(cells: list[CellRow]) -> list[list[CellRow | None]]:
+    """Group cells into a row-major grid mirroring the actual binder layout.
+
+    Reads the row/col from each grid_position ("r1c2" → row 1, col 2) and
+    pads missing positions with None so the template can render every slot
+    even if the scan reported fewer cells than the grid implies. Returns a
+    single-row 1-cell list for single-card scans (grid_position="single").
+    """
+    by_pos: dict[tuple[int, int], CellRow] = {}
+    max_row = 0
+    max_col = 0
+    has_single = False
+    for cell in cells:
+        pos = cell.card.grid_position
+        if pos == "single":
+            has_single = True
+            continue
+        if not (pos.startswith("r") and "c" in pos):
+            continue
+        try:
+            r_str, c_str = pos[1:].split("c", 1)
+            r = int(r_str)
+            c = int(c_str)
+        except (ValueError, IndexError):
+            continue
+        by_pos[(r, c)] = cell
+        max_row = max(max_row, r)
+        max_col = max(max_col, c)
+
+    if has_single:
+        single_cell = next((c for c in cells if c.card.grid_position == "single"), None)
+        return [[single_cell]] if single_cell else []
+    if not by_pos:
+        return []
+    return [
+        [by_pos.get((r, c)) for c in range(1, max_col + 1)]
+        for r in range(1, max_row + 1)
+    ]
+
+
+@router.get("/card/{card_id}/image")
+async def card_image(request: Request, card_id: str) -> FileResponse:
+    """Serve a catalog card image from the local cache.
+
+    Used by the binder-grid view to show the matched card next to each
+    detected cell. Returns 404 if the image hasn't been downloaded yet
+    (which only happens for cards skipped during `index-images`).
+    """
+    cfg = request.app.state.config
+    images_dir = cfg.cache_dir / "images"
+    # Card IDs are uppercase alphanumeric + hyphens (e.g. ROF-058). Reject
+    # anything else as a defense-in-depth path-traversal guard.
+    if not card_id.replace("-", "").isalnum():
+        raise HTTPException(400, "Invalid card_id")
+    for suffix in (".png", ".jpg", ".jpeg", ".webp"):
+        path = images_dir / f"{card_id}{suffix}"
+        if path.exists():
+            return FileResponse(path)
+    raise HTTPException(404, "Card image not cached.")
 
 
 @router.get("/scan/{scan_id}/photo")

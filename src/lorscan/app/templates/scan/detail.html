@@ -20,60 +20,49 @@
     </div>
   </header>
 
-  <table class="results-table">
-    <thead>
-      <tr>
-        <th>Pos</th>
-        <th>Name</th>
-        <th>#</th>
-        <th>Set hint</th>
-        <th>Conf</th>
-        <th>Match</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for cell in cells %}
-      {% set is_empty = cell.match.match_method == 'empty_slot' or cell.card.confidence == 'empty' %}
-      <tr class="cell {% if is_empty %}empty-slot{% elif cell.match.matched_card_id %}matched{% else %}unmatched{% endif %}">
-        <td><code>{{ cell.card.grid_position }}</code></td>
-        <td>
-          {% if is_empty %}
-            <em class="empty-slot-label">empty slot</em>
-          {% elif cell.matched_card %}
-            <strong>{{ cell.matched_card.name }}</strong>
-            {% if cell.matched_card.subtitle %}<br><span class="subtitle">{{ cell.matched_card.subtitle }}</span>{% endif %}
-          {% else %}
-            <strong>{{ cell.card.name or '?' }}</strong>
-            {% if cell.card.subtitle %}<br><span class="subtitle">{{ cell.card.subtitle }}</span>{% endif %}
-          {% endif %}
-        </td>
-        <td>
-          <code>
-            {% if cell.matched_card %}{{ cell.matched_card.collector_number }}{% elif is_empty %}—{% else %}{{ cell.card.collector_number or '?' }}{% endif %}
-          </code>
-        </td>
-        <td>
-          {% if cell.matched_card %}
-            <code>{{ cell.matched_card.set_code }}</code>
-          {% else %}
-            —
-          {% endif %}
-        </td>
-        <td><span class="conf conf-{{ cell.card.confidence }}">{{ cell.card.confidence }}</span></td>
-        <td>
-          {% if is_empty %}
-            <span class="match-empty">no card</span>
-          {% elif cell.match.matched_card_id %}
-            <code class="match-ok">{{ cell.match.matched_card_id }}</code>
-            <small>via {{ cell.match.match_method }}</small>
-          {% else %}
-            <span class="match-miss">{{ cell.match.match_method }}</span>
-          {% endif %}
-        </td>
-      </tr>
+  {% if binder_rows %}
+  <div class="binder-grid" style="--cols: {{ binder_rows[0] | length }};">
+    {% for row in binder_rows %}
+      {% for cell in row %}
+        {% if cell is none %}
+          <div class="binder-cell binder-cell--missing">
+            <span class="binder-cell-empty">—</span>
+          </div>
+        {% else %}
+          {% set is_empty = cell.match.match_method == 'empty_slot' or cell.card.confidence == 'empty' %}
+          {% set state = 'empty' if is_empty else ('matched' if cell.match.matched_card_id else 'unmatched') %}
+          <div class="binder-cell binder-cell--{{ state }}">
+            <span class="binder-pos">{{ cell.card.grid_position }}</span>
+            {% if is_empty %}
+              <div class="binder-empty">empty slot</div>
+            {% elif cell.matched_card %}
+              <img class="binder-card-art"
+                   src="/card/{{ cell.match.matched_card_id }}/image"
+                   alt="{{ cell.matched_card.name }}"
+                   loading="lazy"
+                   onerror="this.style.display='none'">
+              <div class="binder-card-info">
+                <strong>{{ cell.matched_card.name }}</strong>
+                {% if cell.matched_card.subtitle %}
+                <span class="subtitle">{{ cell.matched_card.subtitle }}</span>
+                {% endif %}
+                <div class="binder-card-meta">
+                  <code>{{ cell.matched_card.set_code }}-{{ cell.matched_card.collector_number }}</code>
+                  <span class="conf conf-{{ cell.card.confidence }}">{{ cell.card.confidence }}</span>
+                </div>
+              </div>
+            {% else %}
+              <div class="binder-unmatched">?</div>
+              <div class="binder-card-meta">
+                <span class="conf conf-{{ cell.card.confidence }}">{{ cell.card.confidence }}</span>
+              </div>
+            {% endif %}
+          </div>
+        {% endif %}
       {% endfor %}
-    </tbody>
-  </table>
+    {% endfor %}
+  </div>
+  {% endif %}
 
   {% if applied_count == 0 and cells %}
   <footer class="result-actions">
