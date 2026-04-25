@@ -40,6 +40,17 @@ def main(argv: list[str] | None = None) -> int:
     sync_p = sub.add_parser("sync-catalog", help="Sync card catalog from lorcana-api.com.")
     _ = sync_p
 
+    index_p = sub.add_parser(
+        "index-images",
+        help="Download all catalog images and build the local CLIP embedding index for fast offline scanning.",
+    )
+    index_p.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="(testing) only index the first N cards",
+    )
+
     serve_p = sub.add_parser("serve", help="Run the local web UI on http://localhost:<port>.")
     serve_p.add_argument("--host", default="127.0.0.1", help="Bind host (default: 127.0.0.1)")
     serve_p.add_argument("--port", type=int, default=8000, help="Bind port (default: 8000)")
@@ -69,6 +80,9 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "sync-catalog":
         cfg = load_config(env=os.environ)
         return sync_catalog_command(config=cfg)
+    elif args.command == "index-images":
+        cfg = load_config(env=os.environ)
+        return index_images_command(config=cfg, limit=args.limit)
     elif args.command == "serve":
         return serve_command(host=args.host, port=args.port, reload=args.reload)
     return 2
@@ -201,6 +215,126 @@ def serve_command(*, host: str, port: int, reload: bool) -> int:
         reload=reload,
         factory=True,
     )
+    return 0
+
+
+def index_images_command(*, config: Config, limit: int | None = None) -> int:
+    """Download every catalog card image and build the local CLIP embedding index."""
+    import asyncio
+    import time
+
+    from PIL import Image
+
+    from lorscan.services.embeddings import (
+        CardImageIndex,
+        _load_clip_model,
+        encode_images_batch,
+    )
+    from lorscan.services.image_cache import fetch_all
+
+    db = Database.connect(str(config.db_path))
+    db.migrate()
+    try:
+        rows = db.connection.execute(
+            "SELECT card_id, image_url FROM cards WHERE image_url IS NOT NULL AND image_url != ''"
+        ).fetchall()
+    finally:
+        db.close()
+
+    cards: list[tuple[str, str]] = [(r["card_id"], r["image_url"]) for r in rows]
+    if limit is not None:
+        cards = cards[:limit]
+
+    if not cards:
+        print(
+            "No cards in catalog yet. Run `lorscan sync-catalog` first.",
+            file=sys.stderr,
+        )
+        return 6
+
+    images_dir = config.cache_dir / "images"
+    embeddings_path = config.data_dir / "embeddings.npz"
+
+    # Step 1: download missing images.
+    print(f"Downloading catalog images for {len(cards)} cards → {images_dir} ...")
+
+    def progress(done: int, total: int) -> None:
+        if done == total or done % 50 == 0:
+            print(f"  {done}/{total}", end="\r", flush=True)
+
+    t0 = time.time()
+    fetch_results = asyncio.run(fetch_all(cards, cache_dir=images_dir, on_progress=progress))
+    print()
+    failures = [r for r in fetch_results if r.path is None]
+    if failures:
+        print(
+            f"  warning: {len(failures)} image(s) failed to download "
+            f"(will be skipped from the index)",
+            file=sys.stderr,
+        )
+        for r in failures[:5]:
+            print(f"    - {r.card_id}: {r.error}", file=sys.stderr)
+    print(f"  ↳ image fetch took {time.time() - t0:.1f}s")
+
+    # Step 2: load CLIP model.
+    print("Loading CLIP model (ViT-B-32) ...")
+    t0 = time.time()
+    model, preprocess, device = _load_clip_model()
+    print(f"  ↳ model on {device}, loaded in {time.time() - t0:.1f}s")
+
+    # Step 3: encode all cached images in batches.
+    print("Encoding card images ...")
+    t0 = time.time()
+
+    indexed_card_ids: list[str] = []
+    images_by_card: dict[str, Path] = {
+        r.card_id: r.path for r in fetch_results if r.path is not None
+    }
+
+    batch_size = 32
+    embeddings_chunks: list = []
+    batch_card_ids: list[str] = []
+    batch_imgs: list = []
+    processed = 0
+
+    def flush_batch() -> None:
+        nonlocal batch_card_ids, batch_imgs, processed
+        if not batch_imgs:
+            return
+        emb = encode_images_batch(model, preprocess, device, batch_imgs)
+        embeddings_chunks.append(emb)
+        indexed_card_ids.extend(batch_card_ids)
+        processed += len(batch_imgs)
+        print(f"  {processed}/{len(images_by_card)}", end="\r", flush=True)
+        batch_card_ids = []
+        batch_imgs = []
+
+    for card_id, path in images_by_card.items():
+        try:
+            img = Image.open(path)
+            img.load()
+        except Exception as e:
+            print(f"  warning: could not open {path}: {e}", file=sys.stderr)
+            continue
+        batch_card_ids.append(card_id)
+        batch_imgs.append(img)
+        if len(batch_imgs) >= batch_size:
+            flush_batch()
+    flush_batch()
+    print()
+    print(f"  ↳ encoding took {time.time() - t0:.1f}s")
+
+    # Step 4: assemble + save index.
+    import numpy as np
+
+    if embeddings_chunks:
+        all_embeddings = np.concatenate(embeddings_chunks, axis=0)
+    else:
+        all_embeddings = np.zeros((0, 512), dtype=np.float32)
+    index = CardImageIndex(card_ids=indexed_card_ids, embeddings=all_embeddings)
+    index.save(embeddings_path)
+    print(f"Wrote index → {embeddings_path}")
+    print(f"Indexed {index.size} cards.")
     return 0
 
 

@@ -10,6 +10,7 @@ from typing import Annotated
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 
+from lorscan.services.embeddings import CardImageIndex
 from lorscan.services.matching import MatchResult, match_card
 from lorscan.services.photos import ensure_supported_format, hash_bytes
 from lorscan.services.recognition.client import (
@@ -19,6 +20,7 @@ from lorscan.services.recognition.client import (
     identify,
 )
 from lorscan.services.recognition.parser import ParsedCard, ParseError
+from lorscan.services.visual_scan import scan_with_clip, to_parsed_scan
 from lorscan.storage.db import Database
 
 router = APIRouter()
@@ -49,11 +51,18 @@ async def scan_index(request: Request) -> HTMLResponse:
     finally:
         db.close()
 
+    embeddings_path = cfg.data_dir / "embeddings.npz"
+    clip_index_ready = embeddings_path.exists()
+
     templates = request.app.state.templates
     return templates.TemplateResponse(
         request=request,
         name="scan/index.html",
-        context={"sets": sets, "recent_scans": recent},
+        context={
+            "sets": sets,
+            "recent_scans": recent,
+            "clip_index_ready": clip_index_ready,
+        },
     )
 
 
@@ -62,8 +71,16 @@ async def scan_upload(
     request: Request,
     photo: Annotated[UploadFile, File(...)],
     set_code: Annotated[str | None, Form()] = None,
+    mode: Annotated[str | None, Form()] = None,
 ) -> HTMLResponse:
-    """Receive a photo + optional set hint, run scan synchronously, render results."""
+    """Receive a photo + optional set hint, run scan synchronously, render results.
+
+    `mode` selects the recognition path:
+      - "clip" (default if the embedding index exists): local CLIP, ~500ms,
+        no LLM, good for full-image card identification.
+      - "llm": Claude vision via the CLI, slower but reads text (collector
+        numbers when legible).
+    """
     if not photo.filename:
         raise HTTPException(400, "No file uploaded.")
 
@@ -85,15 +102,47 @@ async def scan_upload(
     db.migrate()
     scan_id = db.insert_scan(photo_hash=digest, photo_path=str(saved_path))
 
+    embeddings_path = cfg.data_dir / "embeddings.npz"
+    selected_mode = (mode or "").strip().lower()
+    if selected_mode == "":
+        selected_mode = "clip" if embeddings_path.exists() else "llm"
+
+    parsed_scan = None
+    transcoded = False
+    response_text = ""
+    request_payload: dict = {}
+    cost_usd: float | None = None
+
     try:
         with ensure_supported_format(saved_path) as scan_path:
             transcoded = scan_path != saved_path
-            recog: RecognitionResult = identify(
-                photo_path=scan_path,
-                model=cfg.anthropic_model,
-                max_budget_usd=cfg.per_scan_budget_usd,
-            )
-    except (CliInvocationError, CliNotInstalledError, ParseError, ValueError) as e:
+
+            if selected_mode == "clip":
+                if not embeddings_path.exists():
+                    raise FileNotFoundError(
+                        "CLIP index not built. Run `lorscan index-images` first, "
+                        "or pick the LLM mode in the form."
+                    )
+                index = CardImageIndex.load(embeddings_path)
+                tile_matches = scan_with_clip(scan_path, index)
+                parsed_scan = to_parsed_scan(tile_matches)
+            else:
+                recog: RecognitionResult = identify(
+                    photo_path=scan_path,
+                    model=cfg.anthropic_model,
+                    max_budget_usd=cfg.per_scan_budget_usd,
+                )
+                parsed_scan = recog.parsed
+                response_text = recog.response_text
+                request_payload = recog.request_payload
+                cost_usd = recog.cost_usd
+    except (
+        CliInvocationError,
+        CliNotInstalledError,
+        ParseError,
+        ValueError,
+        FileNotFoundError,
+    ) as e:
         db.update_scan_failed(scan_id, error_message=str(e))
         db.close()
         templates = request.app.state.templates
@@ -108,13 +157,32 @@ async def scan_upload(
     try:
         db.update_scan_completed(
             scan_id,
-            api_request_payload=json.dumps(recog.request_payload, default=str),
-            api_response_payload=recog.response_text,
-            cost_usd=recog.cost_usd,
+            api_request_payload=json.dumps(request_payload, default=str),
+            api_response_payload=response_text,
+            cost_usd=cost_usd,
         )
         cells: list[CellRow] = []
-        for c in recog.parsed.cards:
-            match = match_card(c, db=db, binder_set_code=binder_set_code)
+        for c in parsed_scan.cards:
+            if selected_mode == "clip" and c.candidates:
+                # CLIP path: best similarity is in candidates[0]; promote it
+                # to a matched_card_id when similarity >= 'medium' threshold.
+                best = c.candidates[0]
+                if c.confidence in ("high", "medium"):
+                    match = MatchResult(
+                        matched_card_id=best["card_id"],
+                        match_method="clip_visual",
+                        confidence=c.confidence,
+                        candidates=c.candidates,
+                    )
+                else:
+                    match = MatchResult(
+                        matched_card_id=None,
+                        match_method="clip_low_confidence",
+                        confidence=c.confidence,
+                        candidates=c.candidates,
+                    )
+            else:
+                match = match_card(c, db=db, binder_set_code=binder_set_code)
             sr_id = db.insert_scan_result(
                 scan_id=scan_id,
                 grid_position=c.grid_position,
@@ -149,9 +217,10 @@ async def scan_upload(
             "transcoded": transcoded,
             "binder_set_code": binder_set_code,
             "binder_set_name": binder_set_name,
-            "page_type": recog.parsed.page_type,
+            "page_type": parsed_scan.page_type,
             "cells": cells,
-            "issues": recog.parsed.issues,
+            "issues": parsed_scan.issues,
+            "mode": selected_mode,
         },
     )
 

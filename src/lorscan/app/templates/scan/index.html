@@ -19,7 +19,27 @@
     </label>
 
     <label class="field">
-      <span class="label">Restrict to set (optional, recommended)</span>
+      <span class="label">Recognition mode</span>
+      <select name="mode">
+        {% if clip_index_ready %}
+        <option value="clip" selected>Fast (local CLIP, ~1s, free, no internet)</option>
+        <option value="llm">Detailed (Claude vision, ~1–4 min, reads collector numbers)</option>
+        {% else %}
+        <option value="llm" selected>Detailed (Claude vision, ~1–4 min, reads collector numbers)</option>
+        <option value="clip" disabled>Fast (local CLIP) — run `lorscan index-images` to enable</option>
+        {% endif %}
+      </select>
+      <span class="hint">
+        {% if clip_index_ready %}
+          CLIP index ready. The fast path uses your local card-image fingerprints — no rate limits.
+        {% else %}
+          Run <code>lorscan index-images</code> to enable the fast local path.
+        {% endif %}
+      </span>
+    </label>
+
+    <label class="field">
+      <span class="label">Restrict to set (optional)</span>
       <select name="set_code">
         <option value="">— any set —</option>
         {% for s in sets %}
@@ -29,11 +49,7 @@
         {% endfor %}
       </select>
       <span class="hint">
-        {% if sets %}
-          {{ sets | length }} sets in your catalog. Run <code>lorscan sync-catalog</code> to refresh.
-        {% else %}
-          No sets in catalog yet — run <code>lorscan sync-catalog</code> first.
-        {% endif %}
+        Used by Detailed mode to scope name-based fallback matching. Fast mode ignores it (CLIP matches by visual content alone).
       </span>
     </label>
 
