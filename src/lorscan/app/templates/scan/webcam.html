@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+{% block title %}Webcam scan · lorscan{% endblock %}
+{% block content %}
+<section class="card webcam-card">
+  <header>
+    <h1>Webcam scan</h1>
+    <p class="subtitle">
+      Hold a binder page in front of the camera. Use <strong>Capture</strong> to scan once,
+      or toggle <strong>Auto-scan</strong> to identify pages as you flip through.
+    </p>
+  </header>
+
+  {% if not clip_index_ready %}
+  <div class="empty-state">
+    <h2>Index not built yet</h2>
+    <p>Run <code>uv run lorscan index-images</code> first.</p>
+  </div>
+  {% else %}
+  <div class="webcam-stage">
+    <div class="webcam-feed">
+      <video id="cam" playsinline muted autoplay></video>
+      <canvas id="cam-canvas" hidden></canvas>
+      <div id="cam-status" class="cam-status">Starting camera...</div>
+    </div>
+
+    <aside class="webcam-results">
+      <div class="webcam-controls">
+        <button id="capture-btn" class="primary" disabled>Capture</button>
+        <label class="auto-toggle">
+          <input id="auto-toggle" type="checkbox">
+          <span>Auto-scan</span>
+        </label>
+        <select id="cam-select" hidden></select>
+      </div>
+      <div id="results-panel" class="results-panel">
+        <p class="hint">No scans yet. Click Capture or toggle Auto-scan.</p>
+      </div>
+    </aside>
+  </div>
+  {% endif %}
+</section>
+
+<script>
+(function() {
+  const video = document.getElementById('cam');
+  const canvas = document.getElementById('cam-canvas');
+  const ctx = canvas?.getContext('2d');
+  const captureBtn = document.getElementById('capture-btn');
+  const autoToggle = document.getElementById('auto-toggle');
+  const status = document.getElementById('cam-status');
+  const camSelect = document.getElementById('cam-select');
+  const resultsPanel = document.getElementById('results-panel');
+
+  if (!video) return;
+
+  let stream = null;
+  let scanInFlight = false;
+
+  // Tiny perceptual hash for "did the frame change/stabilize?" decisions.
+  // Average a 16x16 grayscale grid, threshold against the global mean → 256 bits.
+  function pHash(canvas) {
+    const off = document.createElement('canvas');
+    off.width = 16; off.height = 16;
+    off.getContext('2d').drawImage(canvas, 0, 0, 16, 16);
+    const data = off.getContext('2d').getImageData(0, 0, 16, 16).data;
+    const grays = [];
+    let sum = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      const g = (data[i] + data[i+1] + data[i+2]) / 3;
+      grays.push(g);
+      sum += g;
+    }
+    const mean = sum / grays.length;
+    return grays.map(g => g > mean ? '1' : '0').join('');
+  }
+
+  function hashDistance(a, b) {
+    if (!a || !b || a.length !== b.length) return Infinity;
+    let d = 0;
+    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) d++;
+    return d;
+  }
+
+  async function listCameras() {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const cameras = devices.filter(d => d.kind === 'videoinput');
+      if (cameras.length > 1) {
+        camSelect.hidden = false;
+        camSelect.innerHTML = cameras.map(c =>
+          `<option value="${c.deviceId}">${c.label || 'Camera'}</option>`
+        ).join('');
+        camSelect.addEventListener('change', () => startCamera(camSelect.value));
+      }
+    } catch {}
+  }
+
+  async function startCamera(deviceId) {
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    try {
+      const constraints = {
+        video: deviceId
+          ? { deviceId: { exact: deviceId }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+          : { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        audio: false,
+      };
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+      video.srcObject = stream;
+      await video.play();
+      status.textContent = '';
+      status.hidden = true;
+      captureBtn.disabled = false;
+      listCameras();
+    } catch (err) {
+      status.textContent = 'Camera unavailable: ' + (err.message || err);
+    }
+  }
+
+  function captureToBlob() {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0);
+    return new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+  }
+
+  async function postCapture(blob) {
+    const fd = new FormData();
+    fd.append('photo', blob, 'webcam.jpg');
+    const resp = await fetch('/api/scan', { method: 'POST', body: fd });
+    if (!resp.ok) {
+      const text = await resp.text();
+      throw new Error(`scan failed (${resp.status}): ${text.slice(0, 200)}`);
+    }
+    return resp.json();
+  }
+
+  function renderResult(result) {
+    if (result.error) {
+      const node = document.createElement('div');
+      node.className = 'scan-result error';
+      node.innerHTML = `<h3>Scan failed</h3><pre>${escape(result.error)}</pre>`;
+      resultsPanel.prepend(node);
+      return;
+    }
+
+    const cells = result.cells || [];
+    const matched = cells.filter(c => c.matched_card_id);
+    const empty = cells.filter(c => c.match_method === 'empty_slot');
+    const unmatched = cells.filter(c => !c.matched_card_id && c.match_method !== 'empty_slot');
+
+    const node = document.createElement('div');
+    node.className = 'scan-result' + (result.duplicate ? ' duplicate' : '');
+    const header = result.duplicate
+      ? `Scan #${result.scan_id} (already seen — same photo)`
+      : `Scan #${result.scan_id}`;
+    node.innerHTML = `
+      <header class="scan-result-header">
+        <a href="/scan/${result.scan_id}" target="_blank">${header}</a>
+        <span class="scan-result-stats">
+          ${matched.length} matched · ${empty.length} empty · ${unmatched.length} uncertain
+        </span>
+      </header>
+      <ul class="scan-result-cells">
+        ${cells.map(c => renderCell(c)).join('')}
+      </ul>
+    `;
+    resultsPanel.prepend(node);
+  }
+
+  function renderCell(c) {
+    if (c.match_method === 'empty_slot') {
+      return `<li class="cell empty"><code>${c.grid_position}</code><em>empty</em></li>`;
+    }
+    if (c.matched_card_id) {
+      const sub = c.subtitle ? ` · <em>${escape(c.subtitle)}</em>` : '';
+      return `<li class="cell matched">
+        <code>${c.grid_position}</code>
+        <span class="cell-name"><strong>${escape(c.name || '?')}</strong>${sub}</span>
+        <span class="cell-id">${c.set_code}/${c.collector_number}</span>
+      </li>`;
+    }
+    return `<li class="cell uncertain"><code>${c.grid_position}</code><em>uncertain</em></li>`;
+  }
+
+  function escape(s) {
+    if (s == null) return '';
+    return String(s).replace(/[&<>"']/g, m => ({
+      '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+    }[m]));
+  }
+
+  async function doCapture() {
+    if (scanInFlight) return;
+    scanInFlight = true;
+    captureBtn.disabled = true;
+    captureBtn.textContent = 'Scanning...';
+    try {
+      const blob = await captureToBlob();
+      const result = await postCapture(blob);
+      renderResult(result);
+    } catch (err) {
+      renderResult({ error: err.message || String(err) });
+    } finally {
+      scanInFlight = false;
+      captureBtn.disabled = false;
+      captureBtn.textContent = 'Capture';
+    }
+  }
+
+  captureBtn.addEventListener('click', doCapture);
+
+  // Auto-scan loop: sample every 600ms, when frame is stable AND meaningfully
+  // different from last scanned frame, fire a scan. Hashes computed locally
+  // so we never hit the server unless something is worth scanning.
+  let prevHash = null;
+  let stableCount = 0;
+  let lastScannedHash = null;
+  const STABILITY_FRAMES = 2;     // ~1.2s of stable frames before we trust it
+  const CHANGE_THRESHOLD = 25;    // bits different = "page changed"
+  const STABILITY_THRESHOLD = 8;  // bits different from prev frame = "stable"
+
+  setInterval(() => {
+    if (!autoToggle.checked) return;
+    if (scanInFlight) return;
+    if (video.videoWidth === 0) return;
+
+    const w = 320, h = Math.round(320 * video.videoHeight / video.videoWidth);
+    canvas.width = w; canvas.height = h;
+    ctx.drawImage(video, 0, 0, w, h);
+    const hash = pHash(canvas);
+    const distFromPrev = hashDistance(prevHash, hash);
+    const distFromLastScanned = hashDistance(lastScannedHash, hash);
+    prevHash = hash;
+
+    if (distFromPrev <= STABILITY_THRESHOLD) {
+      stableCount++;
+      if (stableCount >= STABILITY_FRAMES && distFromLastScanned > CHANGE_THRESHOLD) {
+        lastScannedHash = hash;
+        stableCount = 0;
+        doCapture();
+      }
+    } else {
+      stableCount = 0;
+    }
+  }, 600);
+
+  startCamera();
+})();
+</script>
+{% endblock %}

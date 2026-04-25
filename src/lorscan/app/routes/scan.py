@@ -34,6 +34,117 @@ class CellRow:
     matched_card: Card | None = None
 
 
+@dataclass(frozen=True)
+class ScanRunResult:
+    """Outcome of running CLIP on an uploaded photo."""
+
+    scan_id: int
+    duplicate: bool  # True if we returned an existing completed scan
+    error: str | None = None  # set on user-visible failures
+
+
+def _run_clip_scan_for_payload(
+    payload: bytes, filename: str, *, cfg, db: Database
+) -> ScanRunResult:
+    """Persist the photo, run CLIP, store results. Returns the scan id.
+
+    Idempotent: if the photo's sha256 already maps to a completed scan, we
+    return its id with duplicate=True and skip the CLIP run entirely.
+    """
+    cfg.photos_dir.mkdir(parents=True, exist_ok=True)
+
+    digest = hash_bytes(payload)
+    suffix = Path(filename).suffix.lower() or ".jpg"
+    saved_path = cfg.photos_dir / f"{digest}{suffix}"
+    if not saved_path.exists():
+        saved_path.write_bytes(payload)
+
+    existing = db.get_scan_by_photo_hash(digest)
+    if existing is not None and existing["status"] == "completed":
+        return ScanRunResult(scan_id=int(existing["id"]), duplicate=True)
+
+    scan_id = db.insert_scan(photo_hash=digest, photo_path=str(saved_path))
+    db.delete_scan_results(scan_id)
+
+    embeddings_path = cfg.data_dir / "embeddings.npz"
+    if not embeddings_path.exists():
+        msg = "CLIP index not built. Run `lorscan index-images` first."
+        db.update_scan_failed(scan_id, error_message=msg)
+        return ScanRunResult(scan_id=scan_id, duplicate=False, error=msg)
+
+    try:
+        with ensure_supported_format(saved_path) as scan_path:
+            index = CardImageIndex.load(embeddings_path)
+            tile_matches = scan_with_clip(scan_path, index)
+            parsed_scan = to_parsed_scan(tile_matches)
+    except (ValueError, FileNotFoundError) as e:
+        db.update_scan_failed(scan_id, error_message=str(e))
+        return ScanRunResult(scan_id=scan_id, duplicate=False, error=str(e))
+
+    db.update_scan_completed(
+        scan_id,
+        api_request_payload=None,
+        api_response_payload=None,
+        cost_usd=None,
+    )
+    for c in parsed_scan.cards:
+        best_id = c.candidates[0]["card_id"] if c.candidates else None
+        if c.confidence == "empty":
+            method = "empty_slot"
+            matched_id = None
+        elif best_id and c.confidence in ("high", "medium"):
+            method = "clip_visual"
+            matched_id = best_id
+        else:
+            method = "clip_low_confidence"
+            matched_id = None
+
+        db.insert_scan_result(
+            scan_id=scan_id,
+            grid_position=c.grid_position,
+            claude_name=None,
+            claude_subtitle=None,
+            claude_collector_number=None,
+            claude_set_hint=None,
+            claude_ink_color=None,
+            claude_finish=c.finish,
+            confidence=c.confidence,
+            matched_card_id=matched_id,
+            match_method=method,
+        )
+
+    return ScanRunResult(scan_id=scan_id, duplicate=False)
+
+
+def _scan_to_json(scan_id: int, *, db: Database, duplicate: bool = False) -> dict:
+    """Render a stored scan as a JSON-serializable dict for the webcam UI."""
+    scan = db.get_scan(scan_id)
+    if scan is None:
+        return {"scan_id": scan_id, "error": "Scan not found"}
+
+    cells_json: list[dict] = []
+    for r in db.get_scan_results(scan_id):
+        matched = db.get_card_by_id(r["matched_card_id"]) if r["matched_card_id"] else None
+        cells_json.append(
+            {
+                "grid_position": r["grid_position"],
+                "matched_card_id": r["matched_card_id"],
+                "match_method": r["match_method"],
+                "confidence": r["confidence"],
+                "name": matched.name if matched else None,
+                "subtitle": matched.subtitle if matched else None,
+                "set_code": matched.set_code if matched else None,
+                "collector_number": matched.collector_number if matched else None,
+            }
+        )
+    return {
+        "scan_id": scan_id,
+        "status": scan["status"],
+        "duplicate": duplicate,
+        "cells": cells_json,
+    }
+
+
 @router.get("/", response_class=HTMLResponse)
 @router.get("/scan", response_class=HTMLResponse)
 async def scan_index(request: Request) -> HTMLResponse:
@@ -60,138 +171,78 @@ async def scan_index(request: Request) -> HTMLResponse:
     )
 
 
+@router.get("/scan/webcam", response_class=HTMLResponse)
+async def scan_webcam(request: Request) -> HTMLResponse:
+    """Live webcam scanner page."""
+    cfg = request.app.state.config
+    embeddings_path = cfg.data_dir / "embeddings.npz"
+    templates = request.app.state.templates
+    return templates.TemplateResponse(
+        request=request,
+        name="scan/webcam.html",
+        context={"clip_index_ready": embeddings_path.exists()},
+    )
+
+
 @router.post("/scan/upload")
 async def scan_upload(
     request: Request,
     photo: Annotated[UploadFile, File(...)],
 ) -> RedirectResponse:
-    """Receive a photo, run CLIP scan synchronously, redirect to /scan/<id>.
-
-    POST/Redirect/GET pattern: rendering the result page on this POST would
-    re-run the scan on browser refresh. Instead we redirect (303) to the
-    detail page, which is a stable GET that's safe to refresh.
-
-    Idempotency: if the photo (by sha256) was already scanned and completed,
-    we redirect immediately without re-running CLIP. If a prior scan exists
-    but is failed/pending, we wipe its scan_results and re-run cleanly.
-    """
+    """File-upload form: scan + redirect to /scan/<id> (POST/Redirect/GET)."""
     if not photo.filename:
         raise HTTPException(400, "No file uploaded.")
 
     cfg = request.app.state.config
-    cfg.photos_dir.mkdir(parents=True, exist_ok=True)
+    payload = await photo.read()
+    if not payload:
+        raise HTTPException(400, "Uploaded file is empty.")
+
+    db = Database.connect(str(cfg.db_path))
+    db.migrate()
+    try:
+        result = _run_clip_scan_for_payload(payload, photo.filename, cfg=cfg, db=db)
+    finally:
+        db.close()
+
+    if result.error:
+        templates = request.app.state.templates
+        return templates.TemplateResponse(  # type: ignore[return-value]
+            request=request,
+            name="scan/error.html",
+            context={"error": result.error},
+            status_code=400,
+        )
+
+    return RedirectResponse(url=f"/scan/{result.scan_id}", status_code=303)
+
+
+@router.post("/api/scan")
+async def api_scan(
+    request: Request,
+    photo: Annotated[UploadFile, File(...)],
+) -> dict:
+    """Webcam-friendly JSON variant of scan/upload.
+
+    Returns: {scan_id, status, duplicate, cells: [...], error?}
+    """
+    cfg = request.app.state.config
+    if not photo.filename:
+        raise HTTPException(400, "No file uploaded.")
 
     payload = await photo.read()
     if not payload:
         raise HTTPException(400, "Uploaded file is empty.")
-    digest = hash_bytes(payload)
-    suffix = Path(photo.filename).suffix.lower() or ".jpg"
-    saved_path = cfg.photos_dir / f"{digest}{suffix}"
-    if not saved_path.exists():
-        saved_path.write_bytes(payload)
 
     db = Database.connect(str(cfg.db_path))
     db.migrate()
-
-    # Idempotency: already-completed scan of this photo? Just show it.
-    existing = db.get_scan_by_photo_hash(digest)
-    if existing is not None and existing["status"] == "completed":
-        existing_id = int(existing["id"])
-        db.close()
-        return RedirectResponse(url=f"/scan/{existing_id}", status_code=303)
-
-    scan_id = db.insert_scan(photo_hash=digest, photo_path=str(saved_path))
-    # Wipe any leftover results from a prior failed/pending run on the same hash.
-    db.delete_scan_results(scan_id)
-
-    embeddings_path = cfg.data_dir / "embeddings.npz"
-    if not embeddings_path.exists():
-        db.update_scan_failed(
-            scan_id,
-            error_message="CLIP index not built. Run `lorscan index-images` first.",
-        )
-        db.close()
-        templates = request.app.state.templates
-        return templates.TemplateResponse(  # type: ignore[return-value]
-            request=request,
-            name="scan/error.html",
-            context={
-                "error": (
-                    "CLIP index not built yet. From a terminal in this project, run:\n"
-                    "    uv run lorscan index-images\n\n"
-                    "This is a one-time setup that downloads the catalog images "
-                    "and builds the local visual index."
-                )
-            },
-            status_code=400,
-        )
-
     try:
-        with ensure_supported_format(saved_path) as scan_path:
-            index = CardImageIndex.load(embeddings_path)
-            tile_matches = scan_with_clip(scan_path, index)
-            parsed_scan = to_parsed_scan(tile_matches)
-    except (ValueError, FileNotFoundError) as e:
-        db.update_scan_failed(scan_id, error_message=str(e))
-        db.close()
-        templates = request.app.state.templates
-        return templates.TemplateResponse(  # type: ignore[return-value]
-            request=request,
-            name="scan/error.html",
-            context={"error": str(e)},
-            status_code=400,
-        )
-
-    try:
-        db.update_scan_completed(
-            scan_id,
-            api_request_payload=None,
-            api_response_payload=None,
-            cost_usd=None,
-        )
-        for c in parsed_scan.cards:
-            best_id = c.candidates[0]["card_id"] if c.candidates else None
-            rotation = int(c.candidates[0].get("rotation_degrees", 0)) if c.candidates else 0
-            if c.confidence == "empty":
-                match = MatchResult(
-                    matched_card_id=None,
-                    match_method="empty_slot",
-                    confidence=c.confidence,
-                    candidates=[],
-                )
-            elif best_id and c.confidence in ("high", "medium"):
-                match = MatchResult(
-                    matched_card_id=best_id,
-                    match_method="clip_visual",
-                    confidence=c.confidence,
-                    candidates=c.candidates,
-                )
-            else:
-                match = MatchResult(
-                    matched_card_id=None,
-                    match_method="clip_low_confidence",
-                    confidence=c.confidence,
-                    candidates=c.candidates,
-                )
-
-            db.insert_scan_result(
-                scan_id=scan_id,
-                grid_position=c.grid_position,
-                claude_name=None,
-                claude_subtitle=None,
-                claude_collector_number=None,
-                claude_set_hint=None,
-                claude_ink_color=None,
-                claude_finish=c.finish,
-                confidence=c.confidence,
-                matched_card_id=match.matched_card_id,
-                match_method=match.match_method,
-                rotation_degrees=rotation,
-            )
+        result = _run_clip_scan_for_payload(payload, photo.filename, cfg=cfg, db=db)
+        if result.error:
+            return {"scan_id": result.scan_id, "error": result.error, "cells": []}
+        return _scan_to_json(result.scan_id, db=db, duplicate=result.duplicate)
     finally:
         db.close()
-
-    return RedirectResponse(url=f"/scan/{scan_id}", status_code=303)
 
 
 @router.get("/scan/{scan_id}", response_class=HTMLResponse)
@@ -207,22 +258,10 @@ async def scan_detail(request: Request, scan_id: int) -> HTMLResponse:
         result_rows = db.get_scan_results(scan_id)
         cells: list[CellRow] = []
         for r in result_rows:
-            # Surface stored rotation via the candidates list so the template
-            # renders the badge identically on fresh and historical scans.
-            try:
-                row_rotation = int(r["rotation_degrees"] or 0)
-            except (IndexError, KeyError, TypeError):
-                row_rotation = 0
-            candidates_for_template: list[dict] = (
-                [{"card_id": r["matched_card_id"], "rotation_degrees": row_rotation}]
-                if row_rotation
-                else []
-            )
             parsed = ParsedCard(
                 grid_position=r["grid_position"],
                 finish=r["claude_finish"] or "regular",
                 confidence=r["confidence"],
-                candidates=candidates_for_template,
             )
             match = MatchResult(
                 matched_card_id=r["matched_card_id"],

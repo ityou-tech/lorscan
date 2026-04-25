@@ -73,7 +73,6 @@ class TileMatch:
     matches: list[Match] = field(default_factory=list)
     pixel_std: float = 0.0  # visual flatness, used for empty-slot detection
     is_empty: bool = False
-    rotation_degrees: int = 0  # which rotation gave the top similarity (0/90/180/270)
 
     @property
     def best(self) -> Match | None:
@@ -128,9 +127,6 @@ def crop_grid(
     return tiles
 
 
-ROTATION_ANGLES = (0, 90, 180, 270)
-
-
 def scan_with_clip(
     photo_path: Path,
     index: CardImageIndex,
@@ -139,16 +135,8 @@ def scan_with_clip(
     cols: int = 3,
     top_k: int = 5,
     model_bundle=None,
-    check_rotations: bool = True,
 ) -> list[TileMatch]:
     """Tile a binder photo, run each cell through CLIP, and detect empty slots.
-
-    When `check_rotations` is True (default), each non-empty tile is also
-    encoded at 90°/180°/270° and the rotation with the highest top-similarity
-    wins. This catches:
-      - Cards stored upside-down (180° wins)
-      - Lorcana Location cards which are designed landscape and stored
-        sideways in portrait sleeves (90° / 270° wins)
 
     `model_bundle` is an optional (model, preprocess, device) tuple to avoid
     reloading the model on repeated calls. If None, loads once internally.
@@ -164,54 +152,23 @@ def scan_with_clip(
         image = image.convert("RGB")
 
     tiles = crop_grid(image, rows=rows, cols=cols)
-
-    # Pre-compute each tile's pixel-std (cheap) so we can skip rotation
-    # checks for tiles that look empty.
-    tile_stds: list[float] = [_tile_pixel_std(t) for _, t in tiles]
-
-    angles = ROTATION_ANGLES if check_rotations else (0,)
-
-    # Build the full batch: every non-skipped tile × every angle.
-    batch_imgs: list[Image.Image] = []
-    batch_origins: list[tuple[int, int]] = []  # (cell_index, angle)
-    for i, (_, tile_img) in enumerate(tiles):
-        for angle in angles:
-            if angle == 0:
-                batch_imgs.append(tile_img)
-            else:
-                batch_imgs.append(tile_img.rotate(angle, expand=True))
-            batch_origins.append((i, angle))
-
-    embeddings = encode_images_batch(model, preprocess, device, batch_imgs)
-
-    # For each cell, find the rotation with the highest top-similarity.
-    per_cell_best: dict[int, tuple[int, list[Match]]] = {}
-    for j, (cell_i, angle) in enumerate(batch_origins):
-        matches = index.find_matches(embeddings[j], top_k=top_k)
-        if not matches:
-            continue
-        prev = per_cell_best.get(cell_i)
-        if prev is None or matches[0].similarity > prev[1][0].similarity:
-            per_cell_best[cell_i] = (angle, matches)
+    cell_images = [t[1] for t in tiles]
+    embeddings = encode_images_batch(model, preprocess, device, cell_images)
 
     results: list[TileMatch] = []
-    for i, (grid_pos, _) in enumerate(tiles):
-        std = tile_stds[i]
-        best_angle, best_matches = per_cell_best.get(i, (0, []))
-        top_sim = best_matches[0].similarity if best_matches else 0.0
+    for i, (grid_pos, tile_img) in enumerate(tiles):
+        matches = index.find_matches(embeddings[i], top_k=top_k)
+        top_sim = matches[0].similarity if matches else 0.0
+        std = _tile_pixel_std(tile_img)
         empty = _is_empty_tile(top_sim, std)
-        # If we decided "empty", reset rotation to 0 and clear matches —
-        # we don't want to suggest cards or rotations for an empty slot.
         if empty:
-            best_angle = 0
-            best_matches = []
+            matches = []
         results.append(
             TileMatch(
                 grid_position=grid_pos,
-                matches=best_matches,
+                matches=matches,
                 pixel_std=std,
                 is_empty=empty,
-                rotation_degrees=best_angle,
             )
         )
     return results
@@ -220,23 +177,13 @@ def scan_with_clip(
 def to_parsed_scan(tile_matches: list[TileMatch]) -> ParsedScan:
     """Adapt TileMatch results into the ParsedScan shape used by the rest of
     the app. Empty cells are flagged via confidence='empty'.
-
-    Rotation: for non-zero rotations the candidates list carries a
-    `rotation_degrees` key on its first entry, and `issues` gets a
-    descriptive note so the user sees it.
     """
     cards: list[ParsedCard] = []
-    issues: list[str] = []
     for tm in tile_matches:
         if tm.is_empty:
             candidates: list[dict] = []
         else:
             candidates = [{"card_id": m.card_id, "similarity": m.similarity} for m in tm.matches]
-            if tm.rotation_degrees != 0 and candidates:
-                candidates[0]["rotation_degrees"] = tm.rotation_degrees
-                issues.append(
-                    f"{tm.grid_position}: card best matches at {tm.rotation_degrees}° rotation"
-                )
         cards.append(
             ParsedCard(
                 grid_position=tm.grid_position,
@@ -250,7 +197,7 @@ def to_parsed_scan(tile_matches: list[TileMatch]) -> ParsedScan:
                 candidates=candidates,
             )
         )
-    return ParsedScan(page_type=f"binder_{len(tile_matches)}x", cards=cards, issues=issues)
+    return ParsedScan(page_type=f"binder_{len(tile_matches)}x", cards=cards, issues=[])
 
 
 __all__ = [
