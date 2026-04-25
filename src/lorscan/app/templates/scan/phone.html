@@ -30,8 +30,9 @@
   const bytesEl = document.getElementById('stat-bytes');
   const statusEl = document.getElementById('stat-status');
 
-  const FRAME_INTERVAL_MS = 500;  // 2 fps — gentle on the network
-  const TARGET_WIDTH = 960;        // downscale to keep frame small
+  const FRAME_INTERVAL_MS = 200;   // ~5 fps; smooth on local Wi-Fi
+  const TARGET_WIDTH = 720;        // downscale: smaller = faster encode + less bandwidth
+  const JPEG_QUALITY = 0.65;       // 0.6–0.7 is the sweet spot for streaming
 
   let stream = null;
   let lastUploadTs = 0;
@@ -76,7 +77,7 @@
         } catch {}
       }
       setTimeout(tick, FRAME_INTERVAL_MS);
-    }, 'image/jpeg', 0.7);
+    }, 'image/jpeg', JPEG_QUALITY);
   }
 
   function updateStats() {

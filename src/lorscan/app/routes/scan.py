@@ -12,7 +12,13 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    RedirectResponse,
+    Response,
+    StreamingResponse,
+)
 
 from lorscan.services.embeddings import CardImageIndex
 from lorscan.services.photos import ensure_supported_format, hash_bytes
@@ -208,9 +214,18 @@ async def scan_phone(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request=request, name="scan/phone.html", context={})
 
 
+def _get_frame_event(request: Request):
+    """Lazy-create the asyncio.Event in the running loop's context."""
+    import asyncio
+
+    if request.app.state.frame_event is None:
+        request.app.state.frame_event = asyncio.Event()
+    return request.app.state.frame_event
+
+
 @router.post("/api/stream/frame")
 async def stream_frame_upload(request: Request, frame: Annotated[UploadFile, File(...)]) -> dict:
-    """Phone uploads one JPEG frame; we cache it in memory for the desktop."""
+    """Phone uploads one JPEG frame; cached in memory + signal subscribers."""
     import time
 
     payload = await frame.read()
@@ -218,16 +233,15 @@ async def stream_frame_upload(request: Request, frame: Annotated[UploadFile, Fil
         raise HTTPException(400, "Empty frame")
     request.app.state.latest_frame_bytes = payload
     request.app.state.latest_frame_ts = time.time()
+    event = _get_frame_event(request)
+    event.set()
+    event.clear()
     return {"ok": True, "size": len(payload)}
 
 
 @router.get("/api/stream/latest.jpg")
 async def stream_frame_latest(request: Request) -> Response:
-    """Desktop polls this to display the most recent phone frame.
-
-    Returns 204 No Content if no frame has been received in the last 5 seconds
-    so the desktop can fall back to its local camera.
-    """
+    """Single-shot frame fetch (used as a fallback if MJPEG isn't supported)."""
     import time
 
     bytes_ = request.app.state.latest_frame_bytes
@@ -237,6 +251,60 @@ async def stream_frame_latest(request: Request) -> Response:
     return Response(
         content=bytes_,
         media_type="image/jpeg",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@router.get("/api/stream/live.mjpg")
+async def stream_live_mjpeg(request: Request) -> StreamingResponse:
+    """Persistent MJPEG stream — browsers render this via a plain <img>.
+
+    multipart/x-mixed-replace tells the browser "every part replaces the
+    previous one." Each part is a JPEG. The browser auto-displays each
+    frame as it arrives, no JS required.
+    """
+    import asyncio
+
+    boundary = "lorscanframe"
+
+    async def gen():
+        # If a frame already exists, send it immediately — otherwise the
+        # browser would render nothing until the phone uploads.
+        if request.app.state.latest_frame_bytes is not None:
+            frame = request.app.state.latest_frame_bytes
+            yield (
+                (
+                    f"--{boundary}\r\n"
+                    f"Content-Type: image/jpeg\r\n"
+                    f"Content-Length: {len(frame)}\r\n\r\n"
+                ).encode()
+                + frame
+                + b"\r\n"
+            )
+
+        event = _get_frame_event(request)
+        while True:
+            try:
+                # If no frame arrives within the timeout, send a tiny keep-alive
+                # so the connection doesn't get reaped by intermediate proxies.
+                await asyncio.wait_for(event.wait(), timeout=10.0)
+            except TimeoutError:
+                continue
+            frame = request.app.state.latest_frame_bytes
+            if frame:
+                yield (
+                    (
+                        f"--{boundary}\r\n"
+                        f"Content-Type: image/jpeg\r\n"
+                        f"Content-Length: {len(frame)}\r\n\r\n"
+                    ).encode()
+                    + frame
+                    + b"\r\n"
+                )
+
+    return StreamingResponse(
+        gen(),
+        media_type=f"multipart/x-mixed-replace; boundary={boundary}",
         headers={"Cache-Control": "no-store"},
     )
 

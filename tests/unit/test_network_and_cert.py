@@ -41,9 +41,7 @@ def test_ensure_self_signed_cert_is_idempotent(tmp_path: Path):
 def test_self_signed_cert_includes_localhost_san(tmp_path: Path):
     cert_path, _ = ensure_self_signed_cert(tmp_path)
     cert = x509.load_pem_x509_certificate(cert_path.read_bytes())
-    sans = cert.extensions.get_extension_for_class(
-        x509.SubjectAlternativeName
-    ).value
+    sans = cert.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
     dns_names = [v for v in sans.get_values_for_type(x509.DNSName)]
     assert "localhost" in dns_names
 

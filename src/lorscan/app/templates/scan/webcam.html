@@ -170,10 +170,11 @@
     return new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
   }
 
-  // Poll for phone streaming status every 1.5s. When the phone starts
-  // streaming, hide the local video and show the streamed frames; when it
-  // stops (no frame in 5s), revert to local camera.
-  async function pollPhoneStream() {
+  // The phone-stream <img> is wired to the persistent MJPEG endpoint —
+  // the browser handles frame-by-frame decoding for free. We just need
+  // to detect when the phone *starts* and *stops* streaming so we can
+  // swap between local <video> and the phone <img>.
+  async function pollPhoneStreamStatus() {
     try {
       const r = await fetch('/api/stream/status');
       const j = await r.json();
@@ -182,23 +183,23 @@
         video.style.display = 'none';
         phoneStream.hidden = false;
         sourceBadge.hidden = false;
+        // Bind the MJPEG source once; browser keeps the connection open.
+        if (!phoneStream.src.endsWith('/api/stream/live.mjpg')) {
+          phoneStream.src = '/api/stream/live.mjpg';
+        }
       } else if (!j.active && phoneStreamingActive) {
         phoneStreamingActive = false;
         video.style.display = '';
         phoneStream.hidden = true;
         sourceBadge.hidden = true;
-      }
-      if (phoneStreamingActive) {
-        // Refresh the streamed image (cache-bust).
-        const ts = Date.now();
-        if (ts - lastPhoneRefresh > 400) {
-          phoneStream.src = '/api/stream/latest.jpg?t=' + ts;
-          lastPhoneRefresh = ts;
-        }
+        // Tear down the long-lived MJPEG connection so it doesn't keep
+        // sucking bytes when nobody is watching.
+        phoneStream.src = '';
       }
     } catch {}
   }
-  setInterval(pollPhoneStream, 600);
+  setInterval(pollPhoneStreamStatus, 1500);
+  pollPhoneStreamStatus();
 
   async function postCapture(blob) {
     const fd = new FormData();
