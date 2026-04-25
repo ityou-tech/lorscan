@@ -1,57 +1,42 @@
 {% extends "base.html" %}
 {% block title %}Collection · lorscan{% endblock %}
 {% block content %}
-<section class="card">
-  <header class="results-header">
-    <h1>Collection</h1>
-    <div class="meta">
-      <div><span class="label">Cards owned</span> {{ total }}</div>
-      <div><span class="label">Distinct entries</span> {{ items | length }}</div>
+<section class="page-header">
+  <h1>Collection</h1>
+  <div class="page-header-meta">
+    <div class="meta-stat">
+      <span class="meta-stat-num">{{ total }}</span>
+      <span class="meta-stat-label">cards owned</span>
     </div>
-  </header>
-
-  {% if items %}
-  <div class="card-thumb-grid">
-    {% for it in items %}
-    <article class="card-thumb card-thumb--owned">
-      <img class="card-thumb-img"
-           src="/card/{{ it.card_id }}/image"
-           alt="{{ it.name }}"
-           loading="lazy"
-           onerror="this.style.visibility='hidden'">
-      {% if it.quantity > 1 %}
-      <span class="card-thumb-qty">×{{ it.quantity }}</span>
-      {% endif %}
-      <div class="card-thumb-info">
-        <code class="card-thumb-id">{{ it.set_code }}-{{ it.collector_number }}</code>
-        <div class="card-thumb-name">{{ it.name }}</div>
-        {% if it.subtitle %}<div class="card-thumb-sub">{{ it.subtitle }}</div>{% endif %}
-      </div>
-      <div class="qty-controls">
-        <form method="post" action="/collection/{{ it.id }}/adjust" class="qty-form">
-          <input type="hidden" name="action" value="dec">
-          <button type="submit" aria-label="Remove one">−</button>
-        </form>
-        <span class="qty-display">{{ it.quantity }}</span>
-        <form method="post" action="/collection/{{ it.id }}/adjust" class="qty-form">
-          <input type="hidden" name="action" value="inc">
-          <button type="submit" aria-label="Add one">+</button>
-        </form>
-        <form method="post" action="/collection/{{ it.id }}/adjust" class="qty-form qty-form--remove"
-              onsubmit="return confirm('Remove {{ it.name }}{% if it.subtitle %} — {{ it.subtitle }}{% endif %} from your collection?');">
-          <input type="hidden" name="action" value="remove">
-          <button type="submit" aria-label="Remove from collection" title="Remove">×</button>
-        </form>
-      </div>
-    </article>
-    {% endfor %}
+    <div class="meta-stat">
+      <span class="meta-stat-num">{{ distinct_owned }}</span>
+      <span class="meta-stat-label">distinct cards</span>
+    </div>
   </div>
-  {% else %}
-  <div class="empty-state">
-    <h2>No cards yet</h2>
-    <p>Your collection is empty. Scan a binder page, review the matches, then click <strong>Accept matched cards into collection</strong> to add them here.</p>
-    <p style="margin-top:20px"><a href="/scan" class="primary" style="background:var(--primary);color:var(--primary-fg);padding:10px 18px;border-radius:8px;text-decoration:none">→ Go to Scan</a></p>
-  </div>
-  {% endif %}
 </section>
+
+{% if total == 0 %}
+<section class="card empty-state">
+  <h2>No cards yet</h2>
+  <p>Your collection is empty. Scan a binder page, review the matches, then click <strong>Accept matched cards into collection</strong> to add them here.</p>
+  <p style="margin-top:20px"><a href="/scan" class="primary" style="background:var(--primary);color:var(--primary-fg);padding:10px 18px;border-radius:8px;text-decoration:none">→ Go to Scan</a></p>
+</section>
+{% else %}
+<nav class="binder-nav">
+  {% for b in binders %}
+  <a href="#{{ b.set_code }}" class="binder-nav-tab{% if b.owned_count == 0 %} binder-nav-tab--empty{% endif %}">
+    {% if b.chapter %}<span class="binder-nav-chapter">{{ b.chapter }}</span>{% endif %}
+    <span class="binder-nav-name">{{ b.set_code }}</span>
+    <span class="binder-nav-count">{{ b.owned_count }}/{{ b.total }}</span>
+  </a>
+  {% endfor %}
+</nav>
+
+<div class="binder-shelf">
+  {% set mode = 'collection' %}
+  {% for binder in binders %}
+    {% include "_partials/binder.html" %}
+  {% endfor %}
+</div>
+{% endif %}
 {% endblock %}

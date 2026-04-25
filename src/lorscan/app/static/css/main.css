@@ -45,9 +45,9 @@ nav a {
 
 /* Layout */
 .container {
-  max-width: 920px;
+  max-width: 1100px;
   margin: 32px auto;
-  padding: 0 16px;
+  padding: 0 20px;
 }
 .footer {
   text-align: center;
@@ -1054,4 +1054,448 @@ button.primary:disabled {
 .danger-zone button:hover {
   background: rgba(255, 90, 90, 0.20);
   border-color: rgba(255, 120, 120, 0.55);
+}
+
+/* ============================================================
+   Binder visualization (used by /collection and /missing)
+   ============================================================ */
+
+/* Page header + stats line, replaces the old card-wrapped h1 on
+   /collection. Lets the binders be the visual centerpiece below. */
+.page-header {
+  margin: 0 4px 24px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.page-header h1 {
+  margin: 0;
+  font-size: 28px;
+  letter-spacing: -0.01em;
+}
+.page-header .subtitle {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  flex-basis: 100%;
+}
+.page-header-meta {
+  display: flex;
+  gap: 24px;
+}
+.meta-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.meta-stat-num {
+  font-size: 22px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.meta-stat-label {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Sticky horizontal navigation strip with one chip per set so users
+   can jump between binders without scrolling through all of them. */
+.binder-nav {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  margin: 0 -20px 20px;
+  padding: 8px 20px;
+  background: linear-gradient(180deg, var(--bg) 0%, rgba(14, 15, 18, 0.92) 100%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+  scrollbar-width: thin;
+}
+.binder-nav-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 12px;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+.binder-nav-tab:hover {
+  border-color: rgba(255, 255, 255, 0.20);
+  background: rgba(255, 255, 255, 0.06);
+  text-decoration: none;
+}
+.binder-nav-tab--empty { opacity: 0.55; }
+.binder-nav-chapter {
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--muted);
+  min-width: 1.4em;
+  text-align: right;
+}
+.binder-nav-name {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.binder-nav-count {
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The shelf is just a stack of binders with vertical breathing room. */
+.binder-shelf {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* One binder = a <details> wrapper that gives us a free expand/collapse.
+   Visually styled like a closed/open book on a shelf — header strip is
+   the spine, the inside is the bound pages. */
+.binder {
+  background: linear-gradient(180deg, var(--panel) 0%, var(--panel-2) 100%);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.binder[open] {
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+.binder--missing[open] { border-color: rgba(240, 182, 95, 0.20); }
+
+/* Binder header / "spine" — flush band at top with name, code, progress.
+   Click to toggle open/closed. We hide the default <summary> marker so
+   we can style it cleanly. */
+.binder-summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 14px 18px 0;
+  user-select: none;
+  position: relative;
+}
+.binder-summary::-webkit-details-marker { display: none; }
+.binder-summary::before {
+  content: '▸';
+  position: absolute;
+  left: 6px;
+  top: 18px;
+  color: var(--muted);
+  font-size: 12px;
+  transition: transform 0.18s ease;
+}
+.binder[open] > .binder-summary::before { transform: rotate(90deg); }
+
+.binder-spine {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding-left: 14px;
+}
+.binder-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+.binder-chapter {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  min-width: 1.2em;
+  text-align: right;
+}
+.binder-name {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.binder-set-code {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+}
+.binder-stats {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.binder-stat-num { font-weight: 600; }
+.binder-stat-sep,
+.binder-stat-tot { color: var(--muted); }
+.binder-stat-pct {
+  margin-left: 8px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+/* Slim progress bar at the bottom of the spine. */
+.binder-progress {
+  margin: 10px 0 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+.binder-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--ok), #5fc88a);
+  transition: width 0.35s ease;
+}
+.binder--missing .binder-progress-fill {
+  background: linear-gradient(90deg, var(--warn), #d99745);
+}
+
+/* Pages container — a slightly inset area with a subtle paper-ish wash. */
+.binder-pages {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  background:
+    radial-gradient(ellipse at top, rgba(255, 255, 255, 0.025), transparent 60%),
+    var(--panel-2);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* One physical-page sheet. The label sits to the right like a tab. */
+.binder-page {
+  position: relative;
+  padding: 14px 14px 16px;
+  background: rgba(0, 0, 0, 0.20);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+.binder-page-label {
+  position: absolute;
+  top: -1px;
+  right: 14px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--panel-2);
+  padding: 2px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: none;
+  border-radius: 0 0 5px 5px;
+}
+.binder-page-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+/* A pocket = one card slot in a binder page. The inset shadow simulates
+   the depth of a plastic sleeve; rounded corners mimic a pocket cutout. */
+.pocket {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 8px 10px;
+  background: rgba(0, 0, 0, 0.30);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.45);
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+.pocket:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 3px rgba(0, 0, 0, 0.45),
+    0 4px 12px rgba(0, 0, 0, 0.40);
+}
+.pocket--owned { border-color: rgba(110, 231, 163, 0.22); }
+.pocket--owned:hover { border-color: rgba(110, 231, 163, 0.45); }
+.pocket--missing {
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.10);
+  background: rgba(0, 0, 0, 0.15);
+}
+.pocket--missing:hover { border-color: rgba(240, 182, 95, 0.45); }
+
+/* Mode-specific emphasis: in /collection, missing pockets fade back so
+   owned cards lead. In /missing, the inverse. */
+.binder--collection .pocket--missing { opacity: 0.55; }
+.binder--collection .pocket--missing:hover { opacity: 1; }
+.binder--missing .pocket--owned { opacity: 0.45; }
+.binder--missing .pocket--owned:hover { opacity: 1; }
+
+/* The image wrapper holds the 5:7 art and overlays. */
+.pocket-art {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 5 / 7;
+  background: #000;
+  border-radius: 5px;
+  overflow: hidden;
+}
+.pocket-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.pocket-art-ghost {
+  filter: grayscale(0.8) brightness(0.45);
+  opacity: 0.85;
+}
+.pocket-empty-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.78));
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+.pocket-empty-num {
+  font-family: ui-monospace, Menlo, monospace;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+}
+
+.pocket-qty {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(0, 0, 0, 0.78);
+  color: var(--primary);
+  font-weight: 600;
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+/* Card text under the art. Tight typographic stack — id on top, name
+   bold, subtitle italic-ish (we just dim it). */
+.pocket-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 11px;
+  line-height: 1.3;
+  padding: 0 2px;
+  min-height: 38px;
+}
+.pocket-id {
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+.pocket-name {
+  font-weight: 600;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pocket-sub {
+  color: var(--muted);
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Owned controls: -, qty, +, ×.  Sit in a row at the bottom of the pocket. */
+.pocket-controls {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.pocket-controls .qty-form button {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: inherit;
+  padding: 1px 7px;
+  font-size: 12px;
+  line-height: 1.2;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.pocket-controls .qty-form button:hover {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+.pocket-controls .qty-display {
+  min-width: 1.2em;
+  text-align: center;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.pocket-controls .qty-form--remove { margin-left: auto; }
+.pocket-controls .qty-form--remove button {
+  color: rgba(255, 170, 170, 0.7);
+  border-color: rgba(255, 120, 120, 0.18);
+}
+.pocket-controls .qty-form--remove button:hover {
+  background: rgba(255, 90, 90, 0.10);
+  border-color: rgba(255, 120, 120, 0.45);
+  color: rgba(255, 170, 170, 1);
+}
+
+/* Missing pocket "+ Add" button — full-width, accent color, satisfying. */
+.pocket-add-form { margin: 0; }
+.pocket-add-btn {
+  width: 100%;
+  background: rgba(245, 198, 108, 0.08);
+  border: 1px solid rgba(245, 198, 108, 0.30);
+  color: var(--primary);
+  padding: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.pocket-add-btn:hover {
+  background: rgba(245, 198, 108, 0.18);
+  border-color: rgba(245, 198, 108, 0.55);
+  color: #f5c66c;
+}
+
+/* Slightly tighter on smaller widths so 3 pockets stay legible. */
+@media (max-width: 720px) {
+  .binder-page-grid { gap: 6px; }
+  .pocket { padding: 5px 5px 7px; }
+  .pocket-info { min-height: 32px; }
+  .pocket-name { font-size: 11px; }
+  .pocket-controls .qty-form button { padding: 1px 5px; font-size: 11px; }
 }

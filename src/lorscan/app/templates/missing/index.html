@@ -1,62 +1,33 @@
 {% extends "base.html" %}
 {% block title %}Missing · lorscan{% endblock %}
 {% block content %}
-<section class="card">
-  <header>
-    <h1>Missing cards by set</h1>
-    <p class="subtitle">For each set, see how complete your collection is and what's still missing.</p>
-  </header>
-
-  {% if not sets %}
-  <div class="empty-state">
-    <h2>No catalog data</h2>
-    <p>Run <code>lorscan sync-catalog</code> to populate the master Lorcana card list.</p>
-  </div>
-  {% else %}
-    {% for s in sets %}
-    <section class="set-progress" id="{{ s.set_code }}">
-      <header class="set-progress-header">
-        <span class="set-progress-name">
-          {% if s.chapter %}<span class="set-chapter">{{ s.chapter }}.</span>{% endif %}
-          {{ s.name }}
-          <code class="set-progress-code">{{ s.set_code }}</code>
-        </span>
-        <span class="set-progress-stats">
-          {{ s.owned }} / {{ s.total }}
-          <span class="set-progress-pct">({{ ((s.owned / s.total * 100) | round(1)) if s.total else 0 }}%)</span>
-        </span>
-      </header>
-      <div class="progress-bar">
-        <div class="progress-bar-fill" style="width: {{ ((s.owned / s.total * 100) | round(1)) if s.total else 0 }}%"></div>
-      </div>
-
-      {% if s.missing %}
-      <details>
-        <summary class="hint" style="cursor:pointer;margin-top:12px">
-          Show {{ s.missing | length }} missing cards
-        </summary>
-        <div class="card-thumb-grid">
-          {% for c in s.missing %}
-          <article class="card-thumb card-thumb--missing">
-            <img class="card-thumb-img"
-                 src="/card/{{ c.card_id }}/image"
-                 alt="{{ c.name }}"
-                 loading="lazy"
-                 onerror="this.style.visibility='hidden'">
-            <div class="card-thumb-info">
-              <code class="card-thumb-id">{{ s.set_code }}-{{ c.collector_number }}</code>
-              <div class="card-thumb-name">{{ c.name }}</div>
-              {% if c.subtitle %}<div class="card-thumb-sub">{{ c.subtitle }}</div>{% endif %}
-            </div>
-          </article>
-          {% endfor %}
-        </div>
-      </details>
-      {% else %}
-      <p class="hint" style="margin-top:8px;color:var(--ok)">Complete!</p>
-      {% endif %}
-    </section>
-    {% endfor %}
-  {% endif %}
+<section class="page-header">
+  <h1>Missing cards by set</h1>
+  <p class="subtitle">Each binder shows every card in the set — empty pockets are what you still need.</p>
 </section>
+
+{% if not binders %}
+<section class="card empty-state">
+  <h2>No catalog data</h2>
+  <p>Run <code>lorscan sync-catalog</code> to populate the master Lorcana card list.</p>
+</section>
+{% else %}
+<nav class="binder-nav">
+  {% for b in binders %}
+  {% set missing_count = b.total - b.owned_count %}
+  <a href="#{{ b.set_code }}" class="binder-nav-tab{% if missing_count == 0 %} binder-nav-tab--empty{% endif %}">
+    {% if b.chapter %}<span class="binder-nav-chapter">{{ b.chapter }}</span>{% endif %}
+    <span class="binder-nav-name">{{ b.set_code }}</span>
+    <span class="binder-nav-count">{{ missing_count }} missing</span>
+  </a>
+  {% endfor %}
+</nav>
+
+<div class="binder-shelf">
+  {% set mode = 'missing' %}
+  {% for binder in binders %}
+    {% include "_partials/binder.html" %}
+  {% endfor %}
+</div>
+{% endif %}
 {% endblock %}

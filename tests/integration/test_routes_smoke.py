@@ -43,6 +43,18 @@ def _seed_db(cfg: Config) -> None:
             rarity="Legendary",
         )
     )
+    # Seed one ROF card too so the binder view (which iterates only over
+    # sets with at least one catalog card) actually renders both sets.
+    db.upsert_card(
+        Card(
+            card_id="rof-001",
+            set_code="ROF",
+            collector_number="1",
+            name="Pinocchio",
+            subtitle="Wooden Rascal",
+            rarity="Common",
+        )
+    )
     db.close()
 
 
