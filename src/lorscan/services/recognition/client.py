@@ -21,7 +21,7 @@ from pathlib import Path
 from lorscan.services.recognition.parser import ParsedScan, ParseError, parse_response
 from lorscan.services.recognition.prompt import build_system_prompt
 
-DEFAULT_TIMEOUT_SECONDS = 120
+DEFAULT_TIMEOUT_SECONDS = 300
 
 
 class CliNotInstalledError(RuntimeError):
@@ -110,6 +110,11 @@ def identify(
         system_prompt,
         "--allowed-tools",
         "Read",
+        # bypassPermissions skips the runtime "may I use Read?" prompt that
+        # would otherwise hang the subprocess (no TTY = no answer to prompt).
+        # Read is already restricted to the photo's directory via --add-dir.
+        "--permission-mode",
+        "bypassPermissions",
         "--add-dir",
         str(photo_abs.parent),
         "--model",
