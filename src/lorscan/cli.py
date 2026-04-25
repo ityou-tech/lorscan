@@ -1,4 +1,5 @@
 """lorscan CLI entry point."""
+
 from __future__ import annotations
 
 import argparse
@@ -34,6 +35,7 @@ def main(argv: list[str] | None = None) -> int:
         return scan_command(photo_path=args.photo, config=cfg)
     elif args.command == "version":
         from lorscan import __version__
+
         print(__version__)
         return 0
     elif args.command == "sync-catalog":
@@ -80,16 +82,12 @@ def scan_command(
 
     for card in result.parsed.cards:
         match = match_card(card, db=db)
-        match_str = (
-            match.matched_card_id if match.matched_card_id
-            else f"({match.match_method})"
-        )
+        match_str = match.matched_card_id if match.matched_card_id else f"({match.match_method})"
         name = (card.name or "?")[:30]
         col = card.collector_number or "?"
         set_hint = card.set_hint or "-"
         print(
-            f"{card.grid_position:<6}{name:<32}{col:<6}"
-            f"{set_hint:<5}{card.confidence:<8}{match_str}"
+            f"{card.grid_position:<6}{name:<32}{col:<6}{set_hint:<5}{card.confidence:<8}{match_str}"
         )
 
     if result.parsed.issues:
@@ -107,7 +105,18 @@ def scan_command(
     return 0
 
 
-def _build_anthropic_client(api_key: str) -> Any:
-    """Indirection so tests can patch this to inject a fake client."""
+def _build_anthropic_client(credential: str) -> Any:
+    """Build an Anthropic client from a credential string.
+
+    Auto-detects the credential type by prefix:
+    - "sk-ant-oat..." → Claude Code OAuth token (subscription auth, e.g. Max plan).
+      Passed to the SDK as ``auth_token=`` so the Authorization: Bearer header is used.
+    - Anything else → standard API key. Passed as ``api_key=``.
+
+    This indirection is also the test-injection seam — tests patch this function.
+    """
     from anthropic import Anthropic
-    return Anthropic(api_key=api_key)
+
+    if credential.startswith("sk-ant-oat"):
+        return Anthropic(auth_token=credential)
+    return Anthropic(api_key=credential)
