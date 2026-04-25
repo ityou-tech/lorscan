@@ -15,7 +15,11 @@ from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 
 from lorscan.services.embeddings import CardImageIndex
-from lorscan.services.photos import ensure_supported_format, hash_bytes
+from lorscan.services.photos import (
+    ensure_supported_format,
+    hash_bytes,
+    jpeg_preview_path,
+)
 from lorscan.services.scan_result import MatchResult, ParsedCard
 from lorscan.services.visual_scan import scan_with_clip, to_parsed_scan
 from lorscan.storage.db import Database
@@ -393,6 +397,11 @@ async def scan_photo(request: Request, scan_id: int) -> FileResponse:
         raise HTTPException(404, "Photo unavailable.") from None
     if not photo_path.exists():
         raise HTTPException(404, "Photo file missing on disk.")
+    # Browsers can't render HEIC; serve the persisted JPEG preview that
+    # ensure_supported_format wrote next to the original at scan time.
+    preview = jpeg_preview_path(photo_path)
+    if preview != photo_path and preview.exists():
+        return FileResponse(preview)
     return FileResponse(photo_path)
 
 

@@ -75,14 +75,15 @@ def test_ensure_supported_format_rejects_unknown_extension(tmp_path: Path):
 
 
 def test_ensure_supported_format_converts_heic_to_jpeg(tmp_path: Path):
-    """HEIC input is transcoded to a JPEG temp file; original untouched."""
+    """HEIC input is transcoded to a JPEG sibling that persists, so the
+    detail page can render it (browsers can't display HEIC)."""
     heic = tmp_path / "photo.heic"
     # Build a tiny HEIC by writing a JPEG and saving via Pillow as HEIF.
     img = Image.new("RGB", (50, 50), color=(200, 100, 50))
     img.save(heic, format="HEIF")
     assert heic.exists()
 
-    transcoded_path = None
+    preview_path = None
     with ensure_supported_format(heic) as scan_path:
         assert scan_path != heic
         assert scan_path.suffix == ".jpg"
@@ -90,10 +91,33 @@ def test_ensure_supported_format_converts_heic_to_jpeg(tmp_path: Path):
         # The resulting file is a valid JPEG.
         out = Image.open(scan_path)
         assert out.format == "JPEG"
-        transcoded_path = scan_path
+        preview_path = scan_path
 
-    # The temp file is cleaned up after exiting the context.
-    assert transcoded_path is not None
-    assert not transcoded_path.exists()
+    # Preview is persisted alongside the original (used by the detail
+    # page to render the photo above the binder grid).
+    assert preview_path is not None
+    assert preview_path.exists()
+    assert preview_path.parent == heic.parent
     # Original is untouched.
     assert heic.exists()
+
+
+def test_ensure_supported_format_reuses_existing_heic_preview(tmp_path: Path):
+    """Re-running on the same HEIC reuses the previously-written preview."""
+    from lorscan.services.photos import jpeg_preview_path
+
+    heic = tmp_path / "photo.heic"
+    Image.new("RGB", (50, 50), color=(200, 100, 50)).save(heic, format="HEIF")
+
+    with ensure_supported_format(heic) as first_path:
+        first_mtime = first_path.stat().st_mtime_ns
+
+    # The preview is at a deterministic path
+    assert jpeg_preview_path(heic).exists()
+
+    with ensure_supported_format(heic) as second_path:
+        second_mtime = second_path.stat().st_mtime_ns
+
+    assert first_path == second_path
+    # Should not have been re-written.
+    assert first_mtime == second_mtime

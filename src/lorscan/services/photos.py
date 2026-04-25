@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import contextlib
 import hashlib
-import tempfile
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -41,13 +40,28 @@ def save_original(payload: bytes, *, photos_dir: Path, extension: str) -> Path:
     return path
 
 
+def jpeg_preview_path(photo_path: Path) -> Path:
+    """Return the path the JPEG sibling would live at for an HEIC original.
+
+    For non-HEIC input, returns the input itself — there's nothing to
+    transcode, the browser can already render it.
+    """
+    if photo_path.suffix.lower() in (".heic", ".heif"):
+        return photo_path.with_suffix(photo_path.suffix + ".preview.jpg")
+    return photo_path
+
+
 @contextlib.contextmanager
 def ensure_supported_format(photo_path: Path) -> Iterator[Path]:
     """Yield a Path to an image in a directly-processable format.
 
     If the input is already JPEG/PNG/GIF/WEBP, yields the original path.
-    If the input is HEIC/HEIF, transcodes to a temporary JPEG and yields
-    its path; the temp file is deleted on exit.
+    If the input is HEIC/HEIF, transcodes to a JPEG saved next to the
+    original (`<photo>.preview.jpg`) and yields that. The preview is
+    persisted, not deleted, so the detail page can render the photo —
+    browsers can't display HEIC, so the JPEG is the only viable preview.
+    Re-running on the same input is idempotent: if the preview already
+    exists it's reused.
 
     Raises:
         ValueError: extension not recognized as a supported or convertible
@@ -59,17 +73,14 @@ def ensure_supported_format(photo_path: Path) -> Iterator[Path]:
         return
 
     if suffix in (".heic", ".heif"):
-        with tempfile.NamedTemporaryFile(prefix="lorscan-", suffix=".jpg", delete=False) as tf:
-            temp_path = Path(tf.name)
-        try:
+        preview = jpeg_preview_path(photo_path)
+        if not preview.exists():
             img = Image.open(photo_path)
             img.load()
             if img.mode != "RGB":
                 img = img.convert("RGB")
-            img.save(temp_path, format="JPEG", quality=JPEG_TRANSCODE_QUALITY, optimize=True)
-            yield temp_path
-        finally:
-            temp_path.unlink(missing_ok=True)
+            img.save(preview, format="JPEG", quality=JPEG_TRANSCODE_QUALITY, optimize=True)
+        yield preview
         return
 
     raise ValueError(
