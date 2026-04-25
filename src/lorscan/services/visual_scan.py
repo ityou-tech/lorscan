@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 
 from lorscan.services.card_detection import detect_and_warp_card
 from lorscan.services.embeddings import (
@@ -194,6 +194,10 @@ def scan_single_card(
 
     image = Image.open(photo_path)
     image.load()
+    # Honor the EXIF orientation tag so the buffer matches what the user
+    # sees in the browser — without this, phone photos with orientation 6/8
+    # crop in the wrong order and the binder grid renders transposed.
+    image = ImageOps.exif_transpose(image)
     if image.mode != "RGB":
         image = image.convert("RGB")
 
@@ -247,6 +251,10 @@ def scan_with_clip(
 
     image = Image.open(photo_path)
     image.load()
+    # Honor the EXIF orientation tag so the buffer matches what the user
+    # sees in the browser — without this, phone photos with orientation 6/8
+    # crop in the wrong order and the binder grid renders transposed.
+    image = ImageOps.exif_transpose(image)
     if image.mode != "RGB":
         image = image.convert("RGB")
 

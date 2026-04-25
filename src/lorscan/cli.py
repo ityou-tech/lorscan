@@ -160,7 +160,7 @@ def diag_command(*, photo_path: Path, out_path: Path | None, config: Config) -> 
     visual inspection, and shows the top-5 catalog matches for each path so
     we can see whether detection is helping, hurting, or being skipped.
     """
-    from PIL import Image
+    from PIL import Image, ImageOps
 
     from lorscan.services.card_detection import detect_and_warp_card
     from lorscan.services.embeddings import _load_clip_model
@@ -182,6 +182,7 @@ def diag_command(*, photo_path: Path, out_path: Path | None, config: Config) -> 
             print(f"Transcoded {photo_path.suffix} → JPEG.")
         original = Image.open(scan_path)
         original.load()
+        original = ImageOps.exif_transpose(original)
         if original.mode != "RGB":
             original = original.convert("RGB")
 
