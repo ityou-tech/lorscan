@@ -45,7 +45,7 @@ def load_config(
     env = env if env is not None else {}
     toml_path = toml_path if toml_path is not None else DEFAULT_DATA_DIR / "config.toml"
 
-    data: dict = {}
+    data: dict[str, object] = {}
     if toml_path.exists():
         with toml_path.open("rb") as f:
             data = tomllib.load(f)
@@ -54,7 +54,9 @@ def load_config(
     budget = data.get("budget", {})
     storage = data.get("storage", {})
 
-    api_key = env.get("ANTHROPIC_API_KEY") or anthropic.get("api_key")
+    env_key = (env.get("ANTHROPIC_API_KEY") or "").strip()
+    toml_key = (anthropic.get("api_key") or "").strip()
+    api_key = env_key or toml_key
     if not api_key:
         raise ValueError(
             "Missing anthropic.api_key — set it in ~/.lorscan/config.toml "

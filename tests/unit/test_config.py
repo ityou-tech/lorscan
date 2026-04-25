@@ -49,3 +49,24 @@ def test_defaults_when_toml_missing():
     assert cfg.anthropic_model == "claude-sonnet-4-6"
     assert cfg.per_scan_budget_usd == 0.50
     assert cfg.monthly_budget_usd is None
+
+
+def test_empty_env_var_does_not_bypass_toml(tmp_path: Path):
+    """Empty/whitespace ANTHROPIC_API_KEY must not silently fall through to TOML."""
+    toml = tmp_path / "config.toml"
+    toml.write_text('[anthropic]\napi_key = "from-toml"\n')
+
+    # Empty env var → should fall back to TOML, not raise
+    cfg = load_config(toml_path=toml, env={"ANTHROPIC_API_KEY": ""})
+    assert cfg.anthropic_api_key == "from-toml"
+
+    # Whitespace-only env var → same: falls back
+    cfg = load_config(toml_path=toml, env={"ANTHROPIC_API_KEY": "   "})
+    assert cfg.anthropic_api_key == "from-toml"
+
+
+def test_whitespace_only_in_both_sources_raises(tmp_path: Path):
+    toml = tmp_path / "config.toml"
+    toml.write_text('[anthropic]\napi_key = "   "\n')
+    with pytest.raises(ValueError, match="anthropic.api_key"):
+        load_config(toml_path=toml, env={"ANTHROPIC_API_KEY": ""})
