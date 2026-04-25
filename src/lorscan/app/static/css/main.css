@@ -886,6 +886,49 @@ button.primary:disabled {
   margin-left: 4px;
 }
 
+/* Compact set-progress dashboard (rendered on /scan). Lays out every set
+   as a small card with a progress bar; the whole cell is a link into
+   /missing#<set_code> so clicking jumps to the relevant section. */
+.progress-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+.progress-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.progress-cell:hover {
+  border-color: rgba(255, 255, 255, 0.20);
+  transform: translateY(-1px);
+}
+.progress-cell-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.progress-cell-head > span:first-child {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.progress-cell-stats {
+  font-size: 11px;
+  color: var(--muted);
+}
+
 /* Two-up segmented mode toggle on the upload form. Radio inputs are
    hidden visually but kept accessible via the surrounding label. */
 .mode-toggle {

@@ -21,7 +21,7 @@ from lorscan.services.photos import (
     jpeg_preview_path,
 )
 from lorscan.services.scan_result import MatchResult, ParsedCard
-from lorscan.services.sets import LORCANA_RELEASE_ORDER
+from lorscan.services.sets import LORCANA_RELEASE_ORDER, release_sort_key
 from lorscan.services.visual_scan import (
     scan_single_card,
     scan_with_clip,
@@ -165,10 +165,15 @@ async def scan_index(request: Request) -> HTMLResponse:
                 "SELECT set_code, name, total_cards FROM sets"
             ).fetchall()
         ]
+        completion = sorted(
+            [dict(r) for r in db.get_set_completion()],
+            key=lambda r: release_sort_key(r["set_code"]),
+        )
     finally:
         db.close()
 
     main_sets, other_sets = _split_sets_for_dropdown(all_sets)
+    progress = _build_progress_summary(completion)
 
     embeddings_path = cfg.data_dir / "embeddings.npz"
     clip_index_ready = embeddings_path.exists()
@@ -182,8 +187,39 @@ async def scan_index(request: Request) -> HTMLResponse:
             "clip_index_ready": clip_index_ready,
             "main_sets": main_sets,
             "other_sets": other_sets,
+            "progress": progress,
         },
     )
+
+
+def _build_progress_summary(completion: list[dict]) -> dict:
+    """Aggregate per-set completion into a single dashboard summary.
+
+    Each row gets a `pct` field (0-100) for the progress bar, plus a
+    `chapter` index (None for supplementary sets). The aggregate totals
+    cover only main sets so the headline number reflects the canonical
+    Lorcana progression, not promo/adventure cards.
+    """
+    rows: list[dict] = []
+    main_total = 0
+    main_owned = 0
+    for r in completion:
+        chapter = LORCANA_RELEASE_ORDER.index(r["set_code"]) + 1 if r[
+            "set_code"
+        ] in LORCANA_RELEASE_ORDER else None
+        total = r["total_cards"] or 0
+        owned = r["owned"] or 0
+        pct = round(owned / total * 100, 1) if total else 0
+        rows.append({**r, "chapter": chapter, "pct": pct})
+        if chapter is not None:
+            main_total += total
+            main_owned += owned
+    return {
+        "rows": rows,
+        "main_total": main_total,
+        "main_owned": main_owned,
+        "main_pct": round(main_owned / main_total * 100, 1) if main_total else 0,
+    }
 
 
 def _split_sets_for_dropdown(

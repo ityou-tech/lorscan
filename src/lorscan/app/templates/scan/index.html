@@ -71,6 +71,41 @@
   {% endif %}
 </section>
 
+{% if progress.rows %}
+<section class="card">
+  <header class="results-header">
+    <h2>Collection progress</h2>
+    <div class="meta">
+      <div>
+        <span class="label">Main sets</span>
+        {{ progress.main_owned }} / {{ progress.main_total }}
+        <span class="set-progress-pct">({{ progress.main_pct }}%)</span>
+      </div>
+    </div>
+  </header>
+  <div class="progress-grid">
+    {% for r in progress.rows %}
+    <a class="progress-cell" href="/missing#{{ r.set_code }}">
+      <div class="progress-cell-head">
+        <span>
+          {% if r.chapter %}<span class="set-chapter">{{ r.chapter }}.</span>{% endif %}
+          {{ r.name }}
+        </span>
+        <code class="set-progress-code">{{ r.set_code }}</code>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-bar-fill" style="width: {{ r.pct }}%"></div>
+      </div>
+      <div class="progress-cell-stats">
+        {{ r.owned }} / {{ r.total_cards }}
+        <span class="set-progress-pct">({{ r.pct }}%)</span>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
 {% if recent_scans %}
 <section class="card">
   <h2>Recent scans</h2>

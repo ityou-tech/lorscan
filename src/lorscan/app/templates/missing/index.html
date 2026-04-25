@@ -14,7 +14,7 @@
   </div>
   {% else %}
     {% for s in sets %}
-    <section class="set-progress">
+    <section class="set-progress" id="{{ s.set_code }}">
       <header class="set-progress-header">
         <span class="set-progress-name">
           {% if s.chapter %}<span class="set-chapter">{{ s.chapter }}.</span>{% endif %}
