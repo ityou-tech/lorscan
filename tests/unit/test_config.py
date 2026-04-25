@@ -2,8 +2,6 @@
 
 from pathlib import Path
 
-import pytest
-
 from lorscan.config import load_config
 
 
@@ -33,11 +31,13 @@ def test_env_overrides_toml(tmp_path: Path):
     assert cfg.anthropic_api_key == "from-env"
 
 
-def test_missing_api_key_raises(tmp_path: Path):
+def test_missing_api_key_is_allowed(tmp_path: Path):
+    """No api_key required — the claude CLI handles credential discovery itself."""
     toml = tmp_path / "config.toml"
     toml.write_text('[anthropic]\nmodel = "claude-sonnet-4-6"\n')
-    with pytest.raises(ValueError, match="anthropic.api_key"):
-        load_config(toml_path=toml, env={})
+    cfg = load_config(toml_path=toml, env={})
+    assert cfg.anthropic_api_key is None
+    assert cfg.anthropic_model == "claude-sonnet-4-6"
 
 
 def test_defaults_when_toml_missing():
@@ -51,22 +51,26 @@ def test_defaults_when_toml_missing():
     assert cfg.monthly_budget_usd is None
 
 
+def test_no_credential_at_all_returns_none(tmp_path: Path):
+    """Neither config nor env: api_key is None, no error raised."""
+    cfg = load_config(toml_path=tmp_path / "missing.toml", env={})
+    assert cfg.anthropic_api_key is None
+
+
 def test_empty_env_var_does_not_bypass_toml(tmp_path: Path):
-    """Empty/whitespace ANTHROPIC_API_KEY must not silently fall through to TOML."""
+    """Empty/whitespace ANTHROPIC_API_KEY must not silently overshadow TOML."""
     toml = tmp_path / "config.toml"
     toml.write_text('[anthropic]\napi_key = "from-toml"\n')
 
-    # Empty env var → should fall back to TOML, not raise
     cfg = load_config(toml_path=toml, env={"ANTHROPIC_API_KEY": ""})
     assert cfg.anthropic_api_key == "from-toml"
 
-    # Whitespace-only env var → same: falls back
     cfg = load_config(toml_path=toml, env={"ANTHROPIC_API_KEY": "   "})
     assert cfg.anthropic_api_key == "from-toml"
 
 
-def test_whitespace_only_in_both_sources_raises(tmp_path: Path):
+def test_whitespace_only_in_both_sources_yields_none(tmp_path: Path):
     toml = tmp_path / "config.toml"
     toml.write_text('[anthropic]\napi_key = "   "\n')
-    with pytest.raises(ValueError, match="anthropic.api_key"):
-        load_config(toml_path=toml, env={"ANTHROPIC_API_KEY": ""})
+    cfg = load_config(toml_path=toml, env={"ANTHROPIC_API_KEY": ""})
+    assert cfg.anthropic_api_key is None

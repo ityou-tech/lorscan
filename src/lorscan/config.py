@@ -16,11 +16,15 @@ DEFAULT_CATALOG_API_BASE = "https://api.lorcana-api.com"
 
 @dataclass(frozen=True)
 class Config:
-    anthropic_api_key: str
     anthropic_model: str
     per_scan_budget_usd: float
     monthly_budget_usd: float | None
     data_dir: Path
+    # Optional — lorscan no longer requires this. The `claude` CLI
+    # handles credential discovery itself (keychain via `claude setup-token`,
+    # then ANTHROPIC_API_KEY env var, etc.). The field is preserved for
+    # users who want to centralize their key in the config file.
+    anthropic_api_key: str | None = None
     catalog_api_base: str = DEFAULT_CATALOG_API_BASE
 
     @property
@@ -41,7 +45,12 @@ def load_config(
     toml_path: Path | None = None,
     env: Mapping[str, str] | None = None,
 ) -> Config:
-    """Load config — defaults → TOML → env (later wins)."""
+    """Load config — defaults → TOML → env (later wins).
+
+    Auth is no longer validated at load time. The `claude` CLI subprocess
+    handles credential discovery on its own; lorscan simply forwards an
+    optional API key when present.
+    """
     env = env if env is not None else {}
     toml_path = toml_path if toml_path is not None else DEFAULT_DATA_DIR / "config.toml"
 
@@ -56,12 +65,7 @@ def load_config(
 
     env_key = (env.get("ANTHROPIC_API_KEY") or "").strip()
     toml_key = (anthropic.get("api_key") or "").strip()
-    api_key = env_key or toml_key
-    if not api_key:
-        raise ValueError(
-            "Missing anthropic.api_key — set it in ~/.lorscan/config.toml "
-            "or via the ANTHROPIC_API_KEY environment variable."
-        )
+    api_key = env_key or toml_key or None
 
     model = env.get("LORSCAN_MODEL") or anthropic.get("model") or DEFAULT_MODEL
     per_scan = float(budget.get("per_scan_usd", DEFAULT_PER_SCAN_BUDGET_USD))

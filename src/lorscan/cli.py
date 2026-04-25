@@ -6,12 +6,14 @@ import argparse
 import os
 import sys
 from pathlib import Path
-from typing import Any
 
 from lorscan.config import Config, load_config
 from lorscan.services.matching import match_card
-from lorscan.services.photos import normalize_for_api
-from lorscan.services.recognition.client import identify
+from lorscan.services.recognition.client import (
+    CliInvocationError,
+    CliNotInstalledError,
+    identify,
+)
 from lorscan.storage.db import Database
 
 
@@ -39,7 +41,6 @@ def main(argv: list[str] | None = None) -> int:
         print(__version__)
         return 0
     elif args.command == "sync-catalog":
-        # Deferred to Plan 2 expansion; placeholder ensures the subcommand is parseable.
         print("sync-catalog: not yet wired in Plan 1; coming in Plan 2.", file=sys.stderr)
         return 2
     return 2
@@ -56,17 +57,18 @@ def scan_command(
         print(f"error: photo not found: {photo_path}", file=sys.stderr)
         return 2
 
-    image_bytes = photo_path.read_bytes()
-    normalized = normalize_for_api(image_bytes)
-
-    anthropic_client = _build_anthropic_client(config.anthropic_api_key)
-
-    result = identify(
-        image_bytes=normalized,
-        media_type="image/jpeg",
-        anthropic_client=anthropic_client,
-        model=config.anthropic_model,
-    )
+    try:
+        result = identify(
+            photo_path=photo_path,
+            model=config.anthropic_model,
+            max_budget_usd=config.per_scan_budget_usd,
+        )
+    except CliNotInstalledError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 3
+    except CliInvocationError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 4
 
     db_file = db_path if db_path is not None else config.db_path
     db = Database.connect(str(db_file))
@@ -100,23 +102,8 @@ def scan_command(
         f"output: {result.usage.output_tokens}, "
         f"cache_read: {result.usage.cache_read_tokens}"
     )
+    if result.cost_usd is not None:
+        print(f"Cost: ${result.cost_usd:.4f}")
 
     db.close()
     return 0
-
-
-def _build_anthropic_client(credential: str) -> Any:
-    """Build an Anthropic client from a credential string.
-
-    Auto-detects the credential type by prefix:
-    - "sk-ant-oat..." → Claude Code OAuth token (subscription auth, e.g. Max plan).
-      Passed to the SDK as ``auth_token=`` so the Authorization: Bearer header is used.
-    - Anything else → standard API key. Passed as ``api_key=``.
-
-    This indirection is also the test-injection seam — tests patch this function.
-    """
-    from anthropic import Anthropic
-
-    if credential.startswith("sk-ant-oat"):
-        return Anthropic(auth_token=credential)
-    return Anthropic(api_key=credential)

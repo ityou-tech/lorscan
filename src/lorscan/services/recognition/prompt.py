@@ -1,4 +1,5 @@
 """Builders for the Anthropic Messages API request used in recognition."""
+
 from __future__ import annotations
 
 import base64
@@ -59,9 +60,7 @@ Output schema:
 """
 
 
-def build_user_message(
-    *, image_bytes: bytes, media_type: str = "image/jpeg"
-) -> dict[str, Any]:
+def build_user_message(*, image_bytes: bytes, media_type: str = "image/jpeg") -> dict[str, Any]:
     """Build the user-role message (image + instruction)."""
     encoded = base64.standard_b64encode(image_bytes).decode("ascii")
     return {

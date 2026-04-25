@@ -5,7 +5,6 @@ description = "Local Lorcana collection manager with Claude-vision card recognit
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "anthropic>=0.40",
     "httpx>=0.28",
     "Pillow>=11.0",
 ]

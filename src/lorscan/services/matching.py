@@ -6,6 +6,7 @@ Implements the algorithm in spec §4.3:
 3. cross-set name-only fallback
 4. unmatched
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

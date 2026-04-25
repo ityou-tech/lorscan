@@ -1,4 +1,5 @@
 """Strict JSON parsing of Claude's recognition response."""
+
 from __future__ import annotations
 
 import json
@@ -91,8 +92,9 @@ def _parse_card(item: dict) -> ParsedCard:
         name=item.get("name"),
         subtitle=item.get("subtitle"),
         set_hint=item.get("set_hint"),
-        collector_number=(str(item["collector_number"])
-                          if item.get("collector_number") is not None else None),
+        collector_number=(
+            str(item["collector_number"]) if item.get("collector_number") is not None else None
+        ),
         ink_color=item.get("ink_color"),
         finish=finish,
         confidence=confidence,
@@ -143,5 +145,5 @@ def _extract_json(raw: str) -> str | None:
         elif ch == "}":
             depth -= 1
             if depth == 0:
-                return raw[start:i + 1]
+                return raw[start : i + 1]
     return None

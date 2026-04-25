@@ -1,4 +1,5 @@
 """Recognition prompts: snapshot-tested system + user message builders."""
+
 from __future__ import annotations
 
 import base64

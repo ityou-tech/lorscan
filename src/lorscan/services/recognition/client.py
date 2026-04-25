@@ -1,11 +1,40 @@
-"""Anthropic Messages API call orchestration with prompt caching + retry-on-prose."""
+"""Recognition via the `claude` CLI subprocess.
+
+Uses Claude Code in headless print mode (`claude -p ... --output-format json`)
+which authenticates via whatever the CLI knows about — most importantly,
+this includes `claude setup-token` (Max-subscription OAuth) on the
+keychain, so users with a Claude Max plan can run lorscan without a
+separate Anthropic API key.
+
+The CLI handles credential discovery itself (keychain → env vars →
+ANTHROPIC_API_KEY → ...), so lorscan never sees a token directly.
+"""
+
 from __future__ import annotations
 
+import json
+import shutil
+import subprocess
 from dataclasses import dataclass
-from typing import Any, Protocol
+from pathlib import Path
 
 from lorscan.services.recognition.parser import ParsedScan, ParseError, parse_response
-from lorscan.services.recognition.prompt import build_system_prompt, build_user_message
+from lorscan.services.recognition.prompt import build_system_prompt
+
+DEFAULT_TIMEOUT_SECONDS = 120
+
+
+class CliNotInstalledError(RuntimeError):
+    """The `claude` CLI was not found on PATH."""
+
+
+class CliInvocationError(RuntimeError):
+    """`claude -p` exited non-zero. stderr is preserved on the exception."""
+
+    def __init__(self, returncode: int, stderr: str) -> None:
+        super().__init__(f"claude CLI exited with code {returncode}: {stderr.strip()[:400]}")
+        self.returncode = returncode
+        self.stderr = stderr
 
 
 @dataclass(frozen=True)
@@ -22,110 +51,116 @@ class RecognitionResult:
     usage: TokenUsage
     request_payload: dict
     response_text: str
-
-
-class AnthropicClient(Protocol):
-    """Minimal interface for the parts of anthropic.Anthropic we use."""
-
-    @property
-    def messages(self) -> Any: ...
+    cost_usd: float | None = None
 
 
 def identify(
     *,
-    image_bytes: bytes,
-    media_type: str,
-    anthropic_client: AnthropicClient,
+    photo_path: Path,
     model: str,
-    max_tokens: int = 1500,
+    max_budget_usd: float | None = None,
+    timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
 ) -> RecognitionResult:
-    """Call Claude vision and return a parsed scan.
+    """Identify Lorcana cards in a photo via the `claude` CLI subprocess.
 
-    Retries once with a strictness reminder if the first response is unparseable.
+    Args:
+        photo_path: absolute or relative path to a JPEG/PNG photo on disk.
+        model: model alias or full name (e.g. "claude-sonnet-4-6").
+        max_budget_usd: per-call dollar cap (passed via --max-budget-usd).
+        timeout_seconds: hard wall-clock cap on the subprocess.
+
+    Returns a RecognitionResult with the parsed scan, token usage, and
+    estimated cost (when the CLI provides it).
+
+    Raises:
+        FileNotFoundError: photo_path doesn't exist.
+        CliNotInstalledError: the `claude` binary is not on PATH.
+        CliInvocationError: the CLI exited non-zero (auth, budget, etc.).
+        ParseError: the model's text response could not be parsed as JSON.
     """
-    system_prompt = build_system_prompt()
-    user_message = build_user_message(image_bytes=image_bytes, media_type=media_type)
+    photo_abs = photo_path.expanduser().resolve()
+    if not photo_abs.exists():
+        raise FileNotFoundError(f"Photo not found: {photo_abs}")
 
-    system_blocks = [
-        {
-            "type": "text",
-            "text": system_prompt,
-            "cache_control": {"type": "ephemeral"},
-        }
+    if shutil.which("claude") is None:
+        raise CliNotInstalledError(
+            "The `claude` CLI is not on PATH. Install Claude Code and run "
+            "`claude setup-token` (for Max-subscription auth) or set "
+            "ANTHROPIC_API_KEY before running lorscan."
+        )
+
+    system_prompt = build_system_prompt()
+    # `@<path>` is Claude Code's syntax for referencing a local file in the
+    # user message. The Read tool ingests image content directly into the
+    # conversation, so the model "sees" the binder page.
+    user_prompt = (
+        f"@{photo_abs}\n\n"
+        "Identify the cards visible in this binder page. "
+        "Reply with a single JSON object matching the schema in the system "
+        "prompt. No prose, no markdown fences."
+    )
+
+    cmd = [
+        "claude",
+        "-p",
+        user_prompt,
+        "--output-format",
+        "json",
+        "--system-prompt",
+        system_prompt,
+        "--allowed-tools",
+        "Read",
+        "--add-dir",
+        str(photo_abs.parent),
+        "--model",
+        model,
+        "--no-session-persistence",
     ]
-    messages: list[dict] = [user_message]
+    if max_budget_usd is not None:
+        cmd.extend(["--max-budget-usd", str(max_budget_usd)])
+
+    proc = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        timeout=timeout_seconds,
+        check=False,
+    )
+
+    if proc.returncode != 0:
+        raise CliInvocationError(proc.returncode, proc.stderr)
+
+    cli_output = json.loads(proc.stdout)
+    response_text = str(cli_output.get("result", ""))
+
+    usage_raw = cli_output.get("usage") or {}
+    usage = TokenUsage(
+        input_tokens=int(usage_raw.get("input_tokens") or 0),
+        output_tokens=int(usage_raw.get("output_tokens") or 0),
+        cache_read_tokens=int(usage_raw.get("cache_read_input_tokens") or 0),
+        cache_creation_tokens=int(usage_raw.get("cache_creation_input_tokens") or 0),
+    )
+    cost_raw = cli_output.get("total_cost_usd")
+    cost_usd = float(cost_raw) if cost_raw is not None else None
 
     request_payload = {
+        "cmd": cmd,
+        "system_prompt": system_prompt,
+        "user_prompt": user_prompt,
         "model": model,
-        "max_tokens": max_tokens,
-        "system": system_blocks,
-        "messages": messages,
     }
-
-    response = anthropic_client.messages.create(**request_payload)
-    response_text = _extract_text(response)
-    usage = _extract_usage(response)
 
     try:
         parsed = parse_response(response_text)
-        return RecognitionResult(
-            parsed=parsed,
-            usage=usage,
-            request_payload=request_payload,
-            response_text=response_text,
-        )
     except ParseError:
-        # One retry with stricter instruction.
-        messages_retry = list(messages) + [
-            {"role": "assistant", "content": response_text},
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": (
-                            "Reply with a single JSON object only. "
-                            "No prose, no markdown fences. JSON only."
-                        ),
-                    }
-                ],
-            },
-        ]
-        retry_payload = {**request_payload, "messages": messages_retry}
-        response2 = anthropic_client.messages.create(**retry_payload)
-        response_text2 = _extract_text(response2)
-        usage2 = _extract_usage(response2)
-        parsed2 = parse_response(response_text2)
-        return RecognitionResult(
-            parsed=parsed2,
-            usage=TokenUsage(
-                input_tokens=usage.input_tokens + usage2.input_tokens,
-                output_tokens=usage.output_tokens + usage2.output_tokens,
-                cache_read_tokens=usage.cache_read_tokens + usage2.cache_read_tokens,
-                cache_creation_tokens=usage.cache_creation_tokens + usage2.cache_creation_tokens,
-            ),
-            request_payload=retry_payload,
-            response_text=response_text2,
-        )
+        # The CLI doesn't expose a follow-up retry hook the way the SDK did,
+        # but ParseError already carries the raw response. Surface it.
+        raise
 
-
-def _extract_text(response: Any) -> str:
-    blocks = getattr(response, "content", None) or []
-    parts: list[str] = []
-    for block in blocks:
-        kind = getattr(block, "type", None)
-        if kind == "text":
-            parts.append(getattr(block, "text", ""))
-    return "".join(parts)
-
-
-def _extract_usage(response: Any) -> TokenUsage:
-    u = getattr(response, "usage", None)
-    if u is None:
-        return TokenUsage(input_tokens=0, output_tokens=0)
-    return TokenUsage(
-        input_tokens=int(getattr(u, "input_tokens", 0) or 0),
-        output_tokens=int(getattr(u, "output_tokens", 0) or 0),
-        cache_read_tokens=int(getattr(u, "cache_read_input_tokens", 0) or 0),
-        cache_creation_tokens=int(getattr(u, "cache_creation_input_tokens", 0) or 0),
+    return RecognitionResult(
+        parsed=parsed,
+        usage=usage,
+        request_payload=request_payload,
+        response_text=response_text,
+        cost_usd=cost_usd,
     )

@@ -1,4 +1,5 @@
 """Photo service: hashing, saving, normalizing for the API."""
+
 from __future__ import annotations
 
 import io

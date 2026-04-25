@@ -1,4 +1,5 @@
 """Recognition response parser: strict JSON, lenient extraction, error taxonomy."""
+
 from __future__ import annotations
 
 import json
@@ -48,14 +49,18 @@ def test_parse_raises_on_total_garbage():
 
 
 def test_parse_normalizes_missing_optional_fields():
-    minimal = json.dumps({
-        "page_type": "single_card",
-        "cards": [{
-            "grid_position": "single",
-            "name": "Mickey",
-            "confidence": "high",
-        }],
-    })
+    minimal = json.dumps(
+        {
+            "page_type": "single_card",
+            "cards": [
+                {
+                    "grid_position": "single",
+                    "name": "Mickey",
+                    "confidence": "high",
+                }
+            ],
+        }
+    )
     parsed = parse_response(minimal)
     card = parsed.cards[0]
     assert card.name == "Mickey"
