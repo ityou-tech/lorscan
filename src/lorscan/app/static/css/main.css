@@ -886,6 +886,40 @@ button.primary:disabled {
   margin-left: 4px;
 }
 
+/* Two-up segmented mode toggle on the upload form. Radio inputs are
+   hidden visually but kept accessible via the surrounding label. */
+.mode-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  border: none;
+  padding: 0;
+  margin: 0 0 16px;
+}
+.mode-toggle legend {
+  margin-bottom: 8px;
+  padding: 0;
+}
+.mode-option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.mode-option:hover { border-color: rgba(255, 255, 255, 0.20); }
+.mode-option input[type="radio"] { position: absolute; opacity: 0; pointer-events: none; }
+.mode-option:has(input[type="radio"]:checked) {
+  border-color: var(--primary, #f5c66c);
+  background: rgba(245, 198, 108, 0.08);
+}
+.mode-title { font-weight: 600; font-size: 14px; }
+.mode-sub { color: var(--muted); font-size: 12px; }
+
 /* Reset DB form on the Scan landing — small, danger-styled, easy to find
    but not visually loud. */
 .danger-zone {

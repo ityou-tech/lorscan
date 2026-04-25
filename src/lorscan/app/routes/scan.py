@@ -22,7 +22,11 @@ from lorscan.services.photos import (
 )
 from lorscan.services.scan_result import MatchResult, ParsedCard
 from lorscan.services.sets import LORCANA_RELEASE_ORDER
-from lorscan.services.visual_scan import scan_with_clip, to_parsed_scan
+from lorscan.services.visual_scan import (
+    scan_single_card,
+    scan_with_clip,
+    to_parsed_scan,
+)
 from lorscan.storage.db import Database
 from lorscan.storage.models import Card
 
@@ -55,15 +59,19 @@ def _run_clip_scan_for_payload(
     cfg,
     db: Database,
     set_filter: str | None = None,
+    mode: str = "grid",
 ) -> ScanRunResult:
-    """Persist the photo, run CLIP on a 3×3 binder grid, store results.
+    """Persist the photo, run CLIP, store results.
 
     Idempotent: if the photo's sha256 already maps to a completed scan, we
     return its id with duplicate=True and skip the CLIP run entirely.
 
     `set_filter`: optional set_code (e.g. "ROF") restricting catalog
-    matches to that set — useful when you know the binder page is from
-    a single set and want to avoid cross-set false positives.
+    matches to that set.
+
+    `mode`:
+      - "grid" (default): 3×3 binder-page scan
+      - "single": treat the whole photo as one card
     """
     cfg.photos_dir.mkdir(parents=True, exist_ok=True)
 
@@ -92,9 +100,16 @@ def _run_clip_scan_for_payload(
             allowed_ids = (
                 _card_ids_in_set(db, set_filter) if set_filter else None
             )
-            tile_matches = scan_with_clip(
-                scan_path, index, allowed_card_ids=allowed_ids
-            )
+            if mode == "single":
+                tile_matches = [
+                    scan_single_card(
+                        scan_path, index, allowed_card_ids=allowed_ids
+                    )
+                ]
+            else:
+                tile_matches = scan_with_clip(
+                    scan_path, index, allowed_card_ids=allowed_ids
+                )
             parsed_scan = to_parsed_scan(tile_matches)
     except (ValueError, FileNotFoundError) as e:
         db.update_scan_failed(scan_id, error_message=str(e))
@@ -210,6 +225,7 @@ async def scan_upload(
     request: Request,
     photo: Annotated[UploadFile, File(...)],
     set_code: Annotated[str, Form()] = "",
+    mode: Annotated[str, Form()] = "grid",
 ) -> RedirectResponse:
     """File-upload form: scan + redirect to /scan/<id> (POST/Redirect/GET).
 
@@ -226,11 +242,17 @@ async def scan_upload(
         raise HTTPException(400, "Uploaded file is empty.")
 
     set_filter = set_code.strip() or None
+    scan_mode = "single" if mode == "single" else "grid"
     db = Database.connect(str(cfg.db_path))
     db.migrate()
     try:
         result = _run_clip_scan_for_payload(
-            payload, photo.filename, cfg=cfg, db=db, set_filter=set_filter
+            payload,
+            photo.filename,
+            cfg=cfg,
+            db=db,
+            set_filter=set_filter,
+            mode=scan_mode,
         )
     finally:
         db.close()

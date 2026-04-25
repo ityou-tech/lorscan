@@ -22,6 +22,20 @@
   </div>
   {% else %}
   <form id="scan-form" method="post" action="/scan/upload" enctype="multipart/form-data" class="upload-form">
+    <fieldset class="mode-toggle">
+      <legend class="label">What's in the photo?</legend>
+      <label class="mode-option">
+        <input type="radio" name="mode" value="grid" checked>
+        <span class="mode-title">Binder page</span>
+        <span class="mode-sub">3×3 pocket layout</span>
+      </label>
+      <label class="mode-option">
+        <input type="radio" name="mode" value="single">
+        <span class="mode-title">Single card</span>
+        <span class="mode-sub">one card filling the frame</span>
+      </label>
+    </fieldset>
+
     <label class="field">
       <span class="label">Photo (JPEG, PNG, HEIC/HEIF)</span>
       <input id="photo-input" type="file" name="photo" accept="image/jpeg,image/png,image/heic,image/heif,.heic,.heif" required>
