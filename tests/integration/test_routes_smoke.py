@@ -121,7 +121,8 @@ def _fake_tile_matches() -> list[TileMatch]:
     ]
 
 
-def test_scan_upload_runs_clip_path(client: TestClient):
+def test_scan_upload_runs_clip_path_and_redirects(client: TestClient):
+    """POST /scan/upload runs CLIP, persists results, and 303s to /scan/<id>."""
     payload = _make_jpeg(200, 200)
 
     with patch(
@@ -131,18 +132,67 @@ def test_scan_upload_runs_clip_path(client: TestClient):
         response = client.post(
             "/scan/upload",
             files={"photo": ("page.jpg", payload, "image/jpeg")},
+            follow_redirects=False,
         )
 
-    assert response.status_code == 200
-    body = response.text
-    # The seeded card name appears via the matched_card lookup.
+    # POST/Redirect/GET — refresh-safe.
+    assert response.status_code == 303
+    assert response.headers["location"].startswith("/scan/")
+
+    # Following the redirect, the detail page renders the matched cards.
+    detail = client.get(response.headers["location"])
+    assert detail.status_code == 200
+    body = detail.text
     assert "Hermes" in body
     assert "Messenger of the Gods" in body
     assert "tfc-127" in body
     assert "clip_visual" in body
-    # No leftover LLM noise.
     assert "Tokens" not in body
     assert "$0." not in body
+
+
+def test_scan_upload_dedupes_re_uploads(client: TestClient):
+    """Re-uploading the same photo redirects to the existing scan without
+    re-running CLIP, and does not accumulate duplicate scan_results."""
+    payload = _make_jpeg(200, 200)
+    fake_tiles = _fake_tile_matches()
+
+    with patch(
+        "lorscan.app.routes.scan.scan_with_clip",
+        return_value=fake_tiles,
+    ) as scan_mock:
+        # First upload: actually runs CLIP.
+        r1 = client.post(
+            "/scan/upload",
+            files={"photo": ("page.jpg", payload, "image/jpeg")},
+            follow_redirects=False,
+        )
+        # Second upload of the same bytes: should NOT re-run CLIP.
+        r2 = client.post(
+            "/scan/upload",
+            files={"photo": ("page.jpg", payload, "image/jpeg")},
+            follow_redirects=False,
+        )
+
+    assert r1.status_code == 303
+    assert r2.status_code == 303
+    # Same target — both redirects point at the same scan id.
+    assert r1.headers["location"] == r2.headers["location"]
+    # CLIP only ran once.
+    assert scan_mock.call_count == 1
+
+    # Detail page still has exactly 9 cells — no duplicates from the second upload.
+    detail = client.get(r1.headers["location"])
+    assert detail.status_code == 200
+    # Each grid_position appears exactly once in the table.
+    for r in range(3):
+        for c in range(3):
+            pos = f"r{r + 1}c{c + 1}"
+            # The pos column is the only place "rNcN" shows up; count occurrences.
+            assert detail.text.count(f">{pos}</code>") == 1, (
+                f"Expected exactly one row for {pos} but found "
+                f"{detail.text.count(f'>{pos}</code>')}"
+            )
 
 
 def test_scan_upload_without_index_shows_helpful_error(client_no_index: TestClient):
@@ -179,12 +229,14 @@ def test_scan_apply_adds_matched_cards_to_collection(client: TestClient):
         upload_response = client.post(
             "/scan/upload",
             files={"photo": ("page.jpg", payload, "image/jpeg")},
+            follow_redirects=False,
         )
-    assert upload_response.status_code == 200
+    assert upload_response.status_code == 303
 
-    body = upload_response.text
-    match = re.search(r'action="/scan/(\d+)/apply"', body)
-    assert match, "Expected an apply form in the results page"
+    # /scan/<id> is the redirect target.
+    location = upload_response.headers["location"]
+    match = re.match(r"/scan/(\d+)$", location)
+    assert match, f"Unexpected redirect target: {location}"
     scan_id = int(match.group(1))
 
     apply_response = client.post(f"/scan/{scan_id}/apply", follow_redirects=False)

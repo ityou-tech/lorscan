@@ -60,12 +60,21 @@ async def scan_index(request: Request) -> HTMLResponse:
     )
 
 
-@router.post("/scan/upload", response_class=HTMLResponse)
+@router.post("/scan/upload")
 async def scan_upload(
     request: Request,
     photo: Annotated[UploadFile, File(...)],
-) -> HTMLResponse:
-    """Receive a photo, run CLIP scan synchronously, render results."""
+) -> RedirectResponse:
+    """Receive a photo, run CLIP scan synchronously, redirect to /scan/<id>.
+
+    POST/Redirect/GET pattern: rendering the result page on this POST would
+    re-run the scan on browser refresh. Instead we redirect (303) to the
+    detail page, which is a stable GET that's safe to refresh.
+
+    Idempotency: if the photo (by sha256) was already scanned and completed,
+    we redirect immediately without re-running CLIP. If a prior scan exists
+    but is failed/pending, we wipe its scan_results and re-run cleanly.
+    """
     if not photo.filename:
         raise HTTPException(400, "No file uploaded.")
 
@@ -83,7 +92,17 @@ async def scan_upload(
 
     db = Database.connect(str(cfg.db_path))
     db.migrate()
+
+    # Idempotency: already-completed scan of this photo? Just show it.
+    existing = db.get_scan_by_photo_hash(digest)
+    if existing is not None and existing["status"] == "completed":
+        existing_id = int(existing["id"])
+        db.close()
+        return RedirectResponse(url=f"/scan/{existing_id}", status_code=303)
+
     scan_id = db.insert_scan(photo_hash=digest, photo_path=str(saved_path))
+    # Wipe any leftover results from a prior failed/pending run on the same hash.
+    db.delete_scan_results(scan_id)
 
     embeddings_path = cfg.data_dir / "embeddings.npz"
     if not embeddings_path.exists():
@@ -93,7 +112,7 @@ async def scan_upload(
         )
         db.close()
         templates = request.app.state.templates
-        return templates.TemplateResponse(
+        return templates.TemplateResponse(  # type: ignore[return-value]
             request=request,
             name="scan/error.html",
             context={
@@ -109,7 +128,6 @@ async def scan_upload(
 
     try:
         with ensure_supported_format(saved_path) as scan_path:
-            transcoded = scan_path != saved_path
             index = CardImageIndex.load(embeddings_path)
             tile_matches = scan_with_clip(scan_path, index)
             parsed_scan = to_parsed_scan(tile_matches)
@@ -117,7 +135,7 @@ async def scan_upload(
         db.update_scan_failed(scan_id, error_message=str(e))
         db.close()
         templates = request.app.state.templates
-        return templates.TemplateResponse(
+        return templates.TemplateResponse(  # type: ignore[return-value]
             request=request,
             name="scan/error.html",
             context={"error": str(e)},
@@ -131,7 +149,6 @@ async def scan_upload(
             api_response_payload=None,
             cost_usd=None,
         )
-        cells: list[CellRow] = []
         for c in parsed_scan.cards:
             best_id = c.candidates[0]["card_id"] if c.candidates else None
             if best_id and c.confidence in ("high", "medium"):
@@ -149,7 +166,7 @@ async def scan_upload(
                     candidates=c.candidates,
                 )
 
-            sr_id = db.insert_scan_result(
+            db.insert_scan_result(
                 scan_id=scan_id,
                 grid_position=c.grid_position,
                 claude_name=None,
@@ -162,33 +179,10 @@ async def scan_upload(
                 matched_card_id=match.matched_card_id,
                 match_method=match.match_method,
             )
-            matched_card = (
-                db.get_card_by_id(match.matched_card_id) if match.matched_card_id else None
-            )
-            cells.append(
-                CellRow(
-                    card=c,
-                    match=match,
-                    scan_result_id=sr_id,
-                    matched_card=matched_card,
-                )
-            )
     finally:
         db.close()
 
-    templates = request.app.state.templates
-    return templates.TemplateResponse(
-        request=request,
-        name="scan/results.html",
-        context={
-            "scan_id": scan_id,
-            "filename": photo.filename,
-            "transcoded": transcoded,
-            "page_type": parsed_scan.page_type,
-            "cells": cells,
-            "issues": parsed_scan.issues,
-        },
-    )
+    return RedirectResponse(url=f"/scan/{scan_id}", status_code=303)
 
 
 @router.get("/scan/{scan_id}", response_class=HTMLResponse)

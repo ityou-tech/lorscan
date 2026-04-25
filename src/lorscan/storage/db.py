@@ -314,6 +314,17 @@ class Database:
     def get_scan(self, scan_id: int) -> sqlite3.Row | None:
         return self.connection.execute("SELECT * FROM scans WHERE id = ?", (scan_id,)).fetchone()
 
+    def get_scan_by_photo_hash(self, photo_hash: str) -> sqlite3.Row | None:
+        return self.connection.execute(
+            "SELECT * FROM scans WHERE photo_hash = ?", (photo_hash,)
+        ).fetchone()
+
+    def delete_scan_results(self, scan_id: int) -> None:
+        """Wipe all scan_results for a scan. Used before re-running a scan
+        so the table doesn't accumulate duplicates from prior runs."""
+        self.connection.execute("DELETE FROM scan_results WHERE scan_id = ?", (scan_id,))
+        self.connection.commit()
+
     def get_scan_results(self, scan_id: int) -> list[sqlite3.Row]:
         rows = self.connection.execute(
             "SELECT * FROM scan_results WHERE scan_id = ? ORDER BY id",
