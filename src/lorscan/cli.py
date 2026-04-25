@@ -25,6 +25,16 @@ def main(argv: list[str] | None = None) -> int:
 
     scan_p = sub.add_parser("scan", help="Identify cards in a photo.")
     scan_p.add_argument("photo", type=Path, help="Path to a binder-page photo.")
+    scan_p.add_argument(
+        "--set",
+        dest="set_code",
+        default=None,
+        help=(
+            "Restrict matching to this Lorcana set code (e.g. 'TFC', 'SSK', 'ARI'). "
+            "Use when you know all cards in the photo are from one set — "
+            "drops candidate counts dramatically."
+        ),
+    )
 
     sync_p = sub.add_parser("sync-catalog", help="Sync card catalog from lorcana-api.com.")
     _ = sync_p
@@ -36,7 +46,11 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "scan":
         cfg = load_config(env=os.environ)
-        return scan_command(photo_path=args.photo, config=cfg)
+        return scan_command(
+            photo_path=args.photo,
+            config=cfg,
+            binder_set_code=args.set_code,
+        )
     elif args.command == "version":
         from lorscan import __version__
 
@@ -53,6 +67,7 @@ def scan_command(
     photo_path: Path,
     config: Config,
     db_path: Path | None = None,
+    binder_set_code: str | None = None,
 ) -> int:
     """Run the recognition + matching pipeline against a single photo."""
     if not photo_path.exists():
@@ -77,15 +92,22 @@ def scan_command(
     db.migrate()
 
     print(f"\nScanned: {photo_path.name}")
+    if binder_set_code:
+        print(f"Restricting matches to set: {binder_set_code}")
     print(f"Page type: {result.parsed.page_type}")
     print(f"Cards detected: {len(result.parsed.cards)}\n")
+
+    # Match each card once and remember the result for both the table and the
+    # ambiguous-candidates breakdown below.
+    cell_matches = [
+        (c, match_card(c, db=db, binder_set_code=binder_set_code)) for c in result.parsed.cards
+    ]
 
     header = f"{'pos':<6}{'name':<32}{'#':<6}{'set':<5}{'conf':<8}{'match'}"
     print(header)
     print("-" * len(header))
 
-    for card in result.parsed.cards:
-        match = match_card(card, db=db)
+    for card, match in cell_matches:
         if match.matched_card_id:
             match_str = match.matched_card_id
         elif match.match_method == "ambiguous_suffix":
@@ -101,22 +123,14 @@ def scan_command(
 
     # If any cells were ambiguous, list the candidates inline so the user
     # can see what lorscan recognized and pick manually later.
-    ambiguous_cells = [
-        (c, match_card(c, db=db))
-        for c in result.parsed.cards
-    ]
-    ambiguous_cells = [
-        (c, m) for c, m in ambiguous_cells
-        if m.match_method == "ambiguous_suffix"
-    ]
+    ambiguous_cells = [(c, m) for c, m in cell_matches if m.match_method == "ambiguous_suffix"]
     if ambiguous_cells:
         print("\nAmbiguous matches (catalog has multiple cards with this name):")
         for card, m in ambiguous_cells:
             print(f"  {card.grid_position} '{card.name}' →")
             for cand in m.candidates[:5]:
                 sub = f" — {cand['subtitle']}" if cand.get("subtitle") else ""
-                print(f"    [{cand['set_code']}/{cand['collector_number']}] "
-                      f"{cand['name']}{sub}")
+                print(f"    [{cand['set_code']}/{cand['collector_number']}] {cand['name']}{sub}")
             if len(m.candidates) > 5:
                 print(f"    ... and {len(m.candidates) - 5} more")
 
