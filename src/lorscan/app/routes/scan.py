@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import (
     FileResponse,
     HTMLResponse,
@@ -23,7 +23,7 @@ from fastapi.responses import (
 from lorscan.services.embeddings import CardImageIndex
 from lorscan.services.photos import ensure_supported_format, hash_bytes
 from lorscan.services.scan_result import MatchResult, ParsedCard
-from lorscan.services.visual_scan import scan_with_clip, to_parsed_scan
+from lorscan.services.visual_scan import scan_single_card, scan_with_clip, to_parsed_scan
 from lorscan.storage.db import Database
 from lorscan.storage.models import Card
 
@@ -50,12 +50,16 @@ class ScanRunResult:
 
 
 def _run_clip_scan_for_payload(
-    payload: bytes, filename: str, *, cfg, db: Database
+    payload: bytes, filename: str, *, cfg, db: Database, mode: str = "grid"
 ) -> ScanRunResult:
     """Persist the photo, run CLIP, store results. Returns the scan id.
 
     Idempotent: if the photo's sha256 already maps to a completed scan, we
     return its id with duplicate=True and skip the CLIP run entirely.
+
+    `mode`:
+      - "grid": split the photo into a 3×3 grid (binder pages)
+      - "single": treat the entire frame as one card (live webcam single-card)
     """
     cfg.photos_dir.mkdir(parents=True, exist_ok=True)
 
@@ -81,7 +85,10 @@ def _run_clip_scan_for_payload(
     try:
         with ensure_supported_format(saved_path) as scan_path:
             index = CardImageIndex.load(embeddings_path)
-            tile_matches = scan_with_clip(scan_path, index)
+            if mode == "single":
+                tile_matches = [scan_single_card(scan_path, index)]
+            else:
+                tile_matches = scan_with_clip(scan_path, index)
             parsed_scan = to_parsed_scan(tile_matches)
     except (ValueError, FileNotFoundError) as e:
         db.update_scan_failed(scan_id, error_message=str(e))
@@ -384,8 +391,13 @@ async def scan_upload(
 async def api_scan(
     request: Request,
     photo: Annotated[UploadFile, File(...)],
+    mode: Annotated[str, Form()] = "grid",
 ) -> dict:
     """Webcam-friendly JSON variant of scan/upload.
+
+    `mode`:
+      - "grid" (default): 3×3 binder-page scan
+      - "single": treat the whole frame as one card
 
     Returns: {scan_id, status, duplicate, cells: [...], error?}
     """
@@ -400,7 +412,7 @@ async def api_scan(
     db = Database.connect(str(cfg.db_path))
     db.migrate()
     try:
-        result = _run_clip_scan_for_payload(payload, photo.filename, cfg=cfg, db=db)
+        result = _run_clip_scan_for_payload(payload, photo.filename, cfg=cfg, db=db, mode=mode)
         if result.error:
             return {"scan_id": result.scan_id, "error": result.error, "cells": []}
         return _scan_to_json(result.scan_id, db=db, duplicate=result.duplicate)

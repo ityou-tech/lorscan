@@ -127,6 +127,43 @@ def crop_grid(
     return tiles
 
 
+def scan_single_card(
+    photo_path: Path,
+    index: CardImageIndex,
+    *,
+    top_k: int = 5,
+    model_bundle=None,
+) -> TileMatch:
+    """Scan a photo as a single card (no grid cropping).
+
+    Used for the live webcam mode where the user holds one card up to the
+    camera. Returns a single TileMatch (grid_position='single').
+    """
+    if model_bundle is None:
+        model, preprocess, device = _load_clip_model()
+    else:
+        model, preprocess, device = model_bundle
+
+    image = Image.open(photo_path)
+    image.load()
+    if image.mode != "RGB":
+        image = image.convert("RGB")
+
+    embeddings = encode_images_batch(model, preprocess, device, [image])
+    matches = index.find_matches(embeddings[0], top_k=top_k)
+    top_sim = matches[0].similarity if matches else 0.0
+    std = _tile_pixel_std(image)
+    empty = _is_empty_tile(top_sim, std)
+    if empty:
+        matches = []
+    return TileMatch(
+        grid_position="single",
+        matches=matches,
+        pixel_std=std,
+        is_empty=empty,
+    )
+
+
 def scan_with_clip(
     photo_path: Path,
     index: CardImageIndex,
@@ -207,6 +244,7 @@ __all__ = [
     "EMPTY_VARIANCE_THRESHOLD",
     "TileMatch",
     "crop_grid",
+    "scan_single_card",
     "scan_with_clip",
     "to_parsed_scan",
 ]

@@ -257,16 +257,23 @@ button.primary:hover { filter: brightness(1.1); }
   border-radius: 999px;
   border: 1px solid var(--border);
 }
-.cam-status {
+.cam-placeholder {
   position: absolute;
   inset: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   color: var(--muted);
   background: rgba(0,0,0,0.6);
   font-size: 14px;
+  text-align: center;
+  padding: 16px;
+  gap: 4px;
 }
+.cam-placeholder p { margin: 0; }
+.cam-placeholder .hint { font-size: 12px; }
+.cam-placeholder[hidden] { display: none; }
 .webcam-results {
   display: flex;
   flex-direction: column;
@@ -294,6 +301,52 @@ button.primary:hover { filter: brightness(1.1); }
   border-radius: 6px;
   padding: 6px 10px;
   font-size: 12px;
+}
+.mode-select { font-weight: 600; }
+
+/* Auto-scan live status indicator */
+.autoscan-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: var(--panel-2);
+  color: var(--muted);
+  align-self: flex-start;
+}
+.autoscan-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+  flex-shrink: 0;
+}
+.autoscan-status[data-state="off"]        { color: var(--muted); }
+.autoscan-status[data-state="off"]        .autoscan-dot { background: var(--muted); }
+.autoscan-status[data-state="idle"]       .autoscan-dot { background: var(--muted); }
+.autoscan-status[data-state="moving"]     { color: var(--warn); }
+.autoscan-status[data-state="moving"]     .autoscan-dot { background: var(--warn); }
+.autoscan-status[data-state="stabilizing"] { color: var(--warn); }
+.autoscan-status[data-state="stabilizing"] .autoscan-dot { background: var(--warn); animation: pulse 0.8s ease-in-out infinite; }
+.autoscan-status[data-state="armed"]      { color: var(--primary); }
+.autoscan-status[data-state="armed"]      .autoscan-dot { background: var(--primary); animation: pulse 1.2s ease-in-out infinite; }
+.autoscan-status[data-state="scanning"]   { color: var(--primary); border-color: var(--primary); }
+.autoscan-status[data-state="scanning"]   .autoscan-dot { background: var(--primary); animation: pulse 0.4s ease-in-out infinite; }
+.autoscan-status[data-state="hit"]        { color: var(--ok); border-color: rgba(110,231,163,0.5); }
+.autoscan-status[data-state="hit"]        .autoscan-dot { background: var(--ok); }
+.autoscan-status[data-state="miss"]       { color: var(--warn); }
+.autoscan-status[data-state="miss"]       .autoscan-dot { background: var(--warn); }
+.autoscan-status[data-state="error"]      { color: var(--err); border-color: var(--err); }
+.autoscan-status[data-state="error"]      .autoscan-dot { background: var(--err); }
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1); }
 }
 .results-panel {
   flex: 1;

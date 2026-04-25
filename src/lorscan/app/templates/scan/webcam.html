@@ -50,21 +50,32 @@
       <video id="cam" playsinline muted autoplay></video>
       <img id="phone-stream" class="phone-stream" alt="Phone camera stream" hidden>
       <canvas id="cam-canvas" hidden></canvas>
-      <div id="cam-status" class="cam-status">Starting camera...</div>
+      <div id="cam-placeholder" class="cam-placeholder">
+        <p>📷 No camera yet.</p>
+        <p class="hint">Use the QR code below to connect your phone, or plug in a webcam.</p>
+      </div>
       <div id="source-badge" class="source-badge" hidden>📱 phone stream</div>
     </div>
 
     <aside class="webcam-results">
       <div class="webcam-controls">
-        <button id="capture-btn" class="primary" disabled>Capture</button>
+        <button id="capture-btn" class="primary" disabled>Capture now</button>
         <label class="auto-toggle">
-          <input id="auto-toggle" type="checkbox">
+          <input id="auto-toggle" type="checkbox" checked>
           <span>Auto-scan</span>
         </label>
+        <select id="mode-select" class="mode-select">
+          <option value="single" selected>Mode: single card</option>
+          <option value="grid">Mode: 3×3 binder page</option>
+        </select>
         <select id="cam-select" hidden></select>
       </div>
+      <div class="autoscan-status" id="autoscan-status">
+        <span class="autoscan-dot"></span>
+        <span class="autoscan-text">arming...</span>
+      </div>
       <div id="results-panel" class="results-panel">
-        <p class="hint">No scans yet. Click Capture or toggle Auto-scan.</p>
+        <p class="hint">Hold a card in front of the camera. Auto-scan will identify it within ~1 second of stillness.</p>
       </div>
     </aside>
   </div>
@@ -80,7 +91,11 @@
   const ctx = canvas?.getContext('2d');
   const captureBtn = document.getElementById('capture-btn');
   const autoToggle = document.getElementById('auto-toggle');
-  const status = document.getElementById('cam-status');
+  const modeSelect = document.getElementById('mode-select');
+  const autoscanStatus = document.getElementById('autoscan-status');
+  const autoscanDot = autoscanStatus?.querySelector('.autoscan-dot');
+  const autoscanText = autoscanStatus?.querySelector('.autoscan-text');
+  const placeholder = document.getElementById('cam-placeholder');
   const camSelect = document.getElementById('cam-select');
   const resultsPanel = document.getElementById('results-panel');
 
@@ -90,6 +105,13 @@
   let scanInFlight = false;
   let phoneStreamingActive = false;
   let lastPhoneRefresh = 0;
+
+  function setStatus(state, label) {
+    if (!autoscanStatus) return;
+    autoscanStatus.dataset.state = state;
+    autoscanText.textContent = label;
+  }
+  setStatus('idle', 'arming...');
 
   // Tiny perceptual hash for "did the frame change/stabilize?" decisions.
   // Average a 16x16 grayscale grid, threshold against the global mean → 256 bits.
@@ -142,12 +164,12 @@
       stream = await navigator.mediaDevices.getUserMedia(constraints);
       video.srcObject = stream;
       await video.play();
-      status.textContent = '';
-      status.hidden = true;
+      placeholder.hidden = true;
       captureBtn.disabled = false;
       listCameras();
-    } catch (err) {
-      status.textContent = 'Camera unavailable: ' + (err.message || err);
+    } catch {
+      // Silent — user is presumably planning to use their phone via QR.
+      // The placeholder stays visible to guide them.
     }
   }
 
@@ -183,6 +205,8 @@
         video.style.display = 'none';
         phoneStream.hidden = false;
         sourceBadge.hidden = false;
+        placeholder.hidden = true;
+        captureBtn.disabled = false;
         // Bind the MJPEG source once; browser keeps the connection open.
         if (!phoneStream.src.endsWith('/api/stream/live.mjpg')) {
           phoneStream.src = '/api/stream/live.mjpg';
@@ -192,6 +216,12 @@
         video.style.display = '';
         phoneStream.hidden = true;
         sourceBadge.hidden = true;
+        // If neither local camera nor phone stream is available, show the
+        // placeholder again so the user knows what to do.
+        if (!stream) {
+          placeholder.hidden = false;
+          captureBtn.disabled = true;
+        }
         // Tear down the long-lived MJPEG connection so it doesn't keep
         // sucking bytes when nobody is watching.
         phoneStream.src = '';
@@ -204,6 +234,7 @@
   async function postCapture(blob) {
     const fd = new FormData();
     fd.append('photo', blob, 'webcam.jpg');
+    fd.append('mode', modeSelect ? modeSelect.value : 'single');
     const resp = await fetch('/api/scan', { method: 'POST', body: fd });
     if (!resp.ok) {
       const text = await resp.text();
@@ -272,33 +303,55 @@
     scanInFlight = true;
     captureBtn.disabled = true;
     captureBtn.textContent = 'Scanning...';
+    setStatus('scanning', 'scanning...');
     try {
       const blob = await captureToBlob();
       const result = await postCapture(blob);
       renderResult(result);
+      const matched = (result.cells || []).filter(c => c.matched_card_id).length;
+      if (matched > 0) {
+        setStatus('hit', `found ${matched} card${matched === 1 ? '' : 's'}`);
+      } else if (result.error) {
+        setStatus('error', 'scan failed');
+      } else {
+        setStatus('miss', 'no card recognized');
+      }
     } catch (err) {
       renderResult({ error: err.message || String(err) });
+      setStatus('error', 'error');
     } finally {
       scanInFlight = false;
       captureBtn.disabled = false;
-      captureBtn.textContent = 'Capture';
+      captureBtn.textContent = 'Capture now';
     }
   }
 
   captureBtn.addEventListener('click', doCapture);
 
-  // Auto-scan loop: sample every 600ms, when frame is stable AND meaningfully
+  // Auto-scan loop: tick at 400ms; when frame is stable AND meaningfully
   // different from last scanned frame, fire a scan. Hashes computed locally
   // so we never hit the server unless something is worth scanning.
+  //
+  // Thresholds tuned for hand-held phone cameras (which jitter a lot more
+  // than a tripod-mounted webcam):
+  //   STABILITY_THRESHOLD: bits different between consecutive frames that
+  //     still counts as "stable" — looser is more forgiving of hand tremor.
+  //   CHANGE_THRESHOLD: bits different from last-scanned frame that count
+  //     as "this is a new card". Lower means we re-scan more aggressively.
   let prevHash = null;
   let stableCount = 0;
   let lastScannedHash = null;
-  const STABILITY_FRAMES = 2;     // ~1.2s of stable frames before we trust it
-  const CHANGE_THRESHOLD = 25;    // bits different = "page changed"
-  const STABILITY_THRESHOLD = 8;  // bits different from prev frame = "stable"
+  let lastSeenAt = 0;
+  const TICK_INTERVAL_MS = 400;
+  const STABILITY_FRAMES = 2;     // ~800ms of stable frames before we trust it
+  const STABILITY_THRESHOLD = 22; // bits / 256 — accommodates hand jitter
+  const CHANGE_THRESHOLD = 32;    // bits / 256 — "new card in view"
 
   setInterval(() => {
-    if (!autoToggle.checked) return;
+    if (!autoToggle.checked) {
+      setStatus('off', 'auto-scan off');
+      return;
+    }
     if (scanInFlight) return;
 
     // Pick the right source: phone-stream image if active, else local video.
@@ -312,6 +365,7 @@
       srcH = video.videoHeight;
       drawSrc = video;
     } else {
+      setStatus('idle', 'waiting for video...');
       return;
     }
 
@@ -322,6 +376,7 @@
     const distFromPrev = hashDistance(prevHash, hash);
     const distFromLastScanned = hashDistance(lastScannedHash, hash);
     prevHash = hash;
+    lastSeenAt = Date.now();
 
     if (distFromPrev <= STABILITY_THRESHOLD) {
       stableCount++;
@@ -329,11 +384,16 @@
         lastScannedHash = hash;
         stableCount = 0;
         doCapture();
+      } else if (stableCount >= STABILITY_FRAMES) {
+        setStatus('armed', 'still — waiting for new card');
+      } else {
+        setStatus('stabilizing', `holding still… (${stableCount}/${STABILITY_FRAMES})`);
       }
     } else {
       stableCount = 0;
+      setStatus('moving', 'tracking motion…');
     }
-  }, 600);
+  }, TICK_INTERVAL_MS);
 
   startCamera();
 })();
