@@ -136,12 +136,14 @@ def test_name_only_cross_set_match(seeded_db: Database):
     assert result.confidence == "low"
 
 
-def test_unmatched_when_name_appears_in_multiple_sets(seeded_db: Database):
-    # "Fairy Godmother" exists in sets 1 and 2 → no unique cross-set match.
+def test_ambiguous_when_name_appears_in_multiple_sets(seeded_db: Database):
+    # "Fairy Godmother" exists in sets 1 and 2 → ambiguous_suffix surfaces both
+    # so the user can see lorscan recognized the card and disambiguate later.
     claude = _claude(name="Fairy Godmother", set_hint=None, collector=None)
     result = match_card(claude, db=seeded_db)
     assert result.matched_card_id is None
-    assert result.match_method == "unmatched"
+    assert result.match_method == "ambiguous_suffix"
+    assert {c["card_id"] for c in result.candidates} == {"tfc-12", "rof-12"}
 
 
 def test_unmatched_when_nothing_known(seeded_db: Database):

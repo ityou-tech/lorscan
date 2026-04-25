@@ -86,13 +86,39 @@ def scan_command(
 
     for card in result.parsed.cards:
         match = match_card(card, db=db)
-        match_str = match.matched_card_id if match.matched_card_id else f"({match.match_method})"
+        if match.matched_card_id:
+            match_str = match.matched_card_id
+        elif match.match_method == "ambiguous_suffix":
+            match_str = f"(ambiguous: {len(match.candidates)} candidates)"
+        else:
+            match_str = f"({match.match_method})"
         name = (card.name or "?")[:30]
         col = card.collector_number or "?"
         set_hint = card.set_hint or "-"
         print(
             f"{card.grid_position:<6}{name:<32}{col:<6}{set_hint:<5}{card.confidence:<8}{match_str}"
         )
+
+    # If any cells were ambiguous, list the candidates inline so the user
+    # can see what lorscan recognized and pick manually later.
+    ambiguous_cells = [
+        (c, match_card(c, db=db))
+        for c in result.parsed.cards
+    ]
+    ambiguous_cells = [
+        (c, m) for c, m in ambiguous_cells
+        if m.match_method == "ambiguous_suffix"
+    ]
+    if ambiguous_cells:
+        print("\nAmbiguous matches (catalog has multiple cards with this name):")
+        for card, m in ambiguous_cells:
+            print(f"  {card.grid_position} '{card.name}' →")
+            for cand in m.candidates[:5]:
+                sub = f" — {cand['subtitle']}" if cand.get("subtitle") else ""
+                print(f"    [{cand['set_code']}/{cand['collector_number']}] "
+                      f"{cand['name']}{sub}")
+            if len(m.candidates) > 5:
+                print(f"    ... and {len(m.candidates) - 5} more")
 
     if result.parsed.issues:
         print("\nIssues reported by the model:")

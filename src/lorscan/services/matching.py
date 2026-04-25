@@ -82,17 +82,42 @@ def match_card(
                 candidates=[_card_summary(c) for c in rows],
             )
 
-    # 3. name-only cross-set
+    # 3. name-only cross-set (no known_set)
     if claude_card.name:
         rows = db.search_cards_by_name(claude_card.name)
+        # 3a. If subtitle is also known, try filtering by it.
+        if claude_card.subtitle:
+            filtered = [c for c in rows if c.subtitle == claude_card.subtitle]
+            if len(filtered) == 1:
+                return MatchResult(
+                    matched_card_id=filtered[0].card_id,
+                    match_method="name_only",
+                    confidence="low",
+                )
+            elif len(filtered) > 1:
+                return MatchResult(
+                    matched_card_id=None,
+                    match_method="ambiguous_suffix",
+                    confidence=confidence,
+                    candidates=[_card_summary(c) for c in filtered],
+                )
+        # 3b. Title-only: unique → match. Multiple → surface as candidates so
+        # the user can see lorscan recognized the card and disambiguate manually.
         if len(rows) == 1:
             return MatchResult(
                 matched_card_id=rows[0].card_id,
                 match_method="name_only",
                 confidence="low",
             )
+        if len(rows) > 1:
+            return MatchResult(
+                matched_card_id=None,
+                match_method="ambiguous_suffix",
+                confidence=confidence,
+                candidates=[_card_summary(c) for c in rows],
+            )
 
-    # 4. unmatched
+    # 4. unmatched (no name, or no rows for this name at all)
     return MatchResult(
         matched_card_id=None,
         match_method="unmatched",
