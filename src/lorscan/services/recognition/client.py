@@ -110,11 +110,11 @@ def identify(
         system_prompt,
         "--allowed-tools",
         "Read",
-        # bypassPermissions skips the runtime "may I use Read?" prompt that
-        # would otherwise hang the subprocess (no TTY = no answer to prompt).
-        # Read is already restricted to the photo's directory via --add-dir.
+        # `auto` lets Claude Code's classifier permit safe tool uses
+        # (Read on an explicitly --add-dir'd path) without an interactive
+        # prompt. `default` would prompt and hang the subprocess (no TTY).
         "--permission-mode",
-        "bypassPermissions",
+        "auto",
         "--add-dir",
         str(photo_abs.parent),
         "--model",

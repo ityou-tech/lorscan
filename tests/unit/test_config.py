@@ -46,7 +46,7 @@ def test_defaults_when_toml_missing():
         env={"ANTHROPIC_API_KEY": "from-env-only"},
     )
     assert cfg.anthropic_api_key == "from-env-only"
-    assert cfg.anthropic_model == "claude-sonnet-4-6"
+    assert cfg.anthropic_model == "claude-opus-4-7"
     assert cfg.per_scan_budget_usd == 0.50
     assert cfg.monthly_budget_usd is None
 

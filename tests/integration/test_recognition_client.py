@@ -84,7 +84,7 @@ def test_identify_runs_claude_subprocess_with_expected_flags(tmp_path: Path):
     assert "--model" in cmd and cmd[cmd.index("--model") + 1] == "claude-sonnet-4-6"
     assert "--no-session-persistence" in cmd
     assert "--permission-mode" in cmd
-    assert cmd[cmd.index("--permission-mode") + 1] == "bypassPermissions"
+    assert cmd[cmd.index("--permission-mode") + 1] == "auto"
     user_prompt = cmd[cmd.index("-p") + 1]
     assert user_prompt.startswith(f"@{photo.resolve()}")
 

@@ -7,7 +7,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
-DEFAULT_MODEL = "claude-sonnet-4-6"
+DEFAULT_MODEL = "claude-opus-4-7"
 DEFAULT_PER_SCAN_BUDGET_USD = 0.50
 DEFAULT_MONTHLY_BUDGET_USD: float | None = None
 DEFAULT_DATA_DIR = Path.home() / ".lorscan"
