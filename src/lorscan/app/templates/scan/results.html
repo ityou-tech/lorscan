@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Scan results · lorscan{% endblock %}
+{% block content %}
+<section class="card">
+  <header class="results-header">
+    <h1>Scan results</h1>
+    <div class="meta">
+      <div><span class="label">File</span> {{ filename }}{% if transcoded %} (transcoded to JPEG){% endif %}</div>
+      <div><span class="label">Page type</span> {{ page_type }}</div>
+      {% if binder_set_code %}
+      <div>
+        <span class="label">Restricted to</span>
+        {{ binder_set_name or binder_set_code }} ({{ binder_set_code }})
+      </div>
+      {% endif %}
+      <div><span class="label">Cards detected</span> {{ cells | length }}</div>
+    </div>
+  </header>
+
+  <table class="results-table">
+    <thead>
+      <tr>
+        <th>Pos</th>
+        <th>Name</th>
+        <th>#</th>
+        <th>Set hint</th>
+        <th>Conf</th>
+        <th>Match</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for cell in cells %}
+      <tr class="cell {{ 'matched' if cell.match.matched_card_id else 'unmatched' }}">
+        <td><code>{{ cell.card.grid_position }}</code></td>
+        <td>
+          <strong>{{ cell.card.name or '?' }}</strong>
+          {% if cell.card.subtitle %}<br><span class="subtitle">{{ cell.card.subtitle }}</span>{% endif %}
+        </td>
+        <td><code>{{ cell.card.collector_number or '?' }}</code></td>
+        <td>{{ cell.card.set_hint or '—' }}</td>
+        <td><span class="conf conf-{{ cell.card.confidence }}">{{ cell.card.confidence }}</span></td>
+        <td>
+          {% if cell.match.matched_card_id %}
+            <code class="match-ok">{{ cell.match.matched_card_id }}</code>
+            <small>via {{ cell.match.match_method }}</small>
+          {% elif cell.match.match_method == 'ambiguous_suffix' %}
+            <span class="match-ambiguous">{{ cell.match.candidates | length }} candidates</span>
+          {% else %}
+            <span class="match-miss">{{ cell.match.match_method }}</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% set ambiguous = cells | selectattr('match.match_method', 'equalto', 'ambiguous_suffix') | list %}
+  {% if ambiguous %}
+  <section class="ambiguous-block">
+    <h2>Ambiguous matches</h2>
+    <p class="subtitle">Catalog has multiple cards with these names. Pick manually for now.</p>
+    {% for cell in ambiguous %}
+    <details class="ambiguous-cell" open>
+      <summary>
+        <code>{{ cell.card.grid_position }}</code> — <strong>{{ cell.card.name }}</strong>
+        ({{ cell.match.candidates | length }} candidates)
+      </summary>
+      <ul class="candidates">
+        {% for c in cell.match.candidates %}
+        <li>
+          <code>[{{ c.set_code }}/{{ c.collector_number }}]</code>
+          {{ c.name }}{% if c.subtitle %} — <em>{{ c.subtitle }}</em>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </details>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  {% if issues %}
+  <section class="issues-block">
+    <h2>Model notes</h2>
+    <ul>
+      {% for issue in issues %}<li>{{ issue }}</li>{% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  <footer class="cost-footer">
+    <span class="label">Tokens</span>
+    input: {{ usage.input_tokens }} ·
+    output: {{ usage.output_tokens }} ·
+    cache_read: {{ usage.cache_read_tokens }}
+    {% if cost_usd is not none %}
+    <span class="cost">${{ '%.4f' % cost_usd }}</span>
+    {% endif %}
+  </footer>
+</section>
+
+<p class="back-link"><a href="/scan">← Scan another page</a></p>
+{% endblock %}

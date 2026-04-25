@@ -40,6 +40,15 @@ def main(argv: list[str] | None = None) -> int:
     sync_p = sub.add_parser("sync-catalog", help="Sync card catalog from lorcana-api.com.")
     _ = sync_p
 
+    serve_p = sub.add_parser("serve", help="Run the local web UI on http://localhost:<port>.")
+    serve_p.add_argument("--host", default="127.0.0.1", help="Bind host (default: 127.0.0.1)")
+    serve_p.add_argument("--port", type=int, default=8000, help="Bind port (default: 8000)")
+    serve_p.add_argument(
+        "--reload",
+        action="store_true",
+        help="Auto-reload on file changes (dev mode)",
+    )
+
     version_p = sub.add_parser("version", help="Print version and exit.")
     _ = version_p
 
@@ -60,6 +69,8 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "sync-catalog":
         cfg = load_config(env=os.environ)
         return sync_catalog_command(config=cfg)
+    elif args.command == "serve":
+        return serve_command(host=args.host, port=args.port, reload=args.reload)
     return 2
 
 
@@ -155,6 +166,21 @@ def scan_command(
         print(f"Cost: ${result.cost_usd:.4f}")
 
     db.close()
+    return 0
+
+
+def serve_command(*, host: str, port: int, reload: bool) -> int:
+    """Run the FastAPI web UI via uvicorn."""
+    import uvicorn
+
+    print(f"Starting lorscan web UI at http://{host}:{port} ...")
+    uvicorn.run(
+        "lorscan.app.main:create_app",
+        host=host,
+        port=port,
+        reload=reload,
+        factory=True,
+    )
     return 0
 
 

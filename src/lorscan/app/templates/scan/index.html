@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Scan a binder page · lorscan{% endblock %}
+{% block content %}
+<section class="card upload-card">
+  <h1>Scan a binder page</h1>
+  <p class="subtitle">
+    Upload a photo. lorscan identifies the cards and matches them against your synced catalog.
+    Restrict matching to a specific set for cleaner results.
+  </p>
+
+  <form method="post" action="/scan/upload" enctype="multipart/form-data" class="upload-form">
+    <label class="field">
+      <span class="label">Photo (JPEG, PNG, HEIC/HEIF)</span>
+      <input type="file" name="photo" accept="image/jpeg,image/png,image/heic,image/heif,.heic,.heif" required>
+    </label>
+
+    <label class="field">
+      <span class="label">Restrict to set (optional, recommended)</span>
+      <select name="set_code">
+        <option value="">— any set —</option>
+        {% for s in sets %}
+          <option value="{{ s.set_code }}">
+            {{ s.name }} ({{ s.set_code }}{% if s.total_cards %} · {{ s.total_cards }} cards{% endif %})
+          </option>
+        {% endfor %}
+      </select>
+      <span class="hint">
+        {% if sets %}
+          {{ sets | length }} sets in your catalog. Run <code>lorscan sync-catalog</code> to refresh.
+        {% else %}
+          No sets in catalog yet — run <code>lorscan sync-catalog</code> first.
+        {% endif %}
+      </span>
+    </label>
+
+    <button type="submit" class="primary">Scan</button>
+    <p class="hint">First scan in a 1-hour window takes ~1–2 minutes (Claude prompt-cache warm-up). Subsequent scans are much faster.</p>
+  </form>
+</section>
+{% endblock %}

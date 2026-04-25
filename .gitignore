@@ -14,3 +14,8 @@ dist/
 
 # Environment
 .python-version
+tests/fixtures/photos/*.jpg
+tests/fixtures/photos/*.jpeg
+tests/fixtures/photos/*.png
+tests/fixtures/photos/*.heic
+tests/fixtures/photos/*.HEIC
