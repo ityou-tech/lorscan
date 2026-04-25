@@ -23,6 +23,19 @@ def main(argv: list[str] | None = None) -> int:
     scan_p = sub.add_parser("scan", help="Identify cards in a photo (local CLIP).")
     scan_p.add_argument("photo", type=Path, help="Path to a binder-page photo.")
 
+    diag_p = sub.add_parser(
+        "diag",
+        help="Diagnose recognition: show whether card-boundary detection fires and "
+        "compare CLIP top-5 with vs. without the warped crop.",
+    )
+    diag_p.add_argument("photo", type=Path, help="Path to a single-card photo.")
+    diag_p.add_argument(
+        "--out",
+        type=Path,
+        default=None,
+        help="Where to save the detected crop (default: <photo>.detected.png)",
+    )
+
     sub.add_parser("sync-catalog", help="Sync card catalog from lorcana-api.com.")
 
     index_p = sub.add_parser(
@@ -63,6 +76,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "scan":
         cfg = load_config(env=os.environ)
         return scan_command(photo_path=args.photo, config=cfg)
+    elif args.command == "diag":
+        cfg = load_config(env=os.environ)
+        return diag_command(photo_path=args.photo, out_path=args.out, config=cfg)
     elif args.command == "version":
         from lorscan import __version__
 
@@ -146,6 +162,159 @@ def scan_command(*, photo_path: Path, config: Config, db_path: Path | None = Non
     finally:
         db.close()
     return 0
+
+
+def diag_command(*, photo_path: Path, out_path: Path | None, config: Config) -> int:
+    """Compare CLIP top-5 with vs. without card-boundary detection on a real photo.
+
+    Prints whether `detect_and_warp_card` fired, saves the warped crop for
+    visual inspection, and shows the top-5 catalog matches for each path so
+    we can see whether detection is helping, hurting, or being skipped.
+    """
+    from PIL import Image
+
+    from lorscan.services.card_detection import detect_and_warp_card
+    from lorscan.services.embeddings import _load_clip_model
+
+    if not photo_path.exists():
+        print(f"error: photo not found: {photo_path}", file=sys.stderr)
+        return 2
+
+    embeddings_path = config.data_dir / "embeddings.npz"
+    if not embeddings_path.exists():
+        print(
+            "error: CLIP index not built. Run `lorscan index-images` first.",
+            file=sys.stderr,
+        )
+        return 6
+
+    with ensure_supported_format(photo_path) as scan_path:
+        if scan_path != photo_path:
+            print(f"Transcoded {photo_path.suffix} → JPEG.")
+        original = Image.open(scan_path)
+        original.load()
+        if original.mode != "RGB":
+            original = original.convert("RGB")
+
+    print(f"\nPhoto: {photo_path.name}  ({original.size[0]}×{original.size[1]})")
+
+    detected = detect_and_warp_card(original)
+    if detected is None:
+        print("Detection: ✗ no card boundary found (would fall back to full frame)")
+    else:
+        print(f"Detection: ✓ found card → warped to {detected.size[0]}×{detected.size[1]}")
+        save_to = out_path or photo_path.with_suffix(photo_path.suffix + ".detected.png")
+        detected.save(save_to)
+        print(f"  saved warped crop → {save_to}")
+
+    _dump_detection_debug(original, photo_path)
+
+    index = CardImageIndex.load(embeddings_path)
+    print("Loading CLIP model ...")
+    model, preprocess, device = _load_clip_model()
+    print(f"  ↳ on {device}")
+
+    db = Database.connect(str(config.db_path))
+    db.migrate()
+    try:
+        _print_diag_top5(
+            label="raw frame ",
+            image=original,
+            model=model,
+            preprocess=preprocess,
+            device=device,
+            index=index,
+            db=db,
+        )
+        if detected is not None:
+            _print_diag_top5(
+                label="detected  ",
+                image=detected,
+                model=model,
+                preprocess=preprocess,
+                device=device,
+                index=index,
+                db=db,
+            )
+    finally:
+        db.close()
+    return 0
+
+
+def _dump_detection_debug(pil_image, photo_path: Path) -> None:
+    """Save edge map + contour overlay for visual inspection.
+
+    These let us see what the pipeline is actually working with — if Canny
+    finds no edges, no min-area tweaking will help; if edges are good but
+    contours don't form closed quads, the problem is in approxPolyDP.
+    """
+    import cv2
+    from PIL import Image
+
+    from lorscan.services.card_detection import _build_edge_map, _pil_to_bgr
+
+    bgr = _pil_to_bgr(pil_image)
+    h, w = bgr.shape[:2]
+    edges = _build_edge_map(bgr)
+    edges_path = photo_path.with_suffix(photo_path.suffix + ".edges.png")
+    Image.fromarray(edges).save(edges_path)
+    print(f"  saved edge map → {edges_path}")
+
+    contours, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+    overlay = bgr.copy()
+    if contours:
+        contours = sorted(contours, key=cv2.contourArea, reverse=True)
+        kept = 0
+        for c in contours[:30]:
+            area = cv2.contourArea(c)
+            pct = area / (w * h)
+            if pct < 0.005:
+                break
+            color = (0, 255, 0) if pct >= 0.02 else (0, 165, 255)
+            cv2.drawContours(overlay, [c], -1, color, 3)
+            peri = cv2.arcLength(c, True)
+            approx = cv2.approxPolyDP(c, 0.04 * peri, True)
+            corners = len(approx)
+            x, y, _, _ = cv2.boundingRect(c)
+            cv2.putText(
+                overlay,
+                f"{corners}c {pct * 100:.1f}%",
+                (x, max(20, y - 6)),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                color,
+                2,
+            )
+            kept += 1
+        print(f"  drew {kept} contours (green ≥2% area, orange 0.5-2%)")
+    overlay_rgb = cv2.cvtColor(overlay, cv2.COLOR_BGR2RGB)
+    overlay_path = photo_path.with_suffix(photo_path.suffix + ".contours.png")
+    Image.fromarray(overlay_rgb).save(overlay_path)
+    print(f"  saved contour overlay → {overlay_path}")
+
+
+def _print_diag_top5(
+    *,
+    label: str,
+    image,
+    model,
+    preprocess,
+    device: str,
+    index: CardImageIndex,
+    db: Database,
+) -> None:
+    from lorscan.services.embeddings import encode_images_batch
+
+    emb = encode_images_batch(model, preprocess, device, [image])[0]
+    matches = index.find_matches(emb, top_k=5)
+    print(f"\nTop-5 ({label}):")
+    print(f"  {'sim':<6}{'card_id':<14}{'name'}")
+    print(f"  {'-' * 5} {'-' * 13} {'-' * 30}")
+    for m in matches:
+        card = db.get_card_by_id(m.card_id)
+        name = "(unknown)" if card is None else (card.name or "?")[:30]
+        sub = "" if card is None or not card.subtitle else f" — {card.subtitle[:20]}"
+        print(f"  {m.similarity:<6.3f}{m.card_id:<14}{name}{sub}")
 
 
 def serve_command(*, host: str, port: int, reload: bool, https: bool = False) -> int:
