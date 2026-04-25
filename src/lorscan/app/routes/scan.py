@@ -22,17 +22,25 @@ from lorscan.services.recognition.client import (
 from lorscan.services.recognition.parser import ParsedCard, ParseError
 from lorscan.services.visual_scan import scan_with_clip, to_parsed_scan
 from lorscan.storage.db import Database
+from lorscan.storage.models import Card
 
 router = APIRouter()
 
 
 @dataclass(frozen=True)
 class CellRow:
-    """One row in the scan-results table."""
+    """One row in the scan-results table.
+
+    `matched_card` is the catalog row corresponding to `match.matched_card_id`,
+    pre-fetched so the template can display the canonical name / subtitle /
+    set / collector_number even when the recognition path didn't produce them
+    (e.g. CLIP-only mode).
+    """
 
     card: ParsedCard
     match: MatchResult
     scan_result_id: int | None = None
+    matched_card: Card | None = None
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -196,7 +204,19 @@ async def scan_upload(
                 matched_card_id=match.matched_card_id,
                 match_method=match.match_method,
             )
-            cells.append(CellRow(card=c, match=match, scan_result_id=sr_id))
+            matched_card = (
+                db.get_card_by_id(match.matched_card_id)
+                if match.matched_card_id
+                else None
+            )
+            cells.append(
+                CellRow(
+                    card=c,
+                    match=match,
+                    scan_result_id=sr_id,
+                    matched_card=matched_card,
+                )
+            )
 
         binder_set_name = None
         if binder_set_code:
@@ -256,7 +276,19 @@ async def scan_detail(request: Request, scan_id: int) -> HTMLResponse:
                 confidence=r["confidence"],
                 candidates=[],
             )
-            cells.append(CellRow(card=parsed, match=match, scan_result_id=int(r["id"])))
+            matched_card = (
+                db.get_card_by_id(r["matched_card_id"])
+                if r["matched_card_id"]
+                else None
+            )
+            cells.append(
+                CellRow(
+                    card=parsed,
+                    match=match,
+                    scan_result_id=int(r["id"]),
+                    matched_card=matched_card,
+                )
+            )
 
         # Look up binder set name if this scan had one.
         binder_set_code = None

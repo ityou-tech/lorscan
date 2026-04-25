@@ -33,11 +33,26 @@
       <tr class="cell {{ 'matched' if cell.match.matched_card_id else 'unmatched' }}">
         <td><code>{{ cell.card.grid_position }}</code></td>
         <td>
-          <strong>{{ cell.card.name or '?' }}</strong>
-          {% if cell.card.subtitle %}<br><span class="subtitle">{{ cell.card.subtitle }}</span>{% endif %}
+          {% if cell.matched_card %}
+            <strong>{{ cell.matched_card.name }}</strong>
+            {% if cell.matched_card.subtitle %}<br><span class="subtitle">{{ cell.matched_card.subtitle }}</span>{% endif %}
+          {% else %}
+            <strong>{{ cell.card.name or '?' }}</strong>
+            {% if cell.card.subtitle %}<br><span class="subtitle">{{ cell.card.subtitle }}</span>{% endif %}
+          {% endif %}
         </td>
-        <td><code>{{ cell.card.collector_number or '?' }}</code></td>
-        <td>{{ cell.card.set_hint or '—' }}</td>
+        <td>
+          <code>
+            {% if cell.matched_card %}{{ cell.matched_card.collector_number }}{% else %}{{ cell.card.collector_number or '?' }}{% endif %}
+          </code>
+        </td>
+        <td>
+          {% if cell.matched_card %}
+            <code>{{ cell.matched_card.set_code }}</code>
+          {% else %}
+            {{ cell.card.set_hint or '—' }}
+          {% endif %}
+        </td>
         <td><span class="conf conf-{{ cell.card.confidence }}">{{ cell.card.confidence }}</span></td>
         <td>
           {% if cell.match.matched_card_id %}
