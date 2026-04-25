@@ -43,7 +43,7 @@ async def sync_catalog(db: Database, *, base_url: str) -> SyncResult:
                 break
 
             for raw in payload:
-                set_code = str(raw["Set_Num"])
+                set_code = _resolve_set_code(raw)
                 set_name = raw.get("Set_Name", f"Set {set_code}")
                 if set_code not in sets_seen:
                     # Upsert a provisional set row so the FK constraint is satisfied
@@ -78,6 +78,40 @@ async def sync_catalog(db: Database, *, base_url: str) -> SyncResult:
     return SyncResult(cards_synced=cards_total, sets_synced=len(sets_seen))
 
 
+def _resolve_set_code(raw: dict) -> str:
+    """Prefer the textual `Set_ID` (e.g., 'ARI'); fall back to the numeric `Set_Num`."""
+    set_id = raw.get("Set_ID")
+    if isinstance(set_id, str) and set_id.strip():
+        return set_id.strip()
+    set_num = raw.get("Set_Num")
+    if set_num is not None:
+        return str(set_num)
+    raise KeyError("Set_ID and Set_Num both missing from card payload")
+
+
+def _resolve_collector_number(raw: dict) -> str:
+    """Prefer textual `Card_Number` (preserves suffixes like '1a'); fall back to `Card_Num`."""
+    card_number = raw.get("Card_Number")
+    if isinstance(card_number, str) and card_number.strip():
+        return card_number.strip()
+    card_num = raw.get("Card_Num")
+    if card_num is not None:
+        return str(card_num)
+    raise KeyError("Card_Number and Card_Num both missing from card payload")
+
+
+def _split_name(full_name: str) -> tuple[str, str | None]:
+    """Split 'Rhino - Motivational Speaker' into ('Rhino', 'Motivational Speaker').
+
+    Some Lorcana cards (Songs, Locations, single-name characters) have no
+    subtitle. For those, returns (full_name, None).
+    """
+    if " - " in full_name:
+        head, _, tail = full_name.partition(" - ")
+        return head.strip(), tail.strip() or None
+    return full_name.strip(), None
+
+
 def _parse_card(raw: dict, set_code: str) -> Card:
     """Map a lorcana-api.com card object into our Card dataclass."""
     inkable_raw = raw.get("Inkable")
@@ -85,12 +119,18 @@ def _parse_card(raw: dict, set_code: str) -> Card:
     cost = raw.get("Cost")
     cost = int(cost) if cost is not None else None
 
+    full_name = str(raw["Name"])
+    name, derived_subtitle = _split_name(full_name)
+    # Prefer an explicit Subtitle field if the API ever exposes one;
+    # otherwise use what we derived by splitting on " - ".
+    subtitle = raw.get("Subtitle") or derived_subtitle
+
     return Card(
         card_id=str(raw["Unique_ID"]),
         set_code=set_code,
-        collector_number=str(raw["Card_Number"]),
-        name=str(raw["Name"]),
-        subtitle=raw.get("Subtitle") or None,
+        collector_number=_resolve_collector_number(raw),
+        name=name,
+        subtitle=subtitle or None,
         rarity=str(raw.get("Rarity") or "Common"),
         ink_color=raw.get("Color") or None,
         cost=cost,

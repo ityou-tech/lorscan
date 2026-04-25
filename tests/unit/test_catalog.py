@@ -33,9 +33,9 @@ async def test_sync_inserts_sets_and_cards(db: Database):
 
     sets = db.get_sets()
     set_codes = {s.set_code for s in sets}
-    assert set_codes == {"1", "99"}
+    assert set_codes == {"TFC", "ADV"}
 
-    mickey = db.get_card_by_collector_number("1", "127")
+    mickey = db.get_card_by_collector_number("TFC", "127")
     assert mickey is not None
     assert mickey.name == "Mickey Mouse"
     assert mickey.subtitle == "Brave Little Tailor"
@@ -43,8 +43,8 @@ async def test_sync_inserts_sets_and_cards(db: Database):
     assert mickey.ink_color == "Steel"
     assert mickey.inkable is False
 
-    a = db.get_card_by_collector_number("99", "1a")
-    b = db.get_card_by_collector_number("99", "1b")
+    a = db.get_card_by_collector_number("ADV", "1a")
+    b = db.get_card_by_collector_number("ADV", "1b")
     assert a is not None and a.subtitle == "Path A"
     assert b is not None and b.subtitle == "Path B"
 
