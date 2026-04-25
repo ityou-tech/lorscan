@@ -50,6 +50,12 @@ CANONICAL_CARD_HEIGHT = 448  # 320 × 7/5
 DEFAULT_MIN_AREA_PCT = 0.02  # 2% — handles 3×3 binder shots
 DEFAULT_MAX_AREA_PCT = 0.95
 
+# How tightly the contour must fill its rotated bounding box (extent ratio)
+# for us to accept it as a card. Real cards have extent ~0.95-1.0; ragged
+# blobs like clothing or hands fall below 0.85. This is what saves the
+# minAreaRect fallback from accepting non-card shapes.
+MIN_EXTENT_RATIO = 0.85
+
 
 def _order_corners(pts: np.ndarray) -> np.ndarray:
     """Order four 2D points as (top-left, top-right, bottom-right, bottom-left).
@@ -90,20 +96,46 @@ def _build_edge_map(bgr: np.ndarray) -> np.ndarray:
     return cv2.dilate(edges, np.ones((3, 3), np.uint8), iterations=1)
 
 
-def _warp_quadrilateral(bgr: np.ndarray, contour: np.ndarray) -> Image.Image | None:
-    """Approximate a contour to a quadrilateral, validate aspect, and warp.
+def _approx_4_corners(contour: np.ndarray) -> np.ndarray | None:
+    """Try several epsilons until approxPolyDP returns a 4-corner polygon.
 
-    Returns the warped PIL image, or None if the contour isn't a valid
-    card-shaped 4-corner polygon.
+    Lorcana cards have rounded corners + sleeve glare that resist a fixed
+    epsilon — sweeping a few values gives us the cleanest perspective
+    correction when one happens to fit, while still letting the caller
+    fall back to minAreaRect when nothing fits.
     """
     peri = cv2.arcLength(contour, True)
-    # Slightly looser epsilon (0.04 vs 0.025) so contours with subtle edge
-    # noise — common in real photos — still simplify down to 4 corners.
-    approx = cv2.approxPolyDP(contour, 0.04 * peri, True)
-    if len(approx) != 4:
+    for epsilon_factor in (0.02, 0.03, 0.04, 0.05, 0.06):
+        approx = cv2.approxPolyDP(contour, epsilon_factor * peri, True)
+        if len(approx) == 4:
+            return approx.reshape(4, 2).astype("float32")
+    return None
+
+
+def _warp_quadrilateral(bgr: np.ndarray, contour: np.ndarray) -> Image.Image | None:
+    """Validate a contour as card-shaped, then perspective-warp to canonical.
+
+    First tries approxPolyDP (true 4-corner perspective correction); falls
+    back to minAreaRect (rotation-only) if no epsilon gives 4 corners. The
+    extent check (contour area vs. rotated-bbox area) rejects irregular
+    blobs like clothing or hands — without it, the minAreaRect fallback
+    happily wraps any large shape as a "card".
+    """
+    contour_area = float(cv2.contourArea(contour))
+    min_rect = cv2.minAreaRect(contour)
+    box_w, box_h = min_rect[1]
+    box_area = float(box_w * box_h)
+    if box_area <= 0:
+        return None
+    extent = contour_area / box_area
+    if extent < MIN_EXTENT_RATIO:
         return None
 
-    rect = _order_corners(approx.reshape(4, 2).astype("float32"))
+    corners = _approx_4_corners(contour)
+    if corners is None:
+        corners = cv2.boxPoints(min_rect).astype("float32")
+
+    rect = _order_corners(corners)
     tl, tr, br, bl = rect
     max_w = max(np.linalg.norm(tr - tl), np.linalg.norm(br - bl))
     max_h = max(np.linalg.norm(bl - tl), np.linalg.norm(br - tr))

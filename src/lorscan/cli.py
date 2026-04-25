@@ -273,8 +273,15 @@ def _dump_detection_debug(pil_image, photo_path: Path) -> None:
             color = (0, 255, 0) if pct >= 0.02 else (0, 165, 255)
             cv2.drawContours(overlay, [c], -1, color, 3)
             peri = cv2.arcLength(c, True)
-            approx = cv2.approxPolyDP(c, 0.04 * peri, True)
-            corners = len(approx)
+            best_corners = None
+            for ef in (0.02, 0.03, 0.04, 0.05, 0.06):
+                ap = cv2.approxPolyDP(c, ef * peri, True)
+                if len(ap) == 4:
+                    best_corners = 4
+                    break
+                if best_corners is None or len(ap) < best_corners:
+                    best_corners = len(ap)
+            corners = best_corners or 0
             x, y, _, _ = cv2.boundingRect(c)
             cv2.putText(
                 overlay,
