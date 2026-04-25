@@ -57,6 +57,27 @@
                 <span class="conf conf-{{ cell.card.confidence }}">{{ cell.card.confidence }}</span>
               </div>
             {% endif %}
+
+            {% if not is_empty and cell.card.candidates and applied_count == 0 %}
+            <form method="post"
+                  action="/scan/{{ scan_id }}/cell/{{ cell.scan_result_id }}/correct"
+                  class="cell-correct-form">
+              <select name="matched_card_id" onchange="this.form.submit()" aria-label="Change match">
+                {% if not cell.match.matched_card_id %}<option value="" selected>— no match —</option>{% endif %}
+                {% for cand in cell.card.candidates %}
+                  {% set card = cell.candidate_cards.get(cand.card_id) %}
+                  {% if card %}
+                  <option value="{{ cand.card_id }}"
+                          {% if cand.card_id == cell.match.matched_card_id %}selected{% endif %}>
+                    {{ card.name }}{% if card.subtitle %} — {{ card.subtitle }}{% endif %}
+                    ({{ "%.2f"|format(cand.similarity) }})
+                  </option>
+                  {% endif %}
+                {% endfor %}
+                {% if cell.match.matched_card_id %}<option value="">— clear match —</option>{% endif %}
+              </select>
+            </form>
+            {% endif %}
           </div>
         {% endif %}
       {% endfor %}

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from datetime import UTC, datetime
 from importlib import resources
@@ -278,13 +279,16 @@ class Database:
         confidence: str,
         matched_card_id: str | None,
         match_method: str | None,
+        candidates: list[dict] | None = None,
     ) -> int:
+        candidates_json = json.dumps(candidates) if candidates else None
         cursor = self.connection.execute(
             "INSERT INTO scan_results "
             "  (scan_id, grid_position, claude_name, claude_subtitle, "
             "   claude_collector_number, claude_set_hint, claude_ink_color, "
-            "   claude_finish, confidence, matched_card_id, match_method) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "   claude_finish, confidence, matched_card_id, match_method, "
+            "   candidates) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 scan_id,
                 grid_position,
@@ -297,10 +301,26 @@ class Database:
                 confidence,
                 matched_card_id,
                 match_method,
+                candidates_json,
             ),
         )
         self.connection.commit()
         return int(cursor.lastrowid or 0)
+
+    def update_scan_result_match(
+        self,
+        scan_result_id: int,
+        *,
+        matched_card_id: str | None,
+        match_method: str = "user_corrected",
+    ) -> None:
+        """Replace the matched_card_id on a scan_result (inline correction)."""
+        self.connection.execute(
+            "UPDATE scan_results SET matched_card_id = ?, match_method = ? "
+            "WHERE id = ?",
+            (matched_card_id, match_method, scan_result_id),
+        )
+        self.connection.commit()
 
     def get_recent_scans(self, *, limit: int = 10) -> list[sqlite3.Row]:
         rows = self.connection.execute(

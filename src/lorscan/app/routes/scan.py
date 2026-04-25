@@ -7,7 +7,8 @@ when CLIP proved sufficient — see commit history for context.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import json
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Annotated
 
@@ -41,6 +42,10 @@ class CellRow:
     match: MatchResult
     scan_result_id: int | None = None
     matched_card: Card | None = None
+    # Cached lookup of {card_id: Card} for every candidate. Lets the
+    # template render a friendly name in the correction dropdown without
+    # a per-row DB query.
+    candidate_cards: dict[str, Card] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -145,6 +150,7 @@ def _run_clip_scan_for_payload(
             confidence=c.confidence,
             matched_card_id=matched_id,
             match_method=method,
+            candidates=c.candidates or None,
         )
 
     return ScanRunResult(scan_id=scan_id, duplicate=False)
@@ -220,6 +226,21 @@ def _build_progress_summary(completion: list[dict]) -> dict:
         "main_owned": main_owned,
         "main_pct": round(main_owned / main_total * 100, 1) if main_total else 0,
     }
+
+
+def _parse_candidates(raw: str | None) -> list[dict]:
+    """Decode the JSON candidates blob from a scan_result row.
+
+    Returns [] for rows from before migration 006 — those just don't
+    get an inline correction dropdown, the rest of the page works fine.
+    """
+    if not raw:
+        return []
+    try:
+        decoded = json.loads(raw)
+    except (TypeError, ValueError):
+        return []
+    return decoded if isinstance(decoded, list) else []
 
 
 def _split_sets_for_dropdown(
@@ -322,6 +343,7 @@ async def scan_detail(request: Request, scan_id: int) -> HTMLResponse:
                 grid_position=r["grid_position"],
                 finish=r["claude_finish"] or "regular",
                 confidence=r["confidence"],
+                candidates=_parse_candidates(r["candidates"]),
             )
             match = MatchResult(
                 matched_card_id=r["matched_card_id"],
@@ -329,12 +351,20 @@ async def scan_detail(request: Request, scan_id: int) -> HTMLResponse:
                 confidence=r["confidence"],
             )
             matched_card = db.get_card_by_id(r["matched_card_id"]) if r["matched_card_id"] else None
+            candidate_cards: dict[str, Card] = {}
+            for cand in parsed.candidates:
+                cid = cand.get("card_id")
+                if cid and cid not in candidate_cards:
+                    card = db.get_card_by_id(cid)
+                    if card is not None:
+                        candidate_cards[cid] = card
             cells.append(
                 CellRow(
                     card=parsed,
                     match=match,
                     scan_result_id=int(r["id"]),
                     matched_card=matched_card,
+                    candidate_cards=candidate_cards,
                 )
             )
         applied_count = sum(1 for r in result_rows if r["applied_at"] is not None)
@@ -443,6 +473,37 @@ async def scan_photo(request: Request, scan_id: int) -> FileResponse:
     if preview != photo_path and preview.exists():
         return FileResponse(preview)
     return FileResponse(photo_path)
+
+
+@router.post("/scan/{scan_id}/cell/{scan_result_id}/correct")
+async def scan_cell_correct(
+    request: Request,
+    scan_id: int,
+    scan_result_id: int,
+    matched_card_id: Annotated[str, Form()] = "",
+) -> RedirectResponse:
+    """Replace the match on a single scan cell.
+
+    `matched_card_id`: the new card_id (must exist in the catalog), or
+    empty string to clear the match (leaves the cell unmatched).
+    """
+    cfg = request.app.state.config
+    db = Database.connect(str(cfg.db_path))
+    db.migrate()
+    try:
+        # Verify the scan_result belongs to this scan (defense against URL-tampering).
+        row = db.connection.execute(
+            "SELECT scan_id FROM scan_results WHERE id = ?", (scan_result_id,)
+        ).fetchone()
+        if row is None or int(row["scan_id"]) != scan_id:
+            raise HTTPException(404, "Scan cell not found.")
+        new_id: str | None = matched_card_id.strip() or None
+        if new_id is not None and db.get_card_by_id(new_id) is None:
+            raise HTTPException(400, f"Unknown card_id: {new_id!r}")
+        db.update_scan_result_match(scan_result_id, matched_card_id=new_id)
+    finally:
+        db.close()
+    return RedirectResponse(url=f"/scan/{scan_id}", status_code=303)
 
 
 @router.post("/scan/reset")

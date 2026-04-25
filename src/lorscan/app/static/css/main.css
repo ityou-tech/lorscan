@@ -792,6 +792,25 @@ button.primary:disabled {
   opacity: 0.4;
 }
 
+/* Inline match-correction dropdown inside a binder cell. Auto-submits
+   on change so the user just clicks-and-go, no extra "save" step. */
+.cell-correct-form {
+  margin-top: 8px;
+}
+.cell-correct-form select {
+  width: 100%;
+  padding: 4px 6px;
+  font-size: 11px;
+  background: rgba(0, 0, 0, 0.45);
+  color: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.cell-correct-form select:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
 /* Reusable card-thumbnail grid used by Collection and Missing pages.
    Slightly denser than the binder grid (140px min) since these views
    tend to show many more cards at once. */
