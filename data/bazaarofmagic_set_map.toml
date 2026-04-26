@@ -1,0 +1,31 @@
+# Hand-curated map of Lorcana set codes to Bazaar of Magic category IDs.
+#
+# Each entry maps one of lorscan's 3-letter set codes (e.g. "ROF") to the
+# corresponding category on bazaarofmagic.eu. The `category_path` is the
+# URL path component the scraper appends to the base URL during a sweep.
+#
+# This file is read on every `lorscan marketplaces refresh` and upserted
+# into the marketplace_set_categories table. To add a new Lorcana set
+# once it appears on Bazaar:
+#   1. Browse https://www.bazaarofmagic.eu/nl-NL/c/disney-lorcana-tcg/...
+#      and find the per-set category URL.
+#   2. Append a `[[set]]` block here with the matching set code, the
+#      numeric category id from the URL, and the full path.
+#   3. Run `lorscan marketplaces refresh --shop bazaarofmagic --set <CODE>`.
+
+[[set]]
+code = "ROF"
+category_id = "1000676"
+category_path = "/nl-NL/c/rise-of-the-floodborn/1000676"
+
+[[set]]
+code = "ITI"
+category_id = "1000697"
+category_path = "/nl-NL/c/into-the-inklands/1000697"
+
+# TODO: Discover and add the remaining sets when their Bazaar category
+# pages are confirmed by manual browser inspection:
+#   TFC (The First Chapter), URS (Ursula's Return), SSK (Shimmering Skies),
+#   ARI (Archazia's Island), ROJ (Reign of Jafar), FAB (Fabled),
+#   WHI (Whisperwood), WIN (Winter), AZS (Azurite Sea)
+# The sweep will skip any set not listed here, so missing entries are safe.
