@@ -79,6 +79,30 @@ After `sync-catalog`, the local DB carries the canonical 3-letter set codes:
 If you mistype a set code, `lorscan scan` fails fast with a "Did you
 mean: …?" hint based on what's actually in your catalog.
 
+### Manual image overrides
+
+The upstream catalog (`lorcana-api.com`) occasionally hands out image
+URLs whose content-hash 404s on Ravensburger's CDN — a publisher-side
+bug that re-syncing won't fix. Without an image, `index-images` skips
+the card and any binder slot containing it gets misclassified as its
+nearest catalog neighbor in art space rather than reported as
+un-matchable.
+
+To plug the gap, drop a replacement image at:
+
+```
+~/.lorscan/overrides/<card_id>.<ext>     # .jpg .jpeg .png .webp .avif
+```
+
+`<card_id>` is the `<SET>-<NUMBER>` form printed in the warning during
+`lorscan index-images` (e.g. `WHI-102.jpg`). Overrides win over both the
+upstream URL and any previously-cached download, and they live outside
+the `cache/` subtree so a cache wipe won't nuke them.
+
+[Lorcast](https://lorcast.com/) is a useful third-party catalog when
+you need a working image — its API at `https://api.lorcast.com/v0/cards/{set_num}/{collector_num}`
+returns AVIF URLs that Pillow 11+ can decode directly.
+
 ---
 
 ## Web UI
