@@ -1,4 +1,8 @@
-"""Bazaar of Magic adapter — listing-page + detail-page parsers + crawler."""
+"""Bazaar of Magic adapter — listing-page parser.
+
+Detail-page parser and the crawl_set generator land in Tasks 6 and 7
+respectively (see docs/plans/2026-04-26-marketplace-stock-plan.md).
+"""
 
 from __future__ import annotations
 
@@ -30,9 +34,12 @@ def parse_listing_page(html: str, *, base_url: str) -> list[ListingCard]:
     """
     soup = BeautifulSoup(html, "html.parser")
     cards: list[ListingCard] = []
-    # Bazaar (Shopware 6) wraps each product in an anchor pointing at /p/...
-    # The href may be absolute or relative; substring match handles both.
-    for anchor in soup.select("a[href*='/nl-NL/p/']"):
+    # Bazaar (Shopware 6) wraps each product card in `div.singles`. Scoping
+    # the anchor selector to that container avoids the ~16 sibling anchors
+    # in the persistent off-canvas "recent comments" sidebar (and any
+    # cross-sell modules) leaking into the result set. On a true past-end
+    # page the grid wrapper is absent entirely and we return [] cleanly.
+    for anchor in soup.select("div.singles a[href*='/nl-NL/p/']"):
         href = anchor.get("href", "")
         match = _PRODUCT_URL_RE.search(href)
         if not match:
@@ -68,10 +75,14 @@ def _extract_price_near(anchor) -> int | None:
     """Find the price text near a product anchor.
 
     Bazaar puts the price in a sibling element of the product card; we walk
-    up to the enclosing card container and search its text.
+    up to the enclosing card container and search its text. The price sits
+    at depth ~2 from the anchor in the current template — a budget of 3
+    keeps one level of safety margin without escaping the card wrapper
+    (where we would otherwise pick up the FIRST card's price for every
+    product).
     """
     container = anchor
-    for _ in range(5):
+    for _ in range(3):
         container = container.parent
         if container is None:
             return None
