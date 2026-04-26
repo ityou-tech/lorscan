@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sqlite3
 from datetime import UTC, datetime
 
 from lorscan.storage.db import Database
@@ -59,7 +60,6 @@ def test_upsert_set_category_inserts_then_updates(db: Database):
 def test_get_enabled_set_categories_skips_unseeded_sets(db: Database):
     """FK constraint on set_code rejects unknown sets."""
     mp = db.get_marketplace_by_slug("bazaarofmagic")
-    import sqlite3
     try:
         db.upsert_set_category(
             marketplace_id=mp["id"],
@@ -162,3 +162,78 @@ def test_get_latest_finished_sweep_returns_most_recent(db: Database):
     db.finish_marketplace_sweep(s2, listings_seen=2, listings_matched=2, errors=0, status="ok")
     latest = db.get_latest_finished_sweep(mp["id"])
     assert latest["id"] == s2
+
+
+def test_start_marketplace_sweep_creates_running_row(db: Database):
+    """Half-state: row exists with status='running', finished_at NULL."""
+    mp = db.get_marketplace_by_slug("bazaarofmagic")
+    sweep_id = db.start_marketplace_sweep(mp["id"])
+    row = db.get_sweep(sweep_id)
+    assert row is not None
+    assert row["status"] == "running"
+    assert row["finished_at"] is None
+    assert row["started_at"] is not None
+    assert row["marketplace_id"] == mp["id"]
+
+
+def test_get_latest_finished_sweep_scopes_by_marketplace(db: Database):
+    """Two marketplaces with one finished sweep each — get_latest must scope."""
+    bazaar = db.get_marketplace_by_slug("bazaarofmagic")
+
+    # Register a synthetic second marketplace via raw INSERT (we don't have a
+    # higher-level API for this in v1; only the migration seeds rows).
+    db.connection.execute(
+        "INSERT INTO marketplaces (slug, display_name, base_url, enabled) "
+        "VALUES ('test-shop', 'Test Shop', 'https://example.com', 1)"
+    )
+    db.connection.commit()
+    other = db.get_marketplace_by_slug("test-shop")
+
+    s1 = db.start_marketplace_sweep(bazaar["id"])
+    db.finish_marketplace_sweep(s1, listings_seen=1, listings_matched=1, errors=0, status="ok")
+    s2 = db.start_marketplace_sweep(other["id"])
+    db.finish_marketplace_sweep(s2, listings_seen=2, listings_matched=2, errors=0, status="ok")
+
+    bazaar_latest = db.get_latest_finished_sweep(bazaar["id"])
+    other_latest = db.get_latest_finished_sweep(other["id"])
+    assert bazaar_latest["id"] == s1
+    assert other_latest["id"] == s2
+
+
+def test_get_cheapest_in_stock_excludes_disabled_marketplace_listings(db: Database):
+    """Regression for the bug where the inner subquery's MIN didn't respect
+    m.enabled, causing cards to vanish from the map when a disabled shop
+    had the cheapest listing."""
+    _seed_catalog(db)
+    bazaar = db.get_marketplace_by_slug("bazaarofmagic")
+
+    # Add a disabled second shop with a cheaper listing.
+    db.connection.execute(
+        "INSERT INTO marketplaces (slug, display_name, base_url, enabled) "
+        "VALUES ('disabled-shop', 'Disabled Shop', 'https://x.com', 0)"
+    )
+    db.connection.commit()
+    disabled = db.get_marketplace_by_slug("disabled-shop")
+
+    now = datetime.now(UTC).isoformat()
+    # Enabled shop: 500c
+    db.upsert_listing(
+        marketplace_id=bazaar["id"], external_id="ENABLED", card_id="rof-224",
+        finish="regular", price_cents=500, currency="EUR", in_stock=True,
+        url="https://example.com/enabled", title="Enabled listing", fetched_at=now,
+    )
+    # Disabled shop: 300c — cheaper, but must be ignored
+    db.upsert_listing(
+        marketplace_id=disabled["id"], external_id="DISABLED", card_id="rof-224",
+        finish="regular", price_cents=300, currency="EUR", in_stock=True,
+        url="https://example.com/disabled", title="Disabled listing", fetched_at=now,
+    )
+
+    cheapest = db.get_cheapest_in_stock_per_card()
+    # Card MUST appear — and at the enabled price, not the disabled price.
+    assert "rof-224" in cheapest, (
+        "Card disappeared from map — disabled shop's cheaper listing "
+        "may be poisoning the MIN subquery."
+    )
+    assert cheapest["rof-224"]["price_cents"] == 500
+    assert cheapest["rof-224"]["marketplace_id"] == bazaar["id"]

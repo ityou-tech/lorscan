@@ -564,9 +564,14 @@ class Database:
             "JOIN marketplaces m ON m.id = ml.marketplace_id "
             "WHERE ml.in_stock = 1 AND ml.card_id IS NOT NULL AND m.enabled = 1 "
             "AND ml.price_cents = ("
-            "  SELECT MIN(price_cents) FROM marketplace_listings ml2 "
-            "  WHERE ml2.card_id = ml.card_id AND ml2.in_stock = 1"
-            ")"
+            "  SELECT MIN(ml2.price_cents) "
+            "  FROM marketplace_listings ml2 "
+            "  JOIN marketplaces m2 ON m2.id = ml2.marketplace_id "
+            "  WHERE ml2.card_id = ml.card_id "
+            "    AND ml2.in_stock = 1 "
+            "    AND m2.enabled = 1"
+            ") "
+            "ORDER BY ml.id"
         ).fetchall()
         result: dict[str, dict] = {}
         for row in rows:
@@ -590,7 +595,8 @@ class Database:
             (marketplace_id, datetime.now(UTC).isoformat()),
         )
         self.connection.commit()
-        return int(cursor.lastrowid or 0)
+        assert cursor.lastrowid is not None, "INSERT failed to produce a lastrowid"
+        return int(cursor.lastrowid)
 
     def finish_marketplace_sweep(
         self,
