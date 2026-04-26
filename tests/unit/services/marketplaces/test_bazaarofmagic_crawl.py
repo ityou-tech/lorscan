@@ -134,3 +134,44 @@ def test_bazaar_adapter_satisfies_shop_adapter_protocol():
     from lorscan.services.marketplaces.base import ShopAdapter
 
     assert isinstance(BazaarAdapter(), ShopAdapter)
+
+
+async def test_crawl_set_invokes_on_error_callback_for_detail_failures():
+    """Per-detail HTTP errors call on_error so the orchestrator can count them."""
+    listing_html = (FIXTURE_DIR / "listing.html").read_text()
+    empty_html = (FIXTURE_DIR / "empty_listing.html").read_text()
+    base = "https://www.bazaarofmagic.eu"
+
+    failures: list[str] = []  # external_ids of failed cards
+
+    def record(card, exc):
+        failures.append(card.external_id)
+
+    adapter = BazaarAdapter(inter_batch_delay_s=0.0, on_error=record)
+
+    with respx.mock(assert_all_called=False) as mock:
+        mock.get(
+            f"{base}/nl-NL/c/rise-of-the-floodborn/1000676",
+            params={"page": "1", "items": "24"},
+        ).mock(return_value=httpx.Response(200, text=listing_html))
+        mock.get(
+            f"{base}/nl-NL/c/rise-of-the-floodborn/1000676",
+            params={"page": "2", "items": "24"},
+        ).mock(return_value=httpx.Response(200, text=empty_html))
+        mock.get(url__regex=rf"{base}/nl-NL/p/.+").mock(
+            return_value=httpx.Response(500, text="boom"),
+        )
+
+        async with httpx.AsyncClient(base_url=base) as client:
+            listings = [
+                listing
+                async for listing in adapter.crawl_set(
+                    client,
+                    set_code="ROF",
+                    category_path="/nl-NL/c/rise-of-the-floodborn/1000676",
+                )
+            ]
+
+    # All 24 detail fetches failed — every card's external_id was reported.
+    assert listings == []
+    assert len(failures) == 24

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import re
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
 from urllib.parse import urljoin, urlparse
 
@@ -209,10 +209,12 @@ class BazaarAdapter:
         items_per_page: int = 24,
         max_concurrent_details: int = 4,
         inter_batch_delay_s: float = 0.2,
+        on_error: Callable[[ListingCard, Exception], None] | None = None,
     ):
         self._items_per_page = items_per_page
         self._max_concurrent_details = max_concurrent_details
         self._inter_batch_delay_s = inter_batch_delay_s
+        self._on_error = on_error
 
     async def crawl_set(
         self,
@@ -239,7 +241,9 @@ class BazaarAdapter:
                     try:
                         detail_resp = await client.get(_path_only(card.url))
                         detail_resp.raise_for_status()
-                    except httpx.HTTPError:
+                    except httpx.HTTPError as e:
+                        if self._on_error is not None:
+                            self._on_error(card, e)
                         return None
                     extras = parse_detail_page(detail_resp.text)
                 return Listing(
