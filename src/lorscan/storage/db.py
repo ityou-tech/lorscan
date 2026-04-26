@@ -468,3 +468,164 @@ class Database:
             (datetime.now(UTC).isoformat(), scan_id, *applied_ids),
         )
         self.connection.commit()
+
+    # ---------- marketplace ops ----------
+
+    def get_marketplace_by_slug(self, slug: str) -> sqlite3.Row | None:
+        return self.connection.execute(
+            "SELECT id, slug, display_name, base_url, enabled "
+            "FROM marketplaces WHERE slug = ?",
+            (slug,),
+        ).fetchone()
+
+    def upsert_set_category(
+        self,
+        *,
+        marketplace_id: int,
+        set_code: str,
+        category_id: str,
+        category_path: str,
+    ) -> None:
+        self.connection.execute(
+            "INSERT INTO marketplace_set_categories "
+            "  (marketplace_id, set_code, category_id, category_path) "
+            "VALUES (?, ?, ?, ?) "
+            "ON CONFLICT(marketplace_id, set_code) DO UPDATE SET "
+            "  category_id = excluded.category_id, "
+            "  category_path = excluded.category_path",
+            (marketplace_id, set_code, category_id, category_path),
+        )
+        self.connection.commit()
+
+    def get_enabled_set_categories(self, *, marketplace_id: int) -> list[sqlite3.Row]:
+        rows = self.connection.execute(
+            "SELECT msc.set_code, msc.category_id, msc.category_path "
+            "FROM marketplace_set_categories msc "
+            "JOIN sets s ON s.set_code = msc.set_code "
+            "WHERE msc.marketplace_id = ? "
+            "ORDER BY msc.set_code",
+            (marketplace_id,),
+        ).fetchall()
+        return list(rows)
+
+    def upsert_listing(
+        self,
+        *,
+        marketplace_id: int,
+        external_id: str,
+        card_id: str | None,
+        finish: str | None,
+        price_cents: int,
+        currency: str,
+        in_stock: bool,
+        url: str,
+        title: str,
+        fetched_at: str,
+    ) -> None:
+        self.connection.execute(
+            "INSERT INTO marketplace_listings "
+            "  (marketplace_id, external_id, card_id, finish, price_cents, "
+            "   currency, in_stock, url, title, fetched_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(marketplace_id, external_id) DO UPDATE SET "
+            "  card_id = excluded.card_id, "
+            "  finish = excluded.finish, "
+            "  price_cents = excluded.price_cents, "
+            "  currency = excluded.currency, "
+            "  in_stock = excluded.in_stock, "
+            "  url = excluded.url, "
+            "  title = excluded.title, "
+            "  fetched_at = excluded.fetched_at",
+            (
+                marketplace_id,
+                external_id,
+                card_id,
+                finish,
+                price_cents,
+                currency,
+                int(in_stock),
+                url,
+                title,
+                fetched_at,
+            ),
+        )
+        self.connection.commit()
+
+    def get_cheapest_in_stock_per_card(self) -> dict[str, dict]:
+        """Map card_id -> {price_cents, currency, url, marketplace_id, finish}.
+
+        Picks the cheapest in-stock listing per card across all enabled shops.
+        Excludes listings with NULL card_id (unmatched listings).
+        """
+        rows = self.connection.execute(
+            "SELECT ml.card_id, ml.price_cents, ml.currency, ml.url, "
+            "       ml.marketplace_id, ml.finish "
+            "FROM marketplace_listings ml "
+            "JOIN marketplaces m ON m.id = ml.marketplace_id "
+            "WHERE ml.in_stock = 1 AND ml.card_id IS NOT NULL AND m.enabled = 1 "
+            "AND ml.price_cents = ("
+            "  SELECT MIN(price_cents) FROM marketplace_listings ml2 "
+            "  WHERE ml2.card_id = ml.card_id AND ml2.in_stock = 1"
+            ")"
+        ).fetchall()
+        result: dict[str, dict] = {}
+        for row in rows:
+            cid = row["card_id"]
+            if cid in result:
+                continue  # tie - keep the first one
+            result[cid] = {
+                "price_cents": int(row["price_cents"]),
+                "currency": row["currency"],
+                "url": row["url"],
+                "marketplace_id": int(row["marketplace_id"]),
+                "finish": row["finish"],
+            }
+        return result
+
+    def start_marketplace_sweep(self, marketplace_id: int) -> int:
+        cursor = self.connection.execute(
+            "INSERT INTO marketplace_sweeps "
+            "  (marketplace_id, started_at, status) "
+            "VALUES (?, ?, 'running')",
+            (marketplace_id, datetime.now(UTC).isoformat()),
+        )
+        self.connection.commit()
+        return int(cursor.lastrowid or 0)
+
+    def finish_marketplace_sweep(
+        self,
+        sweep_id: int,
+        *,
+        listings_seen: int,
+        listings_matched: int,
+        errors: int,
+        status: str,
+    ) -> None:
+        self.connection.execute(
+            "UPDATE marketplace_sweeps SET "
+            "  finished_at = ?, listings_seen = ?, listings_matched = ?, "
+            "  errors = ?, status = ? "
+            "WHERE id = ?",
+            (
+                datetime.now(UTC).isoformat(),
+                listings_seen,
+                listings_matched,
+                errors,
+                status,
+                sweep_id,
+            ),
+        )
+        self.connection.commit()
+
+    def get_sweep(self, sweep_id: int) -> sqlite3.Row | None:
+        return self.connection.execute(
+            "SELECT * FROM marketplace_sweeps WHERE id = ?", (sweep_id,)
+        ).fetchone()
+
+    def get_latest_finished_sweep(self, marketplace_id: int) -> sqlite3.Row | None:
+        return self.connection.execute(
+            "SELECT * FROM marketplace_sweeps "
+            "WHERE marketplace_id = ? AND finished_at IS NOT NULL "
+            "ORDER BY finished_at DESC LIMIT 1",
+            (marketplace_id,),
+        ).fetchone()
