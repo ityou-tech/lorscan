@@ -365,16 +365,30 @@ def index_images_command(*, config: Config, limit: int | None = None) -> int:
         return 6
 
     images_dir = config.cache_dir / "images"
+    overrides_dir = config.overrides_dir
     embeddings_path = config.data_dir / "embeddings.npz"
 
     print(f"Downloading catalog images for {len(cards)} cards → {images_dir} ...")
+    if overrides_dir.is_dir():
+        n_overrides = sum(
+            1 for p in overrides_dir.iterdir() if p.is_file() and p.stat().st_size > 0
+        )
+        if n_overrides:
+            print(f"  using {n_overrides} override image(s) from {overrides_dir}")
 
     def progress(done: int, total: int) -> None:
         if done == total or done % 50 == 0:
             print(f"  {done}/{total}", end="\r", flush=True)
 
     t0 = time.time()
-    fetch_results = asyncio.run(fetch_all(cards, cache_dir=images_dir, on_progress=progress))
+    fetch_results = asyncio.run(
+        fetch_all(
+            cards,
+            cache_dir=images_dir,
+            overrides_dir=overrides_dir,
+            on_progress=progress,
+        )
+    )
     print()
     failures = [r for r in fetch_results if r.path is None]
     if failures:
@@ -385,6 +399,10 @@ def index_images_command(*, config: Config, limit: int | None = None) -> int:
         )
         for r in failures[:5]:
             print(f"    - {r.card_id}: {r.error}", file=sys.stderr)
+        print(
+            f"    drop a replacement image at {overrides_dir}/<card_id>.jpg to include it",
+            file=sys.stderr,
+        )
     print(f"  ↳ image fetch took {time.time() - t0:.1f}s")
 
     print(f"Loading CLIP model ({DEFAULT_MODEL_NAME}) ...")

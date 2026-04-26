@@ -39,6 +39,10 @@ class Config:
     def cache_dir(self) -> Path:
         return self.data_dir / "cache"
 
+    @property
+    def overrides_dir(self) -> Path:
+        return self.data_dir / "overrides"
+
 
 def load_config(
     *,
