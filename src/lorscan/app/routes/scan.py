@@ -567,7 +567,7 @@ async def scan_rescan(
                     tile_matches = scan_with_clip(scan_path, index)
                 parsed_scan = to_parsed_scan(tile_matches)
         except (ValueError, FileNotFoundError) as e:
-            raise HTTPException(500, f"Re-scan failed: {e}")
+            raise HTTPException(500, f"Re-scan failed: {e}") from e
 
         db.delete_scan_results(scan_id)
         for c in parsed_scan.cards:
@@ -676,7 +676,7 @@ async def scan_cell_replace(
                     image, index, grid_position=grid_position
                 )
         except (ValueError, FileNotFoundError) as e:
-            raise HTTPException(500, f"Cell replace failed: {e}")
+            raise HTTPException(500, f"Cell replace failed: {e}") from e
         finally:
             tmp_path.unlink(missing_ok=True)
 
@@ -779,7 +779,7 @@ async def scan_rescan_cell(
                 target, index, grid_position=grid_position
             )
         except (ValueError, FileNotFoundError) as e:
-            raise HTTPException(500, f"Cell re-scan failed: {e}")
+            raise HTTPException(500, f"Cell re-scan failed: {e}") from e
 
         parsed = to_parsed_scan([tile_match])
         c = parsed.cards[0]

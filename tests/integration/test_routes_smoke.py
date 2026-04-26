@@ -193,8 +193,11 @@ def test_scan_upload_dedupes_re_uploads(client: TestClient):
 
     assert r1.status_code == 303
     assert r2.status_code == 303
-    # Same target — both redirects point at the same scan id.
-    assert r1.headers["location"] == r2.headers["location"]
+    # First upload lands on /scan/<id>; the duplicate gets a ?duplicate=1
+    # marker so the detail page can surface a "re-upload" banner — but both
+    # point at the same scan id, which is what dedup means here.
+    assert r1.headers["location"].startswith("/scan/")
+    assert r2.headers["location"] == f"{r1.headers['location']}?duplicate=1"
     # CLIP only ran once.
     assert scan_mock.call_count == 1
 
