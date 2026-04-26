@@ -41,8 +41,11 @@ def test_detail_handles_title_without_collector_number():
 
 
 def test_detail_recognises_uitverkocht_as_out_of_stock():
+    # Use h1.product-name (a kept selector) — the bare h1 fallback was
+    # removed because the cookie banner also emits an h1 and would silently
+    # win on template drift.
     html = """<html><body>
-        <h1>Some Card (foil)</h1>
+        <h1 class="product-name">Some Card (foil)</h1>
         <span>Uitverkocht</span>
     </body></html>"""
     extras = parse_detail_page(html)
@@ -51,9 +54,28 @@ def test_detail_recognises_uitverkocht_as_out_of_stock():
 
 
 def test_detail_recognises_cold_foil():
-    html = "<html><body><h1>Card Name (cold foil)</h1>Op voorraad</body></html>"
+    html = (
+        '<html><body><h1 class="product-name">Card Name (cold foil)</h1>'
+        "Op voorraad</body></html>"
+    )
     extras = parse_detail_page(html)
     assert extras.finish == "cold_foil"
+
+
+def test_detail_class_based_in_stock_beats_substring():
+    """Stockinfo class wins over text — the sidebar's USP copy must not
+    falsely mark out-of-stock products as in-stock."""
+    # Synthetic page with class=out-of-stock AND the sidebar USP text.
+    html = """<html><body>
+        <h1 class="product-name">Some Card (foil)</h1>
+        <div class="stockinfo out-of-stock">Niet meer leverbaar</div>
+        <aside>70.000+ producten op voorraad bij Bazaar of Magic</aside>
+    </body></html>"""
+    extras = parse_detail_page(html)
+    assert extras.in_stock is False, (
+        "Class-based detection must beat substring search; "
+        "USP copy in the sidebar should not flip out-of-stock to in-stock."
+    )
 
 
 def test_detail_pinocchio_fixture_is_in_stock_foil_224():

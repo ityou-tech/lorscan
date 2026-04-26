@@ -6,11 +6,16 @@ respectively (see docs/plans/2026-04-26-marketplace-stock-plan.md).
 
 from __future__ import annotations
 
+import asyncio
 import re
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
+import httpx
 from bs4 import BeautifulSoup
+
+from lorscan.services.marketplaces.base import Listing
 
 
 @dataclass(frozen=True)
@@ -127,35 +132,56 @@ def parse_detail_page(html: str) -> DetailExtras:
                 finish = label
                 break
 
-    text_blob = soup.get_text(" ", strip=True).lower()
-    if "uitverkocht" in text_blob:
-        in_stock = False
-    elif "op voorraad" in text_blob:
-        in_stock = True
-    else:
-        # Conservative default: treat unknown as out-of-stock so we never
-        # advertise something we can't confirm.
-        in_stock = False
+    in_stock = _detect_in_stock(soup)
 
     return DetailExtras(collector_number=collector, finish=finish, in_stock=in_stock)
+
+
+def _detect_in_stock(soup: BeautifulSoup) -> bool:
+    """Determine in-stock status, preferring the structural class hook.
+
+    Bazaar emits `<div class="stockinfo in-stock">` or `<div class="stockinfo
+    out-of-stock">` on the product page. That is the authoritative signal.
+    Only if no `.stockinfo` element is found do we fall back to text-based
+    detection (with conservative default = out-of-stock for unknown).
+
+    Substring search alone is unsafe because the persistent sidebar always
+    contains "70.000+ producten op voorraad" USP copy — that would flip
+    every out-of-stock card to in-stock.
+    """
+    stockinfo = soup.select_one("div.stockinfo")
+    if stockinfo is not None:
+        classes = stockinfo.get("class") or []
+        if "in-stock" in classes:
+            return True
+        if "out-of-stock" in classes:
+            return False
+        # Class present but neither marker matched — fall through to text.
+
+    text_blob = soup.get_text(" ", strip=True).lower()
+    if "uitverkocht" in text_blob:
+        return False
+    return "op voorraad" in text_blob
 
 
 def _find_product_title(soup: BeautifulSoup) -> str | None:
     """Locate the product title element on a Bazaar detail page.
 
-    Tries specific selectors first, then falls back to the first h1.
     Bazaar wraps the product title in `div.pdp ... div.title h1`; the
     cookie-banner off-canvas (`#offCanvasCookie`) also emits an `<h1>`
-    earlier in the DOM, so a naive `h1` fallback would mis-identify the
-    title as the cookie banner copy. The pdp/title selectors guard against
-    that. Returns None if no title found.
+    earlier in the DOM, so we deliberately do NOT fall back to a bare
+    `h1` selector — that would silently pick the cookie banner's
+    "Fijn dat je er bent!" copy if the scoped selectors all stop matching
+    after a Bazaar template change. Returning None on template drift is the
+    "loud failure" path: downstream gets collector_number=None and
+    finish="regular", and the matcher silently drops the listing — far
+    better than confidently asserting the wrong title.
     """
     for selector in (
         "div.pdp div.title h1",
         "div.pdp h1",
         "h1.product-name",
         "h1[itemprop='name']",
-        "h1",
     ):
         node = soup.select_one(selector)
         if node:
@@ -163,3 +189,81 @@ def _find_product_title(soup: BeautifulSoup) -> str | None:
             if text:
                 return text
     return None
+
+
+class BazaarAdapter:
+    """Adapter for https://www.bazaarofmagic.eu (Shopware 6).
+
+    Walks per-set listing pages and fans out detail-page fetches with a
+    bounded concurrency window. Per-detail HTTP errors are silently dropped
+    here — the sweep orchestrator (Task 10) tracks failure counts at a
+    higher level so a single 500 doesn't poison an entire set crawl.
+    """
+
+    slug = "bazaarofmagic"
+    display_name = "Bazaar of Magic"
+
+    def __init__(
+        self,
+        *,
+        items_per_page: int = 24,
+        max_concurrent_details: int = 4,
+        inter_batch_delay_s: float = 0.2,
+    ):
+        self._items_per_page = items_per_page
+        self._max_concurrent_details = max_concurrent_details
+        self._inter_batch_delay_s = inter_batch_delay_s
+
+    async def crawl_set(
+        self,
+        client: httpx.AsyncClient,
+        set_code: str,
+        category_path: str,
+    ) -> AsyncIterator[Listing]:
+        base_url = f"{client.base_url.scheme}://{client.base_url.host}"
+        page = 1
+        sem = asyncio.Semaphore(self._max_concurrent_details)
+
+        while True:
+            response = await client.get(
+                category_path,
+                params={"page": str(page), "items": str(self._items_per_page)},
+            )
+            response.raise_for_status()
+            listing_cards = parse_listing_page(response.text, base_url=base_url)
+            if not listing_cards:
+                return
+
+            async def fetch(card: ListingCard) -> Listing | None:
+                async with sem:
+                    try:
+                        detail_resp = await client.get(_path_only(card.url))
+                        detail_resp.raise_for_status()
+                    except httpx.HTTPError:
+                        return None
+                    extras = parse_detail_page(detail_resp.text)
+                return Listing(
+                    external_id=card.external_id,
+                    title=card.title,
+                    price_cents=card.price_cents,
+                    currency="EUR",
+                    in_stock=extras.in_stock,
+                    url=card.url,
+                    finish=extras.finish,
+                    collector_number=extras.collector_number,
+                )
+
+            results = await asyncio.gather(*(fetch(c) for c in listing_cards))
+            for listing in results:
+                if listing is not None:
+                    yield listing
+
+            if self._inter_batch_delay_s > 0:
+                await asyncio.sleep(self._inter_batch_delay_s)
+            page += 1
+
+
+def _path_only(url: str) -> str:
+    """Return just the path+query portion of an absolute URL."""
+    parsed = urlparse(url)
+    return parsed.path + (f"?{parsed.query}" if parsed.query else "")
