@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+    LaunchAgent template for lorscan. install.sh substitutes the __PLACEHOLDERS__
+    and drops the result at ~/Library/LaunchAgents/tech.ityou.lorscan.plist.
+
+    To uninstall:
+        launchctl bootout gui/$UID ~/Library/LaunchAgents/tech.ityou.lorscan.plist
+        rm ~/Library/LaunchAgents/tech.ityou.lorscan.plist
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>tech.ityou.lorscan</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>__UV_PATH__</string>
+        <string>run</string>
+        <string>lorscan</string>
+        <string>serve</string>
+        <string>--host</string>
+        <string>0.0.0.0</string>
+        <string>--no-reload</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>__REPO_PATH__</string>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
+
+    <key>StandardOutPath</key>
+    <string>__LOG_PATH__/lorscan.out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>__LOG_PATH__/lorscan.err.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+</dict>
+</plist>

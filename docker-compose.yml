@@ -1,0 +1,37 @@
+# lorscan — Docker Compose for self-hosting on a NAS or home server.
+#
+# Synology DSM 7.2+:
+#   Container Manager → Project → Create → "Set path" to the repo,
+#   "Source" = "docker-compose.yml" → Build.
+#
+# CLI (any Docker host):
+#   docker compose up -d --build
+#   open http://<host>:8000
+
+services:
+  lorscan:
+    build: .
+    image: lorscan:local
+    container_name: lorscan
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # Named volume keeps the catalog + embeddings + image cache out of
+      # the repo directory. To browse the data via Synology File Station,
+      # swap this for a bind mount, e.g.
+      #   - /volume1/docker/lorscan:/data
+      - lorscan-data:/data
+    # Cap memory so a runaway scan can't OOM the rest of the NAS.
+    # Tune up if you have headroom; SigLIP itself fits in ~700 MB.
+    mem_limit: 1500m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/').status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      # First-run image indexing can take 30+ min before the server starts.
+      start_period: 45m
+
+volumes:
+  lorscan-data:

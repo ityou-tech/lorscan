@@ -1,0 +1,26 @@
+# Build context exclusions. Smaller context = faster builds + fewer
+# cache invalidations. Mirrors .gitignore plus dev-only directories.
+
+.git
+.gitignore
+
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+
+.pytest_cache
+.ruff_cache
+.playwright-mcp
+.superpowers
+.claude
+.agents
+
+tests/
+docs/
+DESIGN.md
+CLAUDE.md
+
+# Keep README.md — pip install . reads it via pyproject.toml's `readme = "README.md"`.
+# Keep pyproject.toml, src/, uv.lock.

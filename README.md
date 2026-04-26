@@ -31,6 +31,15 @@ That's it. Nothing else to configure. No API keys, no auth.
 
 ---
 
+## Self-hosting
+
+Two supported deployment paths:
+
+- **Mac (autostart)** — best for an always-on Mac mini or laptop on Apple Silicon. One command: `./deploy/macmini/install.sh`. See [docs/deploy/macmini.md](docs/deploy/macmini.md).
+- **Docker / Synology** — containerized build for any Linux host or Synology NAS with Container Manager. `docker compose up -d --build` from the repo root.
+
+---
+
 ## CLI
 
 ```bash
