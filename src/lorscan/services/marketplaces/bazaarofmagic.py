@@ -91,3 +91,75 @@ def _extract_price_near(anchor) -> int | None:
         if m:
             return int(m.group(1)) * 100 + int(m.group(2))
     return None
+
+
+@dataclass(frozen=True)
+class DetailExtras:
+    """Per-product fields only available on the detail page."""
+
+    collector_number: str | None
+    finish: str | None
+    in_stock: bool
+
+
+_COLLECTOR_RE = re.compile(r"#(\d+)")
+_FINISH_RES = (
+    ("cold_foil", re.compile(r"\(cold foil\)", re.IGNORECASE)),
+    ("foil", re.compile(r"\(foil\)", re.IGNORECASE)),
+)
+
+
+def parse_detail_page(html: str) -> DetailExtras:
+    """Parse a /p/<slug>/<id> HTML body for collector_number/finish/in_stock."""
+    soup = BeautifulSoup(html, "html.parser")
+    title = _find_product_title(soup)
+
+    collector = None
+    if title:
+        m = _COLLECTOR_RE.search(title)
+        if m:
+            collector = m.group(1)
+
+    finish: str | None = "regular"
+    if title:
+        for label, pattern in _FINISH_RES:
+            if pattern.search(title):
+                finish = label
+                break
+
+    text_blob = soup.get_text(" ", strip=True).lower()
+    if "uitverkocht" in text_blob:
+        in_stock = False
+    elif "op voorraad" in text_blob:
+        in_stock = True
+    else:
+        # Conservative default: treat unknown as out-of-stock so we never
+        # advertise something we can't confirm.
+        in_stock = False
+
+    return DetailExtras(collector_number=collector, finish=finish, in_stock=in_stock)
+
+
+def _find_product_title(soup: BeautifulSoup) -> str | None:
+    """Locate the product title element on a Bazaar detail page.
+
+    Tries specific selectors first, then falls back to the first h1.
+    Bazaar wraps the product title in `div.pdp ... div.title h1`; the
+    cookie-banner off-canvas (`#offCanvasCookie`) also emits an `<h1>`
+    earlier in the DOM, so a naive `h1` fallback would mis-identify the
+    title as the cookie banner copy. The pdp/title selectors guard against
+    that. Returns None if no title found.
+    """
+    for selector in (
+        "div.pdp div.title h1",
+        "div.pdp h1",
+        "h1.product-name",
+        "h1[itemprop='name']",
+        "h1",
+    ):
+        node = soup.select_one(selector)
+        if node:
+            text = node.get_text(strip=True)
+            if text:
+                return text
+    return None
