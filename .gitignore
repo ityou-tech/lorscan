@@ -1,6 +1,9 @@
 # Brainstorm artifacts (visual companion mockups, session state)
 .superpowers/
 
+# Per-feature git worktrees (created by superpowers:using-git-worktrees)
+.worktrees/
+
 # Playwright MCP scratch (page snapshots + console logs from local testing)
 .playwright-mcp/
 
