@@ -97,6 +97,14 @@
             </form>
           </div>
           {% else %}
+          {% if card.badge %}
+          <a href="{{ card.badge.url }}" target="_blank" rel="noopener"
+             class="pocket-badge"
+             title="In stock at {{ card.badge.shop_name }}">
+            €{{ '%.2f' | format(card.badge.price_cents / 100) | replace('.', ',') }}
+            · {{ card.badge.shop_name }}
+          </a>
+          {% endif %}
           <form method="post" action="/collection/add" class="pocket-add-form">
             <input type="hidden" name="card_id" value="{{ card.card_id }}">
             <button type="submit" class="pocket-add-btn" aria-label="Add to collection">+ Add</button>

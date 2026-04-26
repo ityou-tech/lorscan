@@ -24,8 +24,36 @@ async def collection_index(request: Request) -> HTMLResponse:
     db = Database.connect(str(cfg.db_path))
     db.migrate()
     try:
-        binders = _build_binders(db)
+        # Fetch badge data: cheapest in-stock listing per card_id across all
+        # enabled marketplaces. Enrich with shop_name for display.
+        raw_badges = db.get_cheapest_in_stock_per_card()
+        shop_names = _shop_name_lookup(db)
+        badges = {
+            card_id: {**badge, "shop_name": shop_names.get(badge["marketplace_id"], "shop")}
+            for card_id, badge in raw_badges.items()
+        }
+
+        binders = _build_binders(db, badges=badges)
         total = db.get_collection_count()
+
+        # Header stats.
+        total_catalog = sum(b["total"] for b in binders)
+        distinct_owned = sum(b["owned_count"] for b in binders)
+        cards_needed = total_catalog - distinct_owned
+        unfinished_sets = sum(1 for b in binders if b["owned_count"] < b["total"])
+
+        # "Closest to complete" strip — top 3 sets in the 50-99% range.
+        closest = [
+            {**b, "missing_count": b["total"] - b["owned_count"]}
+            for b in binders
+            if 50.0 <= b["pct"] < 100.0
+        ][:3]
+
+        total_missing = sum(b["total"] - b["owned_count"] for b in binders)
+
+        # Marketplace last-sweep info for the refreshed-at line.
+        mp = db.get_marketplace_by_slug("bazaarofmagic")
+        last_sweep = db.get_latest_finished_sweep(mp["id"]) if mp else None
     finally:
         db.close()
 
@@ -36,12 +64,26 @@ async def collection_index(request: Request) -> HTMLResponse:
         context={
             "binders": binders,
             "total": total,
-            "distinct_owned": sum(b["owned_count"] for b in binders),
+            "distinct_owned": distinct_owned,
+            "cards_needed": cards_needed,
+            "unfinished_sets": unfinished_sets,
+            "closest": closest,
+            "total_missing": total_missing,
+            "last_sweep": last_sweep,
+            "has_badges": bool(badges),
         },
     )
 
 
-def _build_binders(db: Database) -> list[dict]:
+def _shop_name_lookup(db: Database) -> dict[int, str]:
+    """marketplace_id → display_name for badge labeling."""
+    rows = db.connection.execute(
+        "SELECT id, display_name FROM marketplaces WHERE enabled = 1"
+    ).fetchall()
+    return {int(r["id"]): r["display_name"] for r in rows}
+
+
+def _build_binders(db: Database, *, badges: dict | None = None) -> list[dict]:
     """Construct the per-set binder rendering data.
 
     For each set in release order, fetch every card joined to its collection
@@ -80,6 +122,7 @@ def _build_binders(db: Database) -> list[dict]:
                 "owned": r["collection_item_id"] is not None,
                 "collection_item_id": r["collection_item_id"],
                 "quantity": r["quantity"],
+                "badge": badges.get(r["card_id"]) if badges else None,
             }
             for r in rows
         ]

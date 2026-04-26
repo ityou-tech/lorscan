@@ -231,6 +231,97 @@ def test_collection_index_empty_state(client: TestClient):
     assert "No cards yet" in response.text
 
 
+def test_collection_renders_marketplace_badge(client: TestClient):
+    """When a matched in-stock listing exists, /collection shows a price badge
+    on the corresponding empty pocket."""
+    from datetime import UTC, datetime
+
+    cfg = client.app.state.config
+    db = Database.connect(str(cfg.db_path))
+    db.migrate()
+    try:
+        mp = db.get_marketplace_by_slug("bazaarofmagic")
+        # rof-001 is seeded by _seed_db at the top of this file (Pinocchio Wooden Rascal).
+        db.upsert_listing(
+            marketplace_id=mp["id"],
+            external_id="9999",
+            card_id="rof-001",
+            finish="regular",
+            price_cents=400,
+            currency="EUR",
+            in_stock=True,
+            url="https://www.bazaarofmagic.eu/nl-NL/p/x/9999",
+            title="Pinocchio (#1)",
+            fetched_at=datetime.now(UTC).isoformat(),
+        )
+    finally:
+        db.close()
+
+    response = client.get("/collection")
+    assert response.status_code == 200
+    body = response.text
+    # Price formatted Dutch-style (€4,00) AND link to the product page.
+    assert "€4,00" in body or "€ 4,00" in body or "4,00" in body
+    assert "/nl-NL/p/x/9999" in body
+    # The shop name appears.
+    assert "Bazaar" in body
+
+
+def test_collection_header_shows_cards_needed_stat(client: TestClient):
+    """Page header gains 'X cards needed' meta-stat (catalog total - distinct owned)."""
+    response = client.get("/collection")
+    assert response.status_code == 200
+    body = response.text
+    assert "cards needed" in body
+    assert "sets unfinished" in body
+
+
+def test_collection_header_shows_refreshed_at_when_sweep_done(client: TestClient):
+    """If a sweep has run, the page header shows the refreshed-at line."""
+    cfg = client.app.state.config
+    db = Database.connect(str(cfg.db_path))
+    db.migrate()
+    try:
+        mp = db.get_marketplace_by_slug("bazaarofmagic")
+        sweep_id = db.start_marketplace_sweep(mp["id"])
+        db.finish_marketplace_sweep(
+            sweep_id, listings_seen=10, listings_matched=8, errors=0, status="ok",
+        )
+    finally:
+        db.close()
+
+    response = client.get("/collection")
+    body = response.text
+    assert "Marketplace data refreshed" in body or "refreshed" in body.lower()
+
+
+def test_collection_header_shows_closest_strip_when_applicable(client: TestClient):
+    """Closest-to-complete strip renders when at least one set is in 50-99% range."""
+    from lorscan.storage.models import Card, CardSet
+    cfg = client.app.state.config
+    db = Database.connect(str(cfg.db_path))
+    db.migrate()
+    try:
+        # Seed a small set with 2 cards, then own 1 of them = 50% completion.
+        db.upsert_set(CardSet(set_code="MINI", name="Mini Set", total_cards=2))
+        db.upsert_card(Card(
+            card_id="mini-1", set_code="MINI", collector_number="1",
+            name="A", subtitle=None, rarity="Common",
+        ))
+        db.upsert_card(Card(
+            card_id="mini-2", set_code="MINI", collector_number="2",
+            name="B", subtitle=None, rarity="Common",
+        ))
+        db.upsert_collection_item(card_id="mini-1", quantity_delta=1)
+    finally:
+        db.close()
+
+    response = client.get("/collection")
+    body = response.text
+    assert "closest" in body.lower() or "Closest" in body
+    assert "Mini Set" in body
+
+
 def test_missing_index_renders_set_progress(client: TestClient):
     response = client.get("/missing")
     assert response.status_code == 200
