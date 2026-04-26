@@ -1,6 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Collection · lorscan{% endblock %}
+{% block title %}Collection · lorscana{% endblock %}
 {% block content %}
+{% if request.query_params.get('reset') %}
+<div class="flash">Collection cleared. Catalog and scan history kept.</div>
+{% endif %}
 <section class="page-header">
   <h1>Collection</h1>
   <div class="page-header-meta">
@@ -12,6 +15,12 @@
       <span class="meta-stat-num">{{ distinct_owned }}</span>
       <span class="meta-stat-label">distinct cards</span>
     </div>
+    {% if total > 0 %}
+    <form method="post" action="/collection/reset" style="display:inline"
+          onsubmit="return confirm('Delete every card from your collection? This wipes all {{ total }} owned cards. Catalog and scan history are kept.');">
+      <button type="submit" class="reset-link">↺ Reset collection</button>
+    </form>
+    {% endif %}
   </div>
 </section>
 

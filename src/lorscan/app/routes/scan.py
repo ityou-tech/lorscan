@@ -8,12 +8,14 @@ when CLIP proved sufficient — see commit history for context.
 from __future__ import annotations
 
 import json
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from PIL import Image, ImageOps
 
 from lorscan.services.embeddings import CardImageIndex
 from lorscan.services.photos import (
@@ -22,9 +24,12 @@ from lorscan.services.photos import (
     jpeg_preview_path,
 )
 from lorscan.services.scan_result import MatchResult, ParsedCard
-from lorscan.services.sets import LORCANA_RELEASE_ORDER, release_sort_key
+from lorscan.services.sets import LORCANA_RELEASE_ORDER
 from lorscan.services.visual_scan import (
+    _orient_for_grid,
+    crop_grid,
     scan_single_card,
+    scan_single_image,
     scan_with_clip,
     to_parsed_scan,
 )
@@ -164,22 +169,17 @@ async def scan_index(request: Request) -> HTMLResponse:
     db = Database.connect(str(cfg.db_path))
     db.migrate()
     try:
-        recent = db.get_recent_scans(limit=8)
+        recent = db.get_recent_scans(limit=3)
         all_sets = [
             dict(r)
             for r in db.connection.execute(
                 "SELECT set_code, name, total_cards FROM sets"
             ).fetchall()
         ]
-        completion = sorted(
-            [dict(r) for r in db.get_set_completion()],
-            key=lambda r: release_sort_key(r["set_code"]),
-        )
     finally:
         db.close()
 
     main_sets, other_sets = _split_sets_for_dropdown(all_sets)
-    progress = _build_progress_summary(completion)
 
     embeddings_path = cfg.data_dir / "embeddings.npz"
     clip_index_ready = embeddings_path.exists()
@@ -193,39 +193,8 @@ async def scan_index(request: Request) -> HTMLResponse:
             "clip_index_ready": clip_index_ready,
             "main_sets": main_sets,
             "other_sets": other_sets,
-            "progress": progress,
         },
     )
-
-
-def _build_progress_summary(completion: list[dict]) -> dict:
-    """Aggregate per-set completion into a single dashboard summary.
-
-    Each row gets a `pct` field (0-100) for the progress bar, plus a
-    `chapter` index (None for supplementary sets). The aggregate totals
-    cover only main sets so the headline number reflects the canonical
-    Lorcana progression, not promo/adventure cards.
-    """
-    rows: list[dict] = []
-    main_total = 0
-    main_owned = 0
-    for r in completion:
-        chapter = LORCANA_RELEASE_ORDER.index(r["set_code"]) + 1 if r[
-            "set_code"
-        ] in LORCANA_RELEASE_ORDER else None
-        total = r["total_cards"] or 0
-        owned = r["owned"] or 0
-        pct = round(owned / total * 100, 1) if total else 0
-        rows.append({**r, "chapter": chapter, "pct": pct})
-        if chapter is not None:
-            main_total += total
-            main_owned += owned
-    return {
-        "rows": rows,
-        "main_total": main_total,
-        "main_owned": main_owned,
-        "main_pct": round(main_owned / main_total * 100, 1) if main_total else 0,
-    }
 
 
 def _parse_candidates(raw: str | None) -> list[dict]:
@@ -323,7 +292,13 @@ async def scan_upload(
             status_code=400,
         )
 
-    return RedirectResponse(url=f"/scan/{result.scan_id}", status_code=303)
+    # On duplicate uploads (same photo bytes → same sha256), surface the
+    # situation explicitly instead of silently routing to the existing
+    # scan: the user might have re-picked the file by accident, or they
+    # might genuinely want to add the cards a second time. The detail
+    # page reads `?duplicate=1` and offers both choices.
+    suffix = "?duplicate=1" if result.duplicate else ""
+    return RedirectResponse(url=f"/scan/{result.scan_id}{suffix}", status_code=303)
 
 
 @router.get("/scan/{scan_id}", response_class=HTMLResponse)
@@ -537,12 +512,349 @@ async def scan_reset(request: Request) -> RedirectResponse:
     return RedirectResponse(url="/scan?reset=1", status_code=303)
 
 
-@router.post("/scan/{scan_id}/apply", response_class=HTMLResponse)
-async def scan_apply(request: Request, scan_id: int) -> RedirectResponse:
-    """Add every matched card from this scan to the user's collection."""
+@router.post("/scan/{scan_id}/rescan")
+async def scan_rescan(
+    request: Request,
+    scan_id: int,
+    mode: Annotated[str, Form()] = "grid",
+) -> RedirectResponse:
+    """Re-run CLIP matching against the saved photo.
+
+    Used as a "try again" affordance when the original scan produced
+    bad matches (e.g. CLIP picked the wrong neighbor for a similar
+    artwork). Existing scan_results are deleted and replaced; collection
+    items already applied from the previous run are NOT touched —
+    `applied_at` markers carry forward only on rows whose grid_position
+    keeps the same matched_card_id.
+
+    `mode` lets the user re-classify the photo as a single-card scan
+    if the original was misread as a 3×3 grid (or vice versa).
+    """
     cfg = request.app.state.config
     db = Database.connect(str(cfg.db_path))
     db.migrate()
+    try:
+        scan = db.get_scan(scan_id)
+        if scan is None:
+            raise HTTPException(404, "Scan not found.")
+        photo_path = Path(scan["photo_path"])
+        if not photo_path.exists():
+            raise HTTPException(410, "Photo file is gone — can't re-scan.")
+
+        embeddings_path = cfg.data_dir / "embeddings.npz"
+        if not embeddings_path.exists():
+            raise HTTPException(
+                503, "CLIP index not built. Run `lorscan index-images` first."
+            )
+
+        # Preserve which results were already applied so the user doesn't
+        # silently lose that information when matches happen to repeat.
+        # `grid_position` is a string like "r1c1" — use it as-is.
+        prior = {
+            r["grid_position"]: {
+                "matched_card_id": r["matched_card_id"],
+                "applied_at": r["applied_at"],
+            }
+            for r in db.get_scan_results(scan_id)
+        }
+
+        try:
+            with ensure_supported_format(photo_path) as scan_path:
+                index = CardImageIndex.load(embeddings_path)
+                if mode == "single":
+                    tile_matches = [scan_single_card(scan_path, index)]
+                else:
+                    tile_matches = scan_with_clip(scan_path, index)
+                parsed_scan = to_parsed_scan(tile_matches)
+        except (ValueError, FileNotFoundError) as e:
+            raise HTTPException(500, f"Re-scan failed: {e}")
+
+        db.delete_scan_results(scan_id)
+        for c in parsed_scan.cards:
+            best_id = c.candidates[0]["card_id"] if c.candidates else None
+            if c.confidence == "empty":
+                method = "empty_slot"
+                matched_id = None
+            elif best_id and c.confidence in ("high", "medium"):
+                method = "clip_visual"
+                matched_id = best_id
+            else:
+                method = "clip_low_confidence"
+                matched_id = None
+            db.insert_scan_result(
+                scan_id=scan_id,
+                grid_position=c.grid_position,
+                claude_name=None,
+                claude_subtitle=None,
+                claude_collector_number=None,
+                claude_set_hint=None,
+                claude_ink_color=None,
+                claude_finish=c.finish,
+                confidence=c.confidence,
+                matched_card_id=matched_id,
+                match_method=method,
+                candidates=c.candidates or None,
+            )
+
+        # Carry forward `applied_at` for cells that still match the same
+        # card. The prior dict was indexed by grid_position; new rows
+        # share that key, so we can re-flag them.
+        new_rows = db.get_scan_results(scan_id)
+        carry = []
+        for r in new_rows:
+            p = prior.get(r["grid_position"])
+            if p and p["applied_at"] is not None and p["matched_card_id"] == r["matched_card_id"]:
+                carry.append(int(r["id"]))
+        if carry:
+            db.mark_scan_results_applied(scan_id, carry)
+    finally:
+        db.close()
+
+    return RedirectResponse(url=f"/scan/{scan_id}", status_code=303)
+
+
+@router.post("/scan/{scan_id}/cell-replace")
+async def scan_cell_replace(
+    request: Request,
+    scan_id: int,
+    grid_position: Annotated[str, Form()],
+    photo: Annotated[UploadFile, File(...)],
+) -> RedirectResponse:
+    """Replace one cell's match by uploading a fresh single-card photo.
+
+    Use case: the original 3×3 photo had glare or framing issues on one
+    cell, so re-running CLIP on the same crop won't help. The user
+    snaps a closer photo of that one card and uploads it; we run
+    single-card matching on the new photo and overwrite the cell's
+    scan_result row.
+
+    The new photo is NOT persisted as a new scan — we just process it
+    for matching. The scan_results row still belongs to the original
+    binder-page scan; only the matched_card_id changes.
+    """
+    if not grid_position or len(grid_position) > 8:
+        raise HTTPException(400, "Invalid grid_position.")
+    if not photo.filename:
+        raise HTTPException(400, "No file uploaded.")
+
+    cfg = request.app.state.config
+    payload = await photo.read()
+    if not payload:
+        raise HTTPException(400, "Uploaded file is empty.")
+
+    db = Database.connect(str(cfg.db_path))
+    db.migrate()
+    try:
+        scan = db.get_scan(scan_id)
+        if scan is None:
+            raise HTTPException(404, "Scan not found.")
+
+        embeddings_path = cfg.data_dir / "embeddings.npz"
+        if not embeddings_path.exists():
+            raise HTTPException(
+                503, "CLIP index not built. Run `lorscan index-images` first."
+            )
+
+        # Stash the bytes to a temp file with the right extension so
+        # `ensure_supported_format` can transcode HEIC if needed.
+        suffix = Path(photo.filename).suffix.lower() or ".jpg"
+        with tempfile.NamedTemporaryFile(
+            suffix=suffix, delete=False
+        ) as tmp:
+            tmp.write(payload)
+            tmp_path = Path(tmp.name)
+
+        try:
+            with ensure_supported_format(tmp_path) as scan_path:
+                image = Image.open(scan_path)
+                image.load()
+                image = ImageOps.exif_transpose(image)
+                if image.mode != "RGB":
+                    image = image.convert("RGB")
+                index = CardImageIndex.load(embeddings_path)
+                tile_match = scan_single_image(
+                    image, index, grid_position=grid_position
+                )
+        except (ValueError, FileNotFoundError) as e:
+            raise HTTPException(500, f"Cell replace failed: {e}")
+        finally:
+            tmp_path.unlink(missing_ok=True)
+
+        parsed = to_parsed_scan([tile_match])
+        c = parsed.cards[0]
+        best_id = c.candidates[0]["card_id"] if c.candidates else None
+        if c.confidence == "empty":
+            method = "empty_slot"
+            matched_id = None
+        elif best_id and c.confidence in ("high", "medium"):
+            method = "clip_visual"
+            matched_id = best_id
+        else:
+            method = "clip_low_confidence"
+            matched_id = None
+
+        # Replace the row for this cell. We do NOT carry forward
+        # `applied_at` because the user uploaded a different photo —
+        # they're explicitly indicating the prior match was wrong.
+        db.connection.execute(
+            "DELETE FROM scan_results WHERE scan_id = ? AND grid_position = ?",
+            (scan_id, grid_position),
+        )
+        db.connection.commit()
+        db.insert_scan_result(
+            scan_id=scan_id,
+            grid_position=grid_position,
+            claude_name=None,
+            claude_subtitle=None,
+            claude_collector_number=None,
+            claude_set_hint=None,
+            claude_ink_color=None,
+            claude_finish=c.finish,
+            confidence=c.confidence,
+            matched_card_id=matched_id,
+            match_method=method,
+            candidates=c.candidates or None,
+        )
+    finally:
+        db.close()
+    return RedirectResponse(url=f"/scan/{scan_id}", status_code=303)
+
+
+@router.post("/scan/{scan_id}/rescan-cell")
+async def scan_rescan_cell(
+    request: Request,
+    scan_id: int,
+    grid_position: Annotated[str, Form()],
+) -> RedirectResponse:
+    """Re-run CLIP single-card matching on one specific cell.
+
+    Used when a 3×3 grid scan got most cells right but one or two are
+    mismatched — instead of re-running the entire grid (which might
+    perturb already-correct cells), the user can re-scan just the bad
+    cell. We crop that cell from the saved photo and run the same
+    single-card matching pipeline as `scan_single_card`.
+    """
+    if not grid_position or len(grid_position) > 8:
+        raise HTTPException(400, "Invalid grid_position.")
+
+    cfg = request.app.state.config
+    db = Database.connect(str(cfg.db_path))
+    db.migrate()
+    try:
+        scan = db.get_scan(scan_id)
+        if scan is None:
+            raise HTTPException(404, "Scan not found.")
+        photo_path = Path(scan["photo_path"])
+        if not photo_path.exists():
+            raise HTTPException(410, "Photo file is gone — can't re-scan.")
+
+        embeddings_path = cfg.data_dir / "embeddings.npz"
+        if not embeddings_path.exists():
+            raise HTTPException(
+                503, "CLIP index not built. Run `lorscan index-images` first."
+            )
+
+        try:
+            with ensure_supported_format(photo_path) as scan_path:
+                image = Image.open(scan_path)
+                image.load()
+                image = ImageOps.exif_transpose(image)
+                if image.mode != "RGB":
+                    image = image.convert("RGB")
+                # Match the orientation logic used by the whole-page
+                # scanner so the tile we crop here aligns with what the
+                # user sees on the scan detail page.
+                image = _orient_for_grid(image, rows=3, cols=3)
+                tiles = crop_grid(image, rows=3, cols=3)
+            target = next(
+                (t for pos, t in tiles if pos == grid_position), None
+            )
+            if target is None:
+                raise HTTPException(
+                    400, f"grid_position {grid_position!r} not found in 3×3."
+                )
+
+            index = CardImageIndex.load(embeddings_path)
+            tile_match = scan_single_image(
+                target, index, grid_position=grid_position
+            )
+        except (ValueError, FileNotFoundError) as e:
+            raise HTTPException(500, f"Cell re-scan failed: {e}")
+
+        parsed = to_parsed_scan([tile_match])
+        c = parsed.cards[0]
+        best_id = c.candidates[0]["card_id"] if c.candidates else None
+        if c.confidence == "empty":
+            method = "empty_slot"
+            matched_id = None
+        elif best_id and c.confidence in ("high", "medium"):
+            method = "clip_visual"
+            matched_id = best_id
+        else:
+            method = "clip_low_confidence"
+            matched_id = None
+
+        # Replace this position's row in-place: delete the old, insert new.
+        # Carry forward the prior `applied_at` only if the matched card is
+        # unchanged (otherwise the user is choosing a different card and
+        # should re-apply explicitly).
+        prior = db.connection.execute(
+            "SELECT id, matched_card_id, applied_at FROM scan_results "
+            "WHERE scan_id = ? AND grid_position = ?",
+            (scan_id, grid_position),
+        ).fetchone()
+        db.connection.execute(
+            "DELETE FROM scan_results WHERE scan_id = ? AND grid_position = ?",
+            (scan_id, grid_position),
+        )
+        db.connection.commit()
+        db.insert_scan_result(
+            scan_id=scan_id,
+            grid_position=grid_position,
+            claude_name=None,
+            claude_subtitle=None,
+            claude_collector_number=None,
+            claude_set_hint=None,
+            claude_ink_color=None,
+            claude_finish=c.finish,
+            confidence=c.confidence,
+            matched_card_id=matched_id,
+            match_method=method,
+            candidates=c.candidates or None,
+        )
+        if (
+            prior
+            and prior["applied_at"] is not None
+            and prior["matched_card_id"] == matched_id
+        ):
+            new_row = db.connection.execute(
+                "SELECT id FROM scan_results WHERE scan_id = ? AND grid_position = ?",
+                (scan_id, grid_position),
+            ).fetchone()
+            if new_row:
+                db.mark_scan_results_applied(scan_id, [int(new_row["id"])])
+    finally:
+        db.close()
+    return RedirectResponse(url=f"/scan/{scan_id}", status_code=303)
+
+
+@router.post("/scan/{scan_id}/apply", response_class=HTMLResponse)
+async def scan_apply(
+    request: Request,
+    scan_id: int,
+    force: Annotated[str, Form()] = "",
+) -> RedirectResponse:
+    """Add every matched card from this scan to the user's collection.
+
+    Idempotent by default: rows with `applied_at` set are skipped so users
+    can hit Apply repeatedly without doubling. `force=1` bypasses that
+    check — used by the duplicate-upload flow when the user explicitly
+    asks to add the matches a second time.
+    """
+    cfg = request.app.state.config
+    db = Database.connect(str(cfg.db_path))
+    db.migrate()
+    forced = force == "1"
     try:
         scan = db.get_scan(scan_id)
         if scan is None:
@@ -552,7 +864,7 @@ async def scan_apply(request: Request, scan_id: int) -> RedirectResponse:
         for r in result_rows:
             if r["matched_card_id"] is None:
                 continue
-            if r["applied_at"] is not None:
+            if r["applied_at"] is not None and not forced:
                 continue
             db.upsert_collection_item(
                 card_id=r["matched_card_id"],

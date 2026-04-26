@@ -128,26 +128,79 @@ async def collection_add(
 
 @router.get("/missing", response_class=HTMLResponse)
 async def missing_index(request: Request) -> HTMLResponse:
-    """Same binder visualization as /collection but emphasizing what's missing.
+    """Want-list view: only sets you haven't fully completed, ordered by
+    how close you are to finishing them.
 
-    The shared `_build_binders` data lets the template invert focus —
-    missing pockets are highlighted, owned cards dim — without duplicating
-    any data-shaping logic.
+    Differs from /collection in three ways:
+      - 100%-owned sets are filtered out (they're not "missing" anything)
+      - Sort key is pct_owned DESC, so sets you're closest to completing
+        rise to the top
+      - The template surfaces a "closest to complete" highlight strip and
+        copy-to-clipboard want-list buttons (per-binder + page-level)
     """
     cfg = request.app.state.config
     db = Database.connect(str(cfg.db_path))
     db.migrate()
     try:
-        binders = _build_binders(db)
+        all_binders = _build_binders(db)
     finally:
         db.close()
+
+    incomplete = [b for b in all_binders if b["owned_count"] < b["total"]]
+    # Closest to complete first; for ties (especially the common 0%-owned
+    # case where the user hasn't started a set yet) fall back to release
+    # order so the layout reads chronologically — TFC, ROF, INK, … —
+    # instead of alphabetically by missing-count tiebreak (which surfaced
+    # tiny sets like "Adventure Set" above main releases).
+    incomplete.sort(
+        key=lambda b: (-b["pct"], release_sort_key(b["set_code"]))
+    )
+
+    # "Closest to complete" highlight: top 3 sets that are at least 50%
+    # owned but not yet finished. Hidden when no set qualifies (e.g. fresh
+    # collection where every set is mostly empty).
+    closest = [
+        {**b, "missing_count": b["total"] - b["owned_count"]}
+        for b in incomplete
+        if b["pct"] >= 50.0 and b["pct"] < 100.0
+    ][:3]
+
+    total_missing = sum(b["total"] - b["owned_count"] for b in incomplete)
 
     templates = request.app.state.templates
     return templates.TemplateResponse(
         request=request,
         name="missing/index.html",
-        context={"binders": binders},
+        context={
+            "binders": incomplete,
+            "closest": closest,
+            "total_missing": total_missing,
+            "incomplete_set_count": len(incomplete),
+        },
     )
+
+
+@router.post("/collection/reset")
+async def collection_reset(request: Request) -> RedirectResponse:
+    """Wipe every row in collection_items.
+
+    Mirrors `/scan/reset`: catalog/sets/scan history are NOT touched, so the
+    user can re-build their collection from scratch (e.g. after testing) by
+    re-running scans and accepting matches. The autoincrement counter is
+    also reset so new items start at id=1 again.
+    """
+    cfg = request.app.state.config
+    db = Database.connect(str(cfg.db_path))
+    db.migrate()
+    try:
+        db.connection.execute("DELETE FROM collection_items")
+        db.connection.execute(
+            "DELETE FROM sqlite_sequence WHERE name = 'collection_items'"
+        )
+        db.connection.commit()
+    finally:
+        db.close()
+    return RedirectResponse(url="/collection?reset=1", status_code=303)
 
 
 @router.post("/collection/{item_id}/adjust")

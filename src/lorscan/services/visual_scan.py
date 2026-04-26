@@ -174,36 +174,31 @@ def crop_grid(
     return tiles
 
 
-def scan_single_card(
-    photo_path: Path,
+def scan_single_image(
+    image: Image.Image,
     index: CardImageIndex,
     *,
+    grid_position: str = "single",
     top_k: int = 5,
     model_bundle=None,
     allowed_card_ids: set[str] | None = None,
 ) -> TileMatch:
-    """Scan a photo as a single card (no grid cropping).
+    """Run single-card CLIP matching on an in-memory Image.
 
-    Returns a single TileMatch (grid_position='single'). Used by the
-    diagnostic CLI command and any future single-card workflows.
+    Used by both `scan_single_card` (for whole-photo single-card scans)
+    and the per-cell rescan endpoint, which feeds in a tile cropped from
+    a larger binder photo.
     """
     if model_bundle is None:
         model, preprocess, device = _load_clip_model()
     else:
         model, preprocess, device = model_bundle
 
-    image = Image.open(photo_path)
-    image.load()
-    # Honor the EXIF orientation tag so the buffer matches what the user
-    # sees in the browser — without this, phone photos with orientation 6/8
-    # crop in the wrong order and the binder grid renders transposed.
-    image = ImageOps.exif_transpose(image)
     if image.mode != "RGB":
         image = image.convert("RGB")
 
-    # Isolate the card from the background so CLIP encodes art, not table/hand.
-    # If detection fails (no clean 4-corner quadrilateral), fall back to the full
-    # frame — a missed detection is better than a bad warp.
+    # Isolate the card from the background so CLIP encodes art, not
+    # table/hand. If detection fails, fall back to the full frame.
     detected = detect_and_warp_card(image)
     encode_img = detected if detected is not None else image
 
@@ -222,11 +217,62 @@ def scan_single_card(
     if empty:
         matches = []
     return TileMatch(
-        grid_position="single",
+        grid_position=grid_position,
         matches=matches,
         pixel_std=std,
         is_empty=empty,
     )
+
+
+def scan_single_card(
+    photo_path: Path,
+    index: CardImageIndex,
+    *,
+    top_k: int = 5,
+    model_bundle=None,
+    allowed_card_ids: set[str] | None = None,
+) -> TileMatch:
+    """Scan a photo as a single card (no grid cropping)."""
+    image = Image.open(photo_path)
+    image.load()
+    # Honor the EXIF orientation tag so the buffer matches what the user
+    # sees in the browser — without this, phone photos with orientation 6/8
+    # crop in the wrong order and the binder grid renders transposed.
+    image = ImageOps.exif_transpose(image)
+    return scan_single_image(
+        image,
+        index,
+        grid_position="single",
+        top_k=top_k,
+        model_bundle=model_bundle,
+        allowed_card_ids=allowed_card_ids,
+    )
+
+
+def _orient_for_grid(image: Image.Image, *, rows: int, cols: int) -> Image.Image:
+    """Rotate the image so its aspect ratio is closer to the expected
+    grid aspect (rows:cols of card-shaped cells).
+
+    A 3×3 grid of Lorcana cards is portrait-shaped (3×5 wide by 3×7 tall =
+    15:21 = ~0.71). If the user shoots the binder with the phone held
+    sideways the resulting image is landscape — cells then crop as
+    landscape rectangles, slicing each card vertically. Detecting the
+    misorientation by aspect ratio and rotating once before cropping
+    fixes the grid mapping.
+
+    EXIF orientation must already have been applied. We only handle the
+    common 90° rotation case here; 180° flips are rare for top-down
+    photos and would require content-based detection.
+    """
+    target_aspect = (cols * 5) / (rows * 7)  # cards are 5:7 portrait
+    image_aspect = image.width / image.height
+    # If the image is significantly more landscape than the target (>1.1×),
+    # rotate it 90°. The direction is somewhat arbitrary — the per-tile
+    # rotation step inside `_best_rotation_match` recovers card matches
+    # regardless of whether we picked CW or CCW.
+    if image_aspect > target_aspect * 1.4:
+        return image.rotate(-90, expand=True)
+    return image
 
 
 def scan_with_clip(
@@ -238,11 +284,13 @@ def scan_with_clip(
     top_k: int = 5,
     model_bundle=None,
     allowed_card_ids: set[str] | None = None,
+    auto_rotate: bool = True,
 ) -> list[TileMatch]:
     """Tile a binder photo, run each cell through CLIP, and detect empty slots.
 
-    `model_bundle` is an optional (model, preprocess, device) tuple to avoid
-    reloading the model on repeated calls. If None, loads once internally.
+    `auto_rotate=True` flips landscape photos to portrait so the 3×3
+    crop maps onto the binder's natural orientation. Set False if the
+    caller already handled rotation (e.g. user-specified override).
     """
     if model_bundle is None:
         model, preprocess, device = _load_clip_model()
@@ -257,6 +305,8 @@ def scan_with_clip(
     image = ImageOps.exif_transpose(image)
     if image.mode != "RGB":
         image = image.convert("RGB")
+    if auto_rotate:
+        image = _orient_for_grid(image, rows=rows, cols=cols)
 
     tiles = crop_grid(image, rows=rows, cols=cols)
     # Per-tile boundary detection corrects perspective skew (binder photos are

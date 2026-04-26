@@ -1,20 +1,16 @@
 {% extends "base.html" %}
-{% block title %}Scan a binder page · lorscan{% endblock %}
+{% block title %}Scan a binder page · lorscana{% endblock %}
 {% block content %}
 {% if request.query_params.get('reset') %}
-<section class="card" style="border-color: rgba(110, 231, 163, 0.35); padding: 12px 16px;">
-  <p style="margin:0;color:var(--ok)">Scans cleared. Catalog and collection are untouched.</p>
-</section>
+<div class="flash">Scan history cleared. Catalog and collection kept.</div>
 {% endif %}
+
 <section class="card upload-card">
-  <h1>Scan a binder page</h1>
-  <p class="subtitle">
-    Upload a photo. lorscan tiles it into 9 cells, identifies each card visually
-    (CLIP, fully local, ~1 second), and matches against your synced catalog.
-  </p>
+  <h1>Scan a page</h1>
+  <p class="subtitle">Upload a photo. lorscana finds the cards and matches them against the catalog.</p>
 
   {% if not clip_index_ready %}
-  <div class="empty-state" style="margin: 16px 0;">
+  <div class="empty-state" style="padding: 24px 0;">
     <h2>Index not built yet</h2>
     <p>Run this once in the project directory:</p>
     <p><code>uv run lorscan sync-catalog</code></p>
@@ -36,18 +32,27 @@
       </label>
     </fieldset>
 
-    <label class="field">
-      <span class="label">Photo (JPEG, PNG, HEIC/HEIF)</span>
-      <input id="photo-input" type="file" name="photo" accept="image/jpeg,image/png,image/heic,image/heif,.heic,.heif" required>
+    <div class="field">
+      <label class="label" for="photo-input">Photo</label>
+      {# `accept="image/*"` with no `capture` attribute is the magic
+         combo: on iOS/Android the OS shows a native sheet with "Take
+         Photo / Photo Library / Choose File", covering both flows from
+         a single button. On desktop it just opens the file picker. #}
+      <input id="photo-input" type="file" name="photo"
+             accept="image/*,.heic,.heif" required hidden>
+      <button type="button" class="photo-pick-btn photo-pick-btn--camera"
+              data-target="photo-input">
+        <span aria-hidden="true">📷</span> Take or choose a photo
+      </button>
       <div id="photo-preview" class="photo-preview" hidden>
         <img id="photo-preview-img" alt="Selected photo preview">
         <div id="photo-preview-meta" class="photo-preview-meta"></div>
       </div>
-    </label>
+    </div>
 
-    <label class="field">
-      <span class="label">Restrict to set <small style="color:var(--muted);font-weight:normal">(optional, recommended)</small></span>
-      <select name="set_code">
+    <div class="field">
+      <label class="label" for="set-select">Restrict to set <span class="hint" style="display:inline; text-transform:none; letter-spacing:0.01em;">(optional)</span></label>
+      <select id="set-select" name="set_code">
         <option value="">— any set —</option>
         {% for s in main_sets %}
           <option value="{{ s.set_code }}">{{ s.label }}</option>
@@ -59,86 +64,38 @@
           {% endfor %}
         {% endif %}
       </select>
-      <span class="hint">
-        Picking a set tells the matcher to only consider cards from that set —
-        far fewer false positives when you're scanning a single-set binder.
-      </span>
-    </label>
+    </div>
 
     <button id="scan-submit" type="submit" class="primary">Scan</button>
-    <p class="hint">Local CLIP scan — typically under 2 seconds.</p>
   </form>
   {% endif %}
 </section>
 
-{% if progress.rows %}
-<section class="card">
-  <header class="results-header">
-    <h2>Collection progress</h2>
-    <div class="meta">
-      <div>
-        <span class="label">Main sets</span>
-        {{ progress.main_owned }} / {{ progress.main_total }}
-        <span class="set-progress-pct">({{ progress.main_pct }}%)</span>
-      </div>
-    </div>
-  </header>
-  <div class="progress-grid">
-    {% for r in progress.rows %}
-    <a class="progress-cell" href="/missing#{{ r.set_code }}">
-      <div class="progress-cell-head">
-        <span>
-          {% if r.chapter %}<span class="set-chapter">{{ r.chapter }}.</span>{% endif %}
-          {{ r.name }}
-        </span>
-        <code class="set-progress-code">{{ r.set_code }}</code>
-      </div>
-      <div class="progress-bar">
-        <div class="progress-bar-fill" style="width: {{ r.pct }}%"></div>
-      </div>
-      <div class="progress-cell-stats">
-        {{ r.owned }} / {{ r.total_cards }}
-        <span class="set-progress-pct">({{ r.pct }}%)</span>
-      </div>
-    </a>
-    {% endfor %}
-  </div>
-</section>
-{% endif %}
-
 {% if recent_scans %}
 <section class="card">
-  <h2>Recent scans</h2>
+  <h2 style="margin-bottom: 12px;">Recent</h2>
   <ul class="recent-scans">
     {% for scan in recent_scans %}
     <li>
       <a href="/scan/{{ scan.id }}">
         <span class="scan-status status-{{ scan.status }}">{{ scan.status }}</span>
-        <span class="scan-file">{{ scan.photo_path.split('/')[-1] }}</span>
-        <span class="scan-time">{{ scan.created_at }}</span>
+        <span class="scan-file">Scan #{{ scan.id }}</span>
+        <span class="scan-time">{{ scan.created_at[:16].replace('T', ' ') }}</span>
       </a>
     </li>
     {% endfor %}
   </ul>
-</section>
-{% endif %}
-
-<section class="card">
-  <form method="post" action="/scan/reset" class="danger-zone"
-        onsubmit="return confirm('Delete all scans, scan results, and uploaded photos?\n\nYour catalog, embeddings, and accepted collection cards will not be touched.');">
-    <div>
-      <strong style="font-size:13px">Reset scan history</strong>
-      <p class="hint">Deletes all scans, results, and uploaded photo files. Catalog and collection are kept.</p>
-    </div>
-    <button type="submit">Reset</button>
+  <form method="post" action="/scan/reset" style="display:inline"
+        onsubmit="return confirm('Delete all scans, results, and uploaded photo files?');">
+    <button type="submit" class="reset-link">↺ Reset scan history</button>
   </form>
 </section>
-
+{% endif %}
 
 <div id="loading-overlay" class="loading-overlay" hidden>
   <div class="spinner" aria-hidden="true"></div>
   <h2 class="loading-title">Scanning...</h2>
-  <p class="loading-message">Embedding 9 tiles and looking up the catalog. Should be under 2 seconds.</p>
+  <p class="loading-message">Embedding the photo and looking up the catalog. Should be under 2 seconds.</p>
 </div>
 
 <script>
@@ -153,12 +110,19 @@
 
   if (!form) return;
 
+  // The visible button forwards clicks to the hidden file input, which
+  // triggers the OS picker (with native "Take Photo / Photo Library"
+  // sheet on iOS/Android).
+  document.querySelectorAll('.photo-pick-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const target = document.getElementById(btn.dataset.target);
+      if (target) target.click();
+    });
+  });
+
   photoInput.addEventListener('change', function(e) {
     const file = e.target.files && e.target.files[0];
-    if (!file) {
-      preview.hidden = true;
-      return;
-    }
+    if (!file) { preview.hidden = true; return; }
     const sizeMb = (file.size / 1024 / 1024).toFixed(1);
     const sizeKb = (file.size / 1024).toFixed(0);
     const sizeStr = file.size > 1024 * 1024 ? sizeMb + ' MB' : sizeKb + ' KB';
@@ -169,7 +133,7 @@
       previewImg.src = '';
       previewImg.style.display = 'none';
       preview.hidden = false;
-      previewMeta.textContent += ' (HEIC — preview unavailable, will be transcoded to JPEG before scanning)';
+      previewMeta.textContent += ' · HEIC will be transcoded to JPEG';
       return;
     }
     previewImg.style.display = '';

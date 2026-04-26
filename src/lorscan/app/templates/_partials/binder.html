@@ -12,9 +12,7 @@
   Emits: <details> wrapper (so users can collapse a binder), default open
   for sets the caller wants prominent.
 #}
-{% set is_open = (mode == 'collection' and binder.owned_count > 0) or
-                 (mode == 'missing' and binder.owned_count < binder.total) %}
-<details class="binder binder--{{ mode }}" id="{{ binder.set_code }}" {% if is_open %}open{% endif %}>
+<details class="binder binder--{{ mode }}" id="{{ binder.set_code }}">
   <summary class="binder-summary">
     <div class="binder-spine">
       <div class="binder-title">
@@ -27,6 +25,15 @@
         <span class="binder-stat-sep">/</span>
         <span class="binder-stat-tot">{{ binder.total }}</span>
         <span class="binder-stat-pct">{{ binder.pct }}%</span>
+        {% if mode == 'missing' %}
+        {# JS listens with capture:true so it fires before the click can
+           bubble to <summary> and toggle the <details>. No inline
+           onclick handler needed. #}
+        <button type="button" class="copy-want-btn copy-want-btn--inline"
+                data-copy-binder="{{ binder.set_code }}">
+          📋 Copy want-list
+        </button>
+        {% endif %}
       </div>
     </div>
     <div class="binder-progress">
