@@ -104,3 +104,35 @@ def test_marketplaces_refresh_passes_only_set_arg(
     # Inspect the call kwargs.
     call_kwargs = mock_sweep.call_args.kwargs
     assert call_kwargs.get("set_code") == "ROF"
+
+
+def test_marketplaces_refresh_warns_when_seed_missing(
+    tmp_data_dir: Path, capsys, monkeypatch
+) -> None:
+    """If the seed TOML is missing, the CLI prints a clear stderr warning
+    instead of failing silently."""
+    # Patch Path.exists to return False for the seed path specifically.
+    real_exists = Path.exists
+
+    def fake_exists(self):
+        if self.name == "bazaarofmagic_set_map.toml":
+            return False
+        return real_exists(self)
+
+    monkeypatch.setattr(Path, "exists", fake_exists)
+
+    # Use a fake sweep result so we don't actually crawl.
+    fake_result = type(
+        "R",
+        (),
+        {"sweep_id": 1, "status": "ok", "listings_seen": 0, "listings_matched": 0, "errors": 0},
+    )()
+    with patch(
+        "lorscan.cli._run_marketplace_sweep",
+        new=AsyncMock(return_value=fake_result),
+    ):
+        rc = main(["marketplaces", "refresh"])
+    assert rc == 0
+    err = capsys.readouterr().err.lower()
+    assert "warning" in err
+    assert "seed file not found" in err

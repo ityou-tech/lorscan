@@ -109,6 +109,8 @@ def main(argv: list[str] | None = None) -> int:
             )
         elif args.mp_command == "status":
             return marketplaces_status_command(config=cfg)
+        else:
+            raise AssertionError(f"unhandled mp_command: {args.mp_command!r}")
     return 2
 
 
@@ -543,6 +545,14 @@ def marketplaces_refresh_command(
                             f"(run `lorscan sync-catalog` first)",
                             file=sys.stderr,
                         )
+        else:
+            print(
+                f"warning: seed file not found at {seed_path} — "
+                f"marketplace_set_categories will not be auto-populated. "
+                f"If running from source, check data/bazaarofmagic_set_map.toml; "
+                f"if pip-installed, this is a known packaging gap.",
+                file=sys.stderr,
+            )
 
         try:
             result = asyncio.run(
