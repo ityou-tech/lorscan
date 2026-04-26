@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}Scan #{{ scan_id }} · lorscana{% endblock %}
+{% block content %}
+{% if request.query_params.get('duplicate') %}
+<section class="dup-banner">
+  <div class="dup-banner-text">
+    <strong>You've uploaded this photo before.</strong>
+    {% if applied_count %}
+      Its {{ applied_count }} matched cards were already added to your collection on a previous run — re-applying will <em>double</em> the quantities.
+    {% else %}
+      No cards from this scan were ever added to your collection. Review the matches below and apply normally if you want to add them.
+    {% endif %}
+  </div>
+  <div class="dup-banner-actions">
+    {% if applied_count %}
+    <form method="post" action="/scan/{{ scan_id }}/apply" style="display:inline"
+          onsubmit="return confirm('Add the {{ applied_count }} matched cards to your collection AGAIN? Quantities will double.');">
+      <input type="hidden" name="force" value="1">
+      <button type="submit" class="primary">Re-apply (double cards)</button>
+    </form>
+    {% endif %}
+    <a href="/scan" class="dup-banner-dismiss">Dismiss &amp; back to Scan</a>
+  </div>
+</section>
+{% endif %}
+<section class="card">
+  <div class="scan-detail-photo">
+    <img src="/scan/{{ scan_id }}/photo" alt="Scanned binder page" loading="lazy">
+  </div>
+  <header class="results-header">
+    <h1>Scan #{{ scan_id }}</h1>
+    <div class="scan-detail-meta">
+      <div><span class="label">Status</span> {{ scan.status }}</div>
+      <div><span class="label">Created</span> {{ scan.created_at }}</div>
+      {% if scan.completed_at %}
+      <div><span class="label">Completed</span> {{ scan.completed_at }}</div>
+      {% endif %}
+      <div><span class="label">Cards detected</span> {{ cells | length }}</div>
+      {% if applied_count %}
+      <div><span class="label">Applied to collection</span> {{ applied_count }} <span class="applied-badge">applied</span></div>
+      {% endif %}
+    </div>
+  </header>
+
+  {% if binder_rows %}
+  <div class="binder-grid" style="--cols: {{ binder_rows[0] | length }};">
+    {% for row in binder_rows %}
+      {% for cell in row %}
+        {% if cell is none %}
+          <div class="binder-cell binder-cell--missing">
+            <span class="binder-cell-empty">—</span>
+          </div>
+        {% else %}
+          {% set is_empty = cell.match.match_method == 'empty_slot' or cell.card.confidence == 'empty' %}
+          {% set state = 'empty' if is_empty else ('matched' if cell.match.matched_card_id else 'unmatched') %}
+          <div class="binder-cell binder-cell--{{ state }}">
+            <span class="binder-pos">{{ cell.card.grid_position }}</span>
+            {% if is_empty %}
+              <div class="binder-empty">empty slot</div>
+            {% elif cell.matched_card %}
+              <img class="binder-card-art"
+                   src="/card/{{ cell.match.matched_card_id }}/image"
+                   alt="{{ cell.matched_card.name }}"
+                   loading="lazy"
+                   onerror="this.style.display='none'">
+              <div class="binder-card-info">
+                <strong>{{ cell.matched_card.name }}</strong>
+                {% if cell.matched_card.subtitle %}
+                <span class="subtitle">{{ cell.matched_card.subtitle }}</span>
+                {% endif %}
+                <div class="binder-card-meta">
+                  <code>{{ cell.matched_card.set_code }}-{{ cell.matched_card.collector_number }}</code>
+                  <span class="conf conf-{{ cell.card.confidence }}">{{ cell.card.confidence }}</span>
+                </div>
+              </div>
+            {% else %}
+              <div class="binder-unmatched">?</div>
+              <div class="binder-card-meta">
+                <span class="conf conf-{{ cell.card.confidence }}">{{ cell.card.confidence }}</span>
+              </div>
+            {% endif %}
+
+            {% if not is_empty and cell.card.candidates and applied_count == 0 %}
+            <form method="post"
+                  action="/scan/{{ scan_id }}/cell/{{ cell.scan_result_id }}/correct"
+                  class="cell-correct-form">
+              <select name="matched_card_id" onchange="this.form.submit()" aria-label="Change match">
+                {% if not cell.match.matched_card_id %}<option value="" selected>— no match —</option>{% endif %}
+                {% for cand in cell.card.candidates %}
+                  {% set card = cell.candidate_cards.get(cand.card_id) %}
+                  {% if card %}
+                  <option value="{{ cand.card_id }}"
+                          {% if cand.card_id == cell.match.matched_card_id %}selected{% endif %}>
+                    {{ card.name }}{% if card.subtitle %} — {{ card.subtitle }}{% endif %}
+                    ({{ "%.2f"|format(cand.similarity) }})
+                  </option>
+                  {% endif %}
+                {% endfor %}
+                {% if cell.match.matched_card_id %}<option value="">— clear match —</option>{% endif %}
+              </select>
+            </form>
+            {% endif %}
+            {% if cell.card.grid_position and cell.card.grid_position.startswith('r') %}
+            <div class="cell-action-stack">
+              {# Per-cell rescan: re-runs CLIP on the same crop. Useful
+                 when the original tile was good but matched the wrong
+                 visually-similar card. #}
+              <form method="post" action="/scan/{{ scan_id }}/rescan-cell"
+                    class="cell-action-form"
+                    onsubmit="return confirm('Re-scan just this cell from the original photo?');">
+                <input type="hidden" name="grid_position" value="{{ cell.card.grid_position }}">
+                <button type="submit" class="cell-action-btn" title="Re-scan this cell from the original photo">↻</button>
+              </form>
+              {# Per-cell upload: takes a fresh photo and replaces this
+                 cell's match. The accept="image/*" (no capture attr)
+                 lets iOS/Android show their native "Take Photo / Photo
+                 Library" sheet, so the user gets both options. #}
+              <form method="post" action="/scan/{{ scan_id }}/cell-replace"
+                    enctype="multipart/form-data"
+                    class="cell-action-form cell-upload-form">
+                <input type="hidden" name="grid_position" value="{{ cell.card.grid_position }}">
+                <input type="file" name="photo" accept="image/*,.heic,.heif"
+                       class="cell-upload-input"
+                       onchange="this.form.submit()">
+                <button type="button" class="cell-action-btn cell-upload-btn"
+                        title="Upload a fresh photo for this cell"
+                        onclick="this.previousElementSibling.click()">📷</button>
+              </form>
+            </div>
+            {% endif %}
+          </div>
+        {% endif %}
+      {% endfor %}
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if applied_count == 0 and cells %}
+  <footer class="result-actions">
+    <form method="post" action="/scan/{{ scan_id }}/apply" class="apply-form">
+      <button type="submit" class="primary">Accept matched cards into collection</button>
+      <span class="hint">Only cells with a confirmed match will be added.</span>
+    </form>
+  </footer>
+  {% endif %}
+
+  {% if cells %}
+  <footer class="result-actions rescan-actions">
+    <span class="rescan-label">Bad matches?</span>
+    <form method="post" action="/scan/{{ scan_id }}/rescan" style="display:inline"
+          onsubmit="return confirm('Re-run CLIP on this photo as a 3×3 binder page? Existing matches will be replaced.');">
+      <input type="hidden" name="mode" value="grid">
+      <button type="submit" class="rescan-btn">↻ Re-scan whole page</button>
+    </form>
+    <form method="post" action="/scan/{{ scan_id }}/rescan" style="display:inline"
+          onsubmit="return confirm('Re-run CLIP, treating the photo as a single card filling the frame? Existing matches will be replaced.');">
+      <input type="hidden" name="mode" value="single">
+      <button type="submit" class="rescan-btn">↻ Re-scan as single card</button>
+    </form>
+  </footer>
+  {% endif %}
+</section>
+
+<p class="back-link"><a href="/scan">← Back to Scan</a></p>
+{% endblock %}

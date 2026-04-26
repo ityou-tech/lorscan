@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}Scan a binder page · lorscana{% endblock %}
+{% block content %}
+{% if request.query_params.get('reset') %}
+<div class="flash">Scan history cleared. Catalog and collection kept.</div>
+{% endif %}
+
+<section class="card upload-card">
+  <h1>Scan a page</h1>
+  <p class="subtitle">Upload a photo. lorscana finds the cards and matches them against the catalog.</p>
+
+  {% if not clip_index_ready %}
+  <div class="empty-state" style="padding: 24px 0;">
+    <h2>Index not built yet</h2>
+    <p>Run this once in the project directory:</p>
+    <p><code>uv run lorscan sync-catalog</code></p>
+    <p><code>uv run lorscan index-images</code></p>
+  </div>
+  {% else %}
+  <form id="scan-form" method="post" action="/scan/upload" enctype="multipart/form-data" class="upload-form">
+    <fieldset class="mode-toggle">
+      <legend class="label">What's in the photo?</legend>
+      <label class="mode-option">
+        <input type="radio" name="mode" value="grid" checked>
+        <span class="mode-title">Binder page</span>
+        <span class="mode-sub">3×3 pocket layout</span>
+      </label>
+      <label class="mode-option">
+        <input type="radio" name="mode" value="single">
+        <span class="mode-title">Single card</span>
+        <span class="mode-sub">one card filling the frame</span>
+      </label>
+    </fieldset>
+
+    <div class="field">
+      <label class="label" for="photo-input">Photo</label>
+      {# `accept="image/*"` with no `capture` attribute is the magic
+         combo: on iOS/Android the OS shows a native sheet with "Take
+         Photo / Photo Library / Choose File", covering both flows from
+         a single button. On desktop it just opens the file picker. #}
+      <input id="photo-input" type="file" name="photo"
+             accept="image/*,.heic,.heif" required hidden>
+      <button type="button" class="photo-pick-btn photo-pick-btn--camera"
+              data-target="photo-input">
+        <span aria-hidden="true">📷</span> Take or choose a photo
+      </button>
+      <div id="photo-preview" class="photo-preview" hidden>
+        <img id="photo-preview-img" alt="Selected photo preview">
+        <div id="photo-preview-meta" class="photo-preview-meta"></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="label" for="set-select">Restrict to set <span class="hint" style="display:inline; text-transform:none; letter-spacing:0.01em;">(optional)</span></label>
+      <select id="set-select" name="set_code">
+        <option value="">— any set —</option>
+        {% for s in main_sets %}
+          <option value="{{ s.set_code }}">{{ s.label }}</option>
+        {% endfor %}
+        {% if other_sets %}
+          <option disabled>──────────</option>
+          {% for s in other_sets %}
+            <option value="{{ s.set_code }}">{{ s.label }}</option>
+          {% endfor %}
+        {% endif %}
+      </select>
+    </div>
+
+    <button id="scan-submit" type="submit" class="primary">Scan</button>
+  </form>
+  {% endif %}
+</section>
+
+{% if recent_scans %}
+<section class="card">
+  <h2 style="margin-bottom: 12px;">Recent</h2>
+  <ul class="recent-scans">
+    {% for scan in recent_scans %}
+    <li>
+      <a href="/scan/{{ scan.id }}">
+        <span class="scan-status status-{{ scan.status }}">{{ scan.status }}</span>
+        <span class="scan-file">Scan #{{ scan.id }}</span>
+        <span class="scan-time">{{ scan.created_at[:16].replace('T', ' ') }}</span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+  <form method="post" action="/scan/reset" style="display:inline"
+        onsubmit="return confirm('Delete all scans, results, and uploaded photo files?');">
+    <button type="submit" class="reset-link">↺ Reset scan history</button>
+  </form>
+</section>
+{% endif %}
+
+<div id="loading-overlay" class="loading-overlay" hidden>
+  <div class="spinner" aria-hidden="true"></div>
+  <h2 class="loading-title">Scanning...</h2>
+  <p class="loading-message">Embedding the photo and looking up the catalog. Should be under 2 seconds.</p>
+</div>
+
+<script>
+(function() {
+  const form = document.getElementById('scan-form');
+  const button = document.getElementById('scan-submit');
+  const overlay = document.getElementById('loading-overlay');
+  const photoInput = document.getElementById('photo-input');
+  const preview = document.getElementById('photo-preview');
+  const previewImg = document.getElementById('photo-preview-img');
+  const previewMeta = document.getElementById('photo-preview-meta');
+
+  if (!form) return;
+
+  // The visible button forwards clicks to the hidden file input, which
+  // triggers the OS picker (with native "Take Photo / Photo Library"
+  // sheet on iOS/Android).
+  document.querySelectorAll('.photo-pick-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const target = document.getElementById(btn.dataset.target);
+      if (target) target.click();
+    });
+  });
+
+  photoInput.addEventListener('change', function(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) { preview.hidden = true; return; }
+    const sizeMb = (file.size / 1024 / 1024).toFixed(1);
+    const sizeKb = (file.size / 1024).toFixed(0);
+    const sizeStr = file.size > 1024 * 1024 ? sizeMb + ' MB' : sizeKb + ' KB';
+    previewMeta.textContent = file.name + ' · ' + sizeStr;
+
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (ext === 'heic' || ext === 'heif') {
+      previewImg.src = '';
+      previewImg.style.display = 'none';
+      preview.hidden = false;
+      previewMeta.textContent += ' · HEIC will be transcoded to JPEG';
+      return;
+    }
+    previewImg.style.display = '';
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      previewImg.src = ev.target.result;
+      preview.hidden = false;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  form.addEventListener('submit', function() {
+    button.disabled = true;
+    button.textContent = 'Scanning...';
+    overlay.hidden = false;
+  });
+})();
+</script>
+{% endblock %}

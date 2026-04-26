@@ -1,0 +1,29 @@
+# Brainstorm artifacts (visual companion mockups, session state)
+.superpowers/
+
+# Playwright MCP scratch (page snapshots + console logs from local testing)
+.playwright-mcp/
+
+# Ad-hoc UI screenshots saved in repo root during development
+/scan-*.png
+/collection-*.png
+/missing-*.png
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.venv/
+*.egg-info/
+build/
+dist/
+
+# Environment
+.python-version
+tests/fixtures/photos/*.jpg
+tests/fixtures/photos/*.jpeg
+tests/fixtures/photos/*.png
+tests/fixtures/photos/*.heic
+tests/fixtures/photos/*.HEIC

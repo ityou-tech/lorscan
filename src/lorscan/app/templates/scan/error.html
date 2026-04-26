@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Scan error · lorscana{% endblock %}
+{% block content %}
+<section class="card error-card">
+  <h1>Scan failed</h1>
+  <pre class="error-detail">{{ error }}</pre>
+  <p><a href="/scan">← Back</a></p>
+</section>
+{% endblock %}

@@ -1,0 +1,121 @@
+{#
+  Renders one set as a physical-binder visualization: header strip with
+  the set name + chapter + progress bar, followed by 3×3 binder pages.
+
+  Required context:
+    binder  — dict from collection._build_binders() (set_code, name, chapter,
+              owned_count, total, pct, pages: list[list[card_dict]])
+    mode    — 'collection' or 'missing'; flips emphasis between owned and
+              missing pockets (collection: owned bright, missing dim;
+              missing: missing bright, owned dim)
+
+  Emits: <details> wrapper (so users can collapse a binder), default open
+  for sets the caller wants prominent.
+#}
+<details class="binder binder--{{ mode }}" id="{{ binder.set_code }}">
+  <summary class="binder-summary">
+    <div class="binder-spine">
+      <div class="binder-title">
+        {% if binder.chapter %}<span class="binder-chapter">{{ binder.chapter }}</span>{% endif %}
+        <span class="binder-name">{{ binder.name }}</span>
+        <code class="binder-set-code">{{ binder.set_code }}</code>
+      </div>
+      <div class="binder-stats">
+        <span class="binder-stat-num">{{ binder.owned_count }}</span>
+        <span class="binder-stat-sep">/</span>
+        <span class="binder-stat-tot">{{ binder.total }}</span>
+        <span class="binder-stat-pct">{{ binder.pct }}%</span>
+        {% if mode == 'missing' %}
+        {# JS listens with capture:true so it fires before the click can
+           bubble to <summary> and toggle the <details>. No inline
+           onclick handler needed. #}
+        <button type="button" class="copy-want-btn copy-want-btn--inline"
+                data-copy-binder="{{ binder.set_code }}">
+          📋 Copy want-list
+        </button>
+        {% endif %}
+      </div>
+    </div>
+    <div class="binder-progress">
+      <div class="binder-progress-fill" style="width: {{ binder.pct }}%"></div>
+    </div>
+  </summary>
+
+  <div class="binder-book"
+       data-binder="{{ binder.set_code }}"
+       data-page-count="{{ binder.pages | length }}"
+       style="--page-count: {{ binder.pages | length }};">
+    <div class="binder-pages">
+    {% for page in binder.pages %}
+    <div class="binder-page{% if loop.index0 == 0 %} is-active{% endif %}"
+         data-page-index="{{ loop.index0 }}"
+         aria-hidden="{% if loop.index0 == 0 %}false{% else %}true{% endif %}">
+      <span class="binder-page-label">Page {{ loop.index }} <span class="binder-page-of">/ {{ binder.pages | length }}</span></span>
+      <div class="binder-page-grid">
+        {% for card in page %}
+        <article class="pocket {% if card.owned %}pocket--owned{% else %}pocket--missing{% endif %}">
+          <div class="pocket-art">
+            {% if card.owned %}
+              <img src="/card/{{ card.card_id }}/image"
+                   alt="{{ card.name }}"
+                   loading="lazy"
+                   onerror="this.style.visibility='hidden'">
+              {% if card.quantity > 1 %}
+              <span class="pocket-qty">×{{ card.quantity }}</span>
+              {% endif %}
+            {% else %}
+              <img src="/card/{{ card.card_id }}/image"
+                   alt="{{ card.name }}"
+                   loading="lazy"
+                   class="pocket-art-ghost"
+                   onerror="this.style.visibility='hidden'">
+              <div class="pocket-empty-overlay">
+                <span class="pocket-empty-num">#{{ card.collector_number }}</span>
+              </div>
+            {% endif %}
+          </div>
+          <div class="pocket-info">
+            <code class="pocket-id">{{ card.set_code }}-{{ card.collector_number }}</code>
+            <div class="pocket-name">{{ card.name }}</div>
+            {% if card.subtitle %}<div class="pocket-sub">{{ card.subtitle }}</div>{% endif %}
+          </div>
+          {% if card.owned %}
+          <div class="pocket-controls">
+            <form method="post" action="/collection/{{ card.collection_item_id }}/adjust" class="qty-form">
+              <input type="hidden" name="action" value="dec">
+              <button type="submit" aria-label="Remove one">−</button>
+            </form>
+            <span class="qty-display">{{ card.quantity }}</span>
+            <form method="post" action="/collection/{{ card.collection_item_id }}/adjust" class="qty-form">
+              <input type="hidden" name="action" value="inc">
+              <button type="submit" aria-label="Add one">+</button>
+            </form>
+            <form method="post" action="/collection/{{ card.collection_item_id }}/adjust" class="qty-form qty-form--remove"
+                  onsubmit="return confirm('Remove {{ card.name }}{% if card.subtitle %} — {{ card.subtitle }}{% endif %} from your collection?');">
+              <input type="hidden" name="action" value="remove">
+              <button type="submit" aria-label="Remove from collection" title="Remove">×</button>
+            </form>
+          </div>
+          {% else %}
+          <form method="post" action="/collection/add" class="pocket-add-form">
+            <input type="hidden" name="card_id" value="{{ card.card_id }}">
+            <button type="submit" class="pocket-add-btn" aria-label="Add to collection">+ Add</button>
+          </form>
+          {% endif %}
+        </article>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+    </div>
+    <nav class="binder-flip-nav" aria-label="Page navigation">
+      <button type="button" class="flip-btn flip-btn--prev" data-flip="prev" aria-label="Previous page">‹</button>
+      <span class="flip-indicator">
+        <span class="flip-current" data-flip-current>1</span>
+        <span class="flip-sep">/</span>
+        <span class="flip-total">{{ binder.pages | length }}</span>
+      </span>
+      <button type="button" class="flip-btn flip-btn--next" data-flip="next" aria-label="Next page">›</button>
+    </nav>
+  </div>
+</details>
