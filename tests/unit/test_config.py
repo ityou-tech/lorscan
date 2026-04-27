@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from lorscan.config import load_config
+from lorscan.services.buy_links import DEFAULT_CARDMARKET_FILTERS
 
 
 def test_load_config_from_toml(tmp_path: Path):
@@ -74,3 +75,40 @@ def test_whitespace_only_in_both_sources_yields_none(tmp_path: Path):
     toml.write_text('[anthropic]\napi_key = "   "\n')
     cfg = load_config(toml_path=toml, env={"ANTHROPIC_API_KEY": ""})
     assert cfg.anthropic_api_key is None
+
+
+def test_default_buy_link_filters(tmp_path: Path):
+    cfg_path = tmp_path / "config.toml"
+    cfg_path.write_text("")
+    cfg = load_config(toml_path=cfg_path, env={})
+    assert cfg.buy_links.cardmarket_filters == DEFAULT_CARDMARKET_FILTERS
+
+
+def test_user_overrides_partial_buy_link_filters(tmp_path: Path):
+    cfg_path = tmp_path / "config.toml"
+    cfg_path.write_text(
+        "[buy_links.cardmarket]\n"
+        "sellerCountry = [23, 5]\n"
+        "minCondition  = 2\n"
+    )
+    cfg = load_config(toml_path=cfg_path, env={})
+    f = cfg.buy_links.cardmarket_filters
+    assert f["sellerCountry"] == [23, 5]
+    assert f["minCondition"] == 2
+    # Unmentioned keys keep their defaults.
+    assert f["language"] == DEFAULT_CARDMARKET_FILTERS["language"]
+    assert f["sellerReputation"] == DEFAULT_CARDMARKET_FILTERS["sellerReputation"]
+
+
+def test_user_can_add_extra_buy_link_filter_keys(tmp_path: Path):
+    """Cardmarket has filters lorscan doesn't default (e.g. isFoil) — user
+    config should be able to surface them."""
+    cfg_path = tmp_path / "config.toml"
+    cfg_path.write_text(
+        "[buy_links.cardmarket]\n"
+        'isFoil = "Y"\n'
+    )
+    cfg = load_config(toml_path=cfg_path, env={})
+    assert cfg.buy_links.cardmarket_filters["isFoil"] == "Y"
+    # Defaults still present.
+    assert cfg.buy_links.cardmarket_filters["sellerCountry"] == DEFAULT_CARDMARKET_FILTERS["sellerCountry"]
