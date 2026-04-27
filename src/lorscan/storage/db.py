@@ -9,6 +9,7 @@ from importlib import resources
 from importlib.resources.abc import Traversable
 from pathlib import Path
 
+from lorscan.services.lorcana_json.mapper import CardRecord
 from lorscan.storage.models import Card, CardSet
 
 
@@ -153,6 +154,62 @@ class Database:
                 c.body_text,
                 c.image_url,
                 c.api_payload,
+            ),
+        )
+        self.connection.commit()
+
+    def upsert_card_record(self, rec: CardRecord) -> None:
+        """Upsert a LorcanaJSON-shaped CardRecord into the cards table.
+
+        Subtitle is parsed from `full_name` by splitting on the first " - "
+        so the existing UI surfaces (`pocket-sub`, scan/detail, CLI listings)
+        continue to render an "Ariel — On Human Legs"-style title pair.
+        """
+        subtitle = rec.full_name.split(" - ", 1)[1] if " - " in rec.full_name else None
+        self.connection.execute(
+            "INSERT INTO cards (card_id, set_code, collector_number, name, subtitle, "
+            "                   rarity, ink_color, cost, inkable, card_type, body_text, "
+            "                   image_url, api_payload, "
+            "                   cardmarket_id, cardmarket_url, "
+            "                   cardtrader_id, cardtrader_url, "
+            "                   tcgplayer_id, tcgplayer_url) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(card_id) DO UPDATE SET "
+            "  set_code = excluded.set_code, "
+            "  collector_number = excluded.collector_number, "
+            "  name = excluded.name, "
+            "  subtitle = excluded.subtitle, "
+            "  rarity = excluded.rarity, "
+            "  ink_color = excluded.ink_color, "
+            "  cost = excluded.cost, "
+            "  card_type = excluded.card_type, "
+            "  image_url = excluded.image_url, "
+            "  cardmarket_id = excluded.cardmarket_id, "
+            "  cardmarket_url = excluded.cardmarket_url, "
+            "  cardtrader_id = excluded.cardtrader_id, "
+            "  cardtrader_url = excluded.cardtrader_url, "
+            "  tcgplayer_id = excluded.tcgplayer_id, "
+            "  tcgplayer_url = excluded.tcgplayer_url",
+            (
+                rec.card_id,
+                rec.set_code,
+                rec.collector_number,
+                rec.name,
+                subtitle,
+                rec.rarity or "Unknown",
+                rec.ink_color,
+                rec.cost,
+                None,
+                rec.type,
+                None,
+                rec.image_url,
+                "{}",
+                rec.cardmarket_id,
+                rec.cardmarket_url,
+                rec.cardtrader_id,
+                rec.cardtrader_url,
+                rec.tcgplayer_id,
+                rec.tcgplayer_url,
             ),
         )
         self.connection.commit()
