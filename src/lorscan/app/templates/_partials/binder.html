@@ -5,14 +5,11 @@
   Required context:
     binder  — dict from collection._build_binders() (set_code, name, chapter,
               owned_count, total, pct, pages: list[list[card_dict]])
-    mode    — 'collection' or 'missing'; flips emphasis between owned and
-              missing pockets (collection: owned bright, missing dim;
-              missing: missing bright, owned dim)
 
   Emits: <details> wrapper (so users can collapse a binder), default open
   for sets the caller wants prominent.
 #}
-<details class="binder binder--{{ mode }}" id="{{ binder.set_code }}">
+<details class="binder binder--collection" id="{{ binder.set_code }}">
   <summary class="binder-summary">
     <div class="binder-spine">
       <div class="binder-title">

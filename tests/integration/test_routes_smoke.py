@@ -323,12 +323,9 @@ def test_collection_header_shows_closest_strip_when_applicable(client: TestClien
     assert "Mini Set" in body
 
 
-def test_missing_index_renders_set_progress(client: TestClient):
+def test_missing_route_is_gone(client: TestClient):
     response = client.get("/missing")
-    assert response.status_code == 200
-    body = response.text
-    assert "The First Chapter" in body
-    assert "Rise of the Floodborn" in body
+    assert response.status_code == 404
 
 
 def test_scan_apply_adds_matched_cards_to_collection(client: TestClient):

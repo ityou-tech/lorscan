@@ -87,8 +87,8 @@
 
   // ---------- state preservation across POST/redirect/GET ----------
   //
-  // Quantity/+Add forms POST to the server which 303s back to /collection
-  // or /missing. By default that resets scroll to top, closes every binder
+  // Quantity/+Add forms POST to the server which 303s back to /collection.
+  // By default that resets scroll to top, closes every binder
   // back to its server-default state, and forgets which page the user was
   // on. Stash the relevant state into sessionStorage on submit and restore
   // it after reload — feels like an in-place update without any XHR.
@@ -186,10 +186,10 @@
   // ---------- click-to-enlarge card lightbox ----------
   //
   // Clicking a card image inside a binder pocket pops it open at full
-  // size in a lightbox overlay. Works on /collection, /missing, and
-  // /scan/{id} (anywhere a `.pocket-art img` or `.binder-card-art` is
-  // rendered). The lightbox is created lazily on first click — keeps the
-  // base markup clean.
+  // size in a lightbox overlay. Works on /collection and /scan/{id}
+  // (anywhere a `.pocket-art img` or `.binder-card-art` is rendered).
+  // The lightbox is created lazily on first click — keeps the base
+  // markup clean.
 
   function ensureLightbox() {
     let lb = document.getElementById('card-lightbox');
@@ -250,7 +250,7 @@
     if (e.key === 'Escape') closeLightbox();
   });
 
-  // ---------- want-list copy-to-clipboard (/missing only) ----------
+  // ---------- want-list copy-to-clipboard ----------
   //
   // Two flavors of button:
   //   [data-copy-binder="ROF"]  — copies that one set's missing cards
