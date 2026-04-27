@@ -5,9 +5,9 @@ go in via the CLI or web UI; **local CLIP embeddings** identify each card
 visually against a catalog synced from `lorcana-api.com`. Fully offline
 after the one-time setup — no API keys, no rate limits, no cost.
 
-> **Status:** Plan 1 + Plan 2 MVP + Phase A (CLIP recognition) — fast
-> local scanning, web UI, scan persistence, /collection, /missing,
-> accept-into-collection workflow.
+> **Status:** Plan 1 + Plan 2 MVP + Phase A (CLIP recognition) + Plan 3
+> (marketplace stock) — fast local scanning, web UI, scan persistence,
+> /collection with marketplace badges, accept-into-collection workflow.
 
 ---
 
@@ -107,14 +107,16 @@ returns AVIF URLs that Pillow 11+ can decode directly.
 
 ## Web UI
 
-`uv run lorscan serve` opens the local UI on port 8000. Three pages:
+`uv run lorscan serve` opens the local UI on port 8000. Two pages:
 
 - **Scan** — upload a photo, pick a set from a dropdown of friendly names,
   see the per-cell recognition + match table inline. Recent scans list
   underneath, click any to revisit.
-- **Collection** — every card you own with quantity, finish, set, number.
-- **Missing** — per-set progress bars + collapsible lists of cards you
-  don't have yet.
+- **Collection** — every card per set with quantity controls on owned
+  pockets and "+ Add" / "€X · Bazaar" badges on missing pockets. Page
+  header shows cards-needed, sets-unfinished, the marketplace
+  refreshed-at line, and the "closest to complete" highlight strip.
+  Per-binder and global "📋 Copy want-list" buttons.
 
 After a scan finishes, the **Accept matched cards into collection**
 button atomically increments quantities for every cell with a confirmed
@@ -213,7 +215,7 @@ automatically. Sets not listed here are silently skipped.
 
 ```bash
 uv sync
-uv run pytest          # 44 tests
+uv run pytest
 uv run ruff check src tests
 uv run lorscan serve   # auto-reload is on by default
 ```
@@ -222,7 +224,7 @@ Project structure:
 
 ```
 src/lorscan/
-├── cli.py             # entry point (scan, serve, sync-catalog, index-images, version)
+├── cli.py             # entry point (scan, serve, sync-catalog, index-images, marketplaces, version)
 ├── config.py          # TOML + env-var loader
 ├── app/               # FastAPI web UI
 │   ├── main.py
@@ -245,7 +247,7 @@ src/lorscan/
 └── storage/
     ├── db.py          # SQLite wrapper (only place SQL lives)
     ├── models.py      # CardSet, Card, CollectionItem, Binder
-    └── migrations/    # 001-004 SQL migrations
+    └── migrations/    # 001-007 SQL migrations
 
 data/                  # bundled non-Python data
 └── bazaarofmagic_set_map.toml

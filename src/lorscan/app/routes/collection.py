@@ -49,8 +49,6 @@ async def collection_index(request: Request) -> HTMLResponse:
             if 50.0 <= b["pct"] < 100.0
         ][:3]
 
-        total_missing = sum(b["total"] - b["owned_count"] for b in binders)
-
         # Marketplace last-sweep info for the refreshed-at line.
         mp = db.get_marketplace_by_slug("bazaarofmagic")
         last_sweep = db.get_latest_finished_sweep(mp["id"]) if mp else None
@@ -68,7 +66,6 @@ async def collection_index(request: Request) -> HTMLResponse:
             "cards_needed": cards_needed,
             "unfinished_sets": unfinished_sets,
             "closest": closest,
-            "total_missing": total_missing,
             "last_sweep": last_sweep,
         },
     )
