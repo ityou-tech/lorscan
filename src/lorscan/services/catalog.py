@@ -1,142 +1,90 @@
-"""Catalog sync from lorcana-api.com."""
+"""Catalog sync from LorcanaJSON.
+
+The whole catalogue is a single static JSON file at
+`lorcanajson.org/files/current/en/allCards.json` (~7-15 MB). One fetch
+per `sync-catalog` invocation, no pagination. Idempotent — re-running
+upserts the same rows in place.
+"""
 
 from __future__ import annotations
 
-import json
+import logging
 from dataclasses import dataclass
 
-import httpx
-
+from lorscan.services.lorcana_json.fetcher import fetch_all_cards
+from lorscan.services.lorcana_json.mapper import map_lorcana_json_payload
+from lorscan.services.lorcana_json.set_codes import to_lorscan_set_code
 from lorscan.storage.db import Database
-from lorscan.storage.models import Card, CardSet
+from lorscan.storage.models import CardSet
 
-PAGE_SIZE = 1000
+log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class SyncResult:
-    cards_synced: int
-    sets_synced: int
+class CatalogSyncResult:
+    cards_inserted: int
+    sets_seen: int
+    unknown_sets_skipped: int
 
 
-async def sync_catalog(db: Database, *, base_url: str) -> SyncResult:
-    """Pull all cards from lorcana-api.com into the local SQLite catalog.
+async def sync_catalog(db: Database) -> CatalogSyncResult:
+    """Pull the LorcanaJSON catalogue into the local SQLite database."""
+    payload = await fetch_all_cards()
 
-    Idempotent — uses upsert semantics, so re-running is safe.
-    """
-    sets_seen: dict[str, CardSet] = {}
-    cards_total = 0
-
-    async with httpx.AsyncClient(base_url=base_url, timeout=30.0) as client:
-        page = 1
-        while True:
-            response = await client.get(
-                "/cards/all", params={"pagesize": str(PAGE_SIZE), "page": str(page)}
-            )
-            response.raise_for_status()
-            payload = response.json()
-            if not isinstance(payload, list):
-                raise TypeError(
-                    f"Expected a JSON array from /cards/all, got {type(payload).__name__}"
-                )
-            if not payload:
-                break
-
-            for raw in payload:
-                set_code = _resolve_set_code(raw)
-                set_name = raw.get("Set_Name", f"Set {set_code}")
-                if set_code not in sets_seen:
-                    # Upsert a provisional set row so the FK constraint is satisfied
-                    # before we insert any cards for this set.
-                    provisional = CardSet(
-                        set_code=set_code,
-                        name=set_name,
-                        total_cards=0,
-                    )
-                    db.upsert_set(provisional)
-                    sets_seen[set_code] = provisional
-
-                card = _parse_card(raw, set_code)
-                db.upsert_card(card)
-                cards_total += 1
-
-            page += 1
-
-    # Re-compute total_cards per set from actual inserted rows, then update.
-    for set_code, partial in sets_seen.items():
-        (count,) = db.connection.execute(
-            "SELECT COUNT(*) FROM cards WHERE set_code = ?", (set_code,)
-        ).fetchone()
+    seen_set_codes: set[str] = set()
+    raw_sets = payload.get("sets") or {}
+    for numeric, set_info in raw_sets.items():
+        try:
+            friendly = to_lorscan_set_code(str(numeric))
+        except KeyError:
+            log.warning("Skipping unknown set %s in payload sets dict", numeric)
+            continue
+        seen_set_codes.add(friendly)
         db.upsert_set(
             CardSet(
-                set_code=partial.set_code,
-                name=partial.name,
-                total_cards=int(count),
+                set_code=friendly,
+                name=set_info.get("name", f"Set {friendly}"),
+                total_cards=0,  # recomputed below
+                released_on=set_info.get("releaseDate") or None,
             )
         )
 
-    return SyncResult(cards_synced=cards_total, sets_synced=len(sets_seen))
+    raw_card_count = len(payload.get("cards", []))
+    records = map_lorcana_json_payload(payload)
+    unknown_sets_skipped = raw_card_count - len(records)
 
+    cards_inserted = 0
+    for rec in records:
+        if rec.set_code not in seen_set_codes:
+            db.upsert_set(
+                CardSet(
+                    set_code=rec.set_code,
+                    name=f"Set {rec.set_code}",
+                    total_cards=0,
+                )
+            )
+            seen_set_codes.add(rec.set_code)
+        db.upsert_card_record(rec)
+        cards_inserted += 1
 
-def _resolve_set_code(raw: dict) -> str:
-    """Prefer the textual `Set_ID` (e.g., 'ARI'); fall back to the numeric `Set_Num`."""
-    set_id = raw.get("Set_ID")
-    if isinstance(set_id, str) and set_id.strip():
-        return set_id.strip()
-    set_num = raw.get("Set_Num")
-    if set_num is not None:
-        return str(set_num)
-    raise KeyError("Set_ID and Set_Num both missing from card payload")
+    existing_sets = {s.set_code: s for s in db.get_sets()}
+    for set_code in seen_set_codes:
+        (count,) = db.connection.execute(
+            "SELECT COUNT(*) FROM cards WHERE set_code = ?", (set_code,)
+        ).fetchone()
+        prior = existing_sets.get(set_code)
+        db.upsert_set(
+            CardSet(
+                set_code=set_code,
+                name=prior.name if prior else f"Set {set_code}",
+                total_cards=int(count),
+                released_on=prior.released_on if prior else None,
+                icon_url=prior.icon_url if prior else None,
+            )
+        )
 
-
-def _resolve_collector_number(raw: dict) -> str:
-    """Prefer textual `Card_Number` (preserves suffixes like '1a'); fall back to `Card_Num`."""
-    card_number = raw.get("Card_Number")
-    if isinstance(card_number, str) and card_number.strip():
-        return card_number.strip()
-    card_num = raw.get("Card_Num")
-    if card_num is not None:
-        return str(card_num)
-    raise KeyError("Card_Number and Card_Num both missing from card payload")
-
-
-def _split_name(full_name: str) -> tuple[str, str | None]:
-    """Split 'Rhino - Motivational Speaker' into ('Rhino', 'Motivational Speaker').
-
-    Some Lorcana cards (Songs, Locations, single-name characters) have no
-    subtitle. For those, returns (full_name, None).
-    """
-    if " - " in full_name:
-        head, _, tail = full_name.partition(" - ")
-        return head.strip(), tail.strip() or None
-    return full_name.strip(), None
-
-
-def _parse_card(raw: dict, set_code: str) -> Card:
-    """Map a lorcana-api.com card object into our Card dataclass."""
-    inkable_raw = raw.get("Inkable")
-    inkable = bool(inkable_raw) if inkable_raw is not None else None
-    cost = raw.get("Cost")
-    cost = int(cost) if cost is not None else None
-
-    full_name = str(raw["Name"])
-    name, derived_subtitle = _split_name(full_name)
-    # Prefer an explicit Subtitle field if the API ever exposes one;
-    # otherwise use what we derived by splitting on " - ".
-    subtitle = raw.get("Subtitle") or derived_subtitle
-
-    return Card(
-        card_id=str(raw["Unique_ID"]),
-        set_code=set_code,
-        collector_number=_resolve_collector_number(raw),
-        name=name,
-        subtitle=subtitle or None,
-        rarity=str(raw.get("Rarity") or "Common"),
-        ink_color=raw.get("Color") or None,
-        cost=cost,
-        inkable=inkable,
-        card_type=raw.get("Type") or None,
-        body_text=raw.get("Body_Text") or None,
-        image_url=raw.get("Image") or None,
-        api_payload=json.dumps(raw, ensure_ascii=False),
+    return CatalogSyncResult(
+        cards_inserted=cards_inserted,
+        sets_seen=len(seen_set_codes),
+        unknown_sets_skipped=unknown_sets_skipped,
     )

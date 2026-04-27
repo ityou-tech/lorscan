@@ -490,19 +490,26 @@ def index_images_command(*, config: Config, limit: int | None = None) -> int:
 
 
 def sync_catalog_command(*, config: Config) -> int:
-    """Sync the master Lorcana catalog from lorcana-api.com into the local DB."""
+    """Sync the master Lorcana catalog from LorcanaJSON into the local DB."""
     db = Database.connect(str(config.db_path))
     db.migrate()
 
-    print(f"Syncing catalog from {config.catalog_api_base} ...")
+    print("Syncing catalog from lorcanajson.org ...")
     try:
-        result = asyncio.run(sync_catalog(db, base_url=config.catalog_api_base))
+        result = asyncio.run(sync_catalog(db))
     except Exception as e:
         print(f"error: catalog sync failed: {e}", file=sys.stderr)
         db.close()
         return 5
 
-    print(f"Done. {result.cards_synced} cards across {result.sets_synced} sets.")
+    print(
+        f"Done. {result.cards_inserted} cards across {result.sets_seen} sets"
+        + (
+            f" ({result.unknown_sets_skipped} cards from unknown sets skipped)."
+            if result.unknown_sets_skipped
+            else "."
+        )
+    )
     db.close()
     return 0
 
