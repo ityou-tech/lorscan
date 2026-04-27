@@ -11,7 +11,6 @@ DEFAULT_MODEL = "claude-opus-4-7"
 DEFAULT_PER_SCAN_BUDGET_USD = 0.50
 DEFAULT_MONTHLY_BUDGET_USD: float | None = None
 DEFAULT_DATA_DIR = Path.home() / ".lorscan"
-DEFAULT_CATALOG_API_BASE = "https://api.lorcana-api.com"
 
 
 @dataclass(frozen=True)
@@ -25,7 +24,6 @@ class Config:
     # then ANTHROPIC_API_KEY env var, etc.). The field is preserved for
     # users who want to centralize their key in the config file.
     anthropic_api_key: str | None = None
-    catalog_api_base: str = DEFAULT_CATALOG_API_BASE
 
     @property
     def db_path(self) -> Path:

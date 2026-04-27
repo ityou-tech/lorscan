@@ -31,7 +31,7 @@ From the repo root:
 That single command:
 
 1. `uv sync` — installs the Python deps into `.venv/`
-2. `lorscan sync-catalog` — pulls the card list from lorcana-api.com (~30 s)
+2. `lorscan sync-catalog` — pulls the card list from lorcanajson.org (~30 s)
 3. `lorscan index-images` — downloads every card image and builds embeddings (~3–8 min on Apple Silicon, way longer on Intel)
 4. Writes `~/Library/LaunchAgents/tech.ityou.lorscan.plist` and loads it
 5. Prints the local + network URLs

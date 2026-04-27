@@ -37,7 +37,7 @@ def main(argv: list[str] | None = None) -> int:
         help="Where to save the detected crop (default: <photo>.detected.png)",
     )
 
-    sub.add_parser("sync-catalog", help="Sync card catalog from lorcana-api.com.")
+    sub.add_parser("sync-catalog", help="Sync card catalog from lorcanajson.org.")
 
     index_p = sub.add_parser(
         "index-images",

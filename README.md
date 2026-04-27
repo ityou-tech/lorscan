@@ -2,7 +2,7 @@
 
 Local Disney Lorcana TCG collection manager. Photographs of binder pages
 go in via the CLI or web UI; **local CLIP embeddings** identify each card
-visually against a catalog synced from `lorcana-api.com`. Fully offline
+visually against a catalog synced from `lorcanajson.org`. Fully offline
 after the one-time setup — no API keys, no rate limits, no cost.
 
 > **Status:** Plan 1 + Plan 2 MVP + Phase A (CLIP recognition) + Plan 3
@@ -74,14 +74,14 @@ After `sync-catalog`, the local DB carries the canonical 3-letter set codes:
 | WIN | Winter |
 | AZS | Azurite Sea |
 
-(Exact list depends on what `lorcana-api.com` currently exposes.)
+(Exact list depends on what `lorcanajson.org` currently exposes.)
 
 If you mistype a set code, `lorscan scan` fails fast with a "Did you
 mean: …?" hint based on what's actually in your catalog.
 
 ### Manual image overrides
 
-The upstream catalog (`lorcana-api.com`) occasionally hands out image
+The upstream catalog (`lorcanajson.org`) occasionally hands out image
 URLs whose content-hash 404s on Ravensburger's CDN — a publisher-side
 bug that re-syncing won't fix. Without an image, `index-images` skips
 the card and any binder slot containing it gets misclassified as its
@@ -151,7 +151,7 @@ once in the set surface as `(ambiguous: N candidates)` for manual pick.
 ## How recognition works
 
 `lorscan index-images` downloads every catalog card image from
-`lorcana-api.com`, runs each through OpenCLIP ViT-B-32, and saves a
+`lorcanajson.org`, runs each through OpenCLIP ViT-B-32, and saves a
 512-dim L2-normalized embedding per card to `~/.lorscan/embeddings.npz`
 (~5MB for ~2300 cards).
 
@@ -232,7 +232,7 @@ src/lorscan/
 │   ├── templates/
 │   └── static/
 ├── services/
-│   ├── catalog.py     # lorcana-api.com sync
+│   ├── catalog.py     # LorcanaJSON sync
 │   ├── photos.py      # hash, save, HEIC→JPEG transcode
 │   ├── embeddings.py  # OpenCLIP wrapper + CardImageIndex
 │   ├── image_cache.py # async catalog-image downloader
