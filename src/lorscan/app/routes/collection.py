@@ -70,7 +70,6 @@ async def collection_index(request: Request) -> HTMLResponse:
             "closest": closest,
             "total_missing": total_missing,
             "last_sweep": last_sweep,
-            "has_badges": bool(badges),
         },
     )
 

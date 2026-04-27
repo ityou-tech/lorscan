@@ -32,6 +32,15 @@
   </div>
 </section>
 
+{% if total == 0 %}
+<section class="card empty-state">
+  <h2>No cards yet</h2>
+  <p>Your collection is empty. Scan a binder page, review the matches, then click <strong>Accept matched cards into collection</strong> to add them here.</p>
+  <p style="margin-top:20px"><a href="/scan" class="primary" style="background:var(--primary);color:var(--primary-fg);padding:10px 18px;border-radius:8px;text-decoration:none">→ Go to Scan</a></p>
+</section>
+{% endif %}
+
+{% if binders %}
 {% if last_sweep %}
 <p class="marketplace-refreshed">
   Marketplace data refreshed
@@ -55,13 +64,6 @@
 </section>
 {% endif %}
 
-{% if total == 0 and not has_badges %}
-<section class="card empty-state">
-  <h2>No cards yet</h2>
-  <p>Your collection is empty. Scan a binder page, review the matches, then click <strong>Accept matched cards into collection</strong> to add them here.</p>
-  <p style="margin-top:20px"><a href="/scan" class="primary" style="background:var(--primary);color:var(--primary-fg);padding:10px 18px;border-radius:8px;text-decoration:none">→ Go to Scan</a></p>
-</section>
-{% else %}
 <nav class="binder-nav">
   {% for b in binders %}
   <a href="#{{ b.set_code }}" class="binder-nav-tab{% if b.owned_count == 0 %} binder-nav-tab--empty{% endif %}">

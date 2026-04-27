@@ -261,8 +261,9 @@ def test_collection_renders_marketplace_badge(client: TestClient):
     assert response.status_code == 200
     body = response.text
     # Price formatted Dutch-style (€4,00) AND link to the product page.
-    assert "€4,00" in body or "€ 4,00" in body or "4,00" in body
-    assert "/nl-NL/p/x/9999" in body
+    assert "€4,00" in body, "Expected Dutch-format €4,00"
+    assert 'href="https://www.bazaarofmagic.eu/nl-NL/p/x/9999"' in body
+    assert 'target="_blank"' in body
     # The shop name appears.
     assert "Bazaar" in body
 
@@ -356,6 +357,38 @@ def test_scan_apply_adds_matched_cards_to_collection(client: TestClient):
     coll_response = client.get("/collection")
     assert "No cards yet" not in coll_response.text
     assert "Hermes" in coll_response.text
+
+
+def test_collection_renders_scan_cta_even_when_badges_exist(client: TestClient):
+    """When collection is empty but listings exist, the 'Go to Scan' CTA
+    must still be visible — empty-state should not be hidden by badges."""
+    from datetime import UTC, datetime
+
+    cfg = client.app.state.config
+    db = Database.connect(str(cfg.db_path))
+    db.migrate()
+    try:
+        mp = db.get_marketplace_by_slug("bazaarofmagic")
+        db.upsert_listing(
+            marketplace_id=mp["id"],
+            external_id="9999",
+            card_id="rof-001",
+            finish="regular",
+            price_cents=400,
+            currency="EUR",
+            in_stock=True,
+            url="https://www.bazaarofmagic.eu/nl-NL/p/x/9999",
+            title="Pinocchio (#1)",
+            fetched_at=datetime.now(UTC).isoformat(),
+        )
+    finally:
+        db.close()
+
+    response = client.get("/collection")
+    body = response.text
+    assert "No cards yet" in body
+    assert "Go to Scan" in body
+    assert "€4,00" in body
 
 
 def _import_unused_to_silence_lint() -> None:
