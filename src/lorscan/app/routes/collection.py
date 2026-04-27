@@ -67,6 +67,7 @@ async def collection_index(request: Request) -> HTMLResponse:
             "unfinished_sets": unfinished_sets,
             "closest": closest,
             "last_sweep": last_sweep,
+            "cardmarket_filters": cfg.buy_links.cardmarket_filters,
         },
     )
 
@@ -100,7 +101,8 @@ def _build_binders(db: Database, *, badges: dict | None = None) -> list[dict]:
     for s in sorted_sets:
         rows = db.connection.execute(
             "SELECT c.card_id, c.collector_number, c.name, c.subtitle, "
-            "       c.set_code, ci.id AS collection_item_id, "
+            "       c.set_code, c.cardmarket_url, c.cardtrader_url, "
+            "       ci.id AS collection_item_id, "
             "       COALESCE(ci.quantity, 0) AS quantity "
             "FROM cards c "
             "LEFT JOIN collection_items ci ON ci.card_id = c.card_id "
@@ -119,6 +121,8 @@ def _build_binders(db: Database, *, badges: dict | None = None) -> list[dict]:
                 "collection_item_id": r["collection_item_id"],
                 "quantity": r["quantity"],
                 "badge": badges.get(r["card_id"]) if badges else None,
+                "cardmarket_url": r["cardmarket_url"],
+                "cardtrader_url": r["cardtrader_url"],
             }
             for r in rows
         ]
