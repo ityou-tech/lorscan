@@ -43,6 +43,7 @@ def test_migrate_records_versions(db: Database):
         "005_dedupe_scan_results",
         "006_scan_result_candidates",
         "007_marketplaces",
+        "008_external_links",
     ]
 
 
@@ -51,7 +52,7 @@ def test_migrate_is_idempotent(db: Database):
     cursor = db.connection.cursor()
     cursor.execute("SELECT COUNT(*) FROM schema_migrations")
     (count,) = cursor.fetchone()
-    assert count == 7
+    assert count == 8
 
 
 def test_foreign_keys_are_enforced(db: Database):
@@ -96,7 +97,7 @@ def test_failed_migration_does_not_record_version(tmp_path):
     initial_count = database.connection.execute(
         "SELECT COUNT(*) FROM schema_migrations"
     ).fetchone()[0]
-    assert initial_count == 7
+    assert initial_count == 8
 
     # Now simulate a bad migration by writing invalid SQL via executescript directly.
     with pytest.raises(_sqlite3.Error):
@@ -114,5 +115,5 @@ def test_failed_migration_does_not_record_version(tmp_path):
     after_count = database.connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[
         0
     ]
-    assert after_count == 7  # unchanged — bad version not recorded
+    assert after_count == 8  # unchanged — bad version not recorded
     database.close()
