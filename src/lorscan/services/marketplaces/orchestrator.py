@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
@@ -35,6 +36,7 @@ async def run_sweep(
     adapter: ShopAdapter,
     base_url: str,
     only_set: str | None = None,
+    on_progress: Callable[[str, int, int], None] | None = None,
 ) -> SweepResult:
     """Crawl every enabled set on `adapter`, write listings, record sweep stats."""
     mp = db.get_marketplace_by_slug(adapter.slug)
@@ -78,6 +80,10 @@ async def run_sweep(
             headers={"User-Agent": _USER_AGENT},
         ) as client:
             for cat in categories:
+                set_seen = 0
+                set_matched = 0
+                if on_progress is not None:
+                    on_progress(cat["set_code"], 0, 0)
                 try:
                     async for listing in adapter.crawl_set(
                         client,
@@ -85,11 +91,13 @@ async def run_sweep(
                         category_path=cat["category_path"],
                     ):
                         seen += 1
+                        set_seen += 1
                         card_id = resolve_listing(
                             db, set_code=cat["set_code"], listing=listing
                         )
                         if card_id is not None:
                             matched += 1
+                            set_matched += 1
                         db.upsert_listing(
                             marketplace_id=mp["id"],
                             external_id=listing.external_id,
@@ -102,6 +110,9 @@ async def run_sweep(
                             title=listing.title,
                             fetched_at=datetime.now(UTC).isoformat(),
                         )
+                        # Periodic progress every 25 listings.
+                        if on_progress is not None and set_seen % 25 == 0:
+                            on_progress(cat["set_code"], set_seen, set_matched)
                 except httpx.HTTPError as e:
                     set_failures += 1
                     logger.warning(
@@ -109,6 +120,9 @@ async def run_sweep(
                         cat["set_code"], e,
                     )
                     continue
+                # Per-set summary (always, even if 0 listings).
+                if on_progress is not None:
+                    on_progress(cat["set_code"], set_seen, set_matched)
     except BaseException:
         crashed = True
         raise

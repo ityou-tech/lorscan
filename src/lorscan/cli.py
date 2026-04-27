@@ -584,11 +584,22 @@ async def _run_marketplace_sweep(
 
     if shop_slug not in (None, "bazaarofmagic"):
         raise ValueError(f"unknown shop: {shop_slug!r}")
+
+    def printer(set_code: str, seen: int, matched: int) -> None:
+        if seen == 0:
+            print(f"  {set_code}: crawling…", flush=True)
+        else:
+            print(
+                f"  {set_code}: {seen} listings seen ({matched} matched so far)",
+                flush=True,
+            )
+
     return await run_sweep(
         db,
         adapter=BazaarAdapter(),
         base_url="https://www.bazaarofmagic.eu",
         only_set=set_code,
+        on_progress=printer,
     )
 
 
