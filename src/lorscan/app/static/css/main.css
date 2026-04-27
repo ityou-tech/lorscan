@@ -561,8 +561,8 @@ button.primary:disabled {
 }
 
 /* Click-to-enlarge card lightbox. Pops a backdrop with the full-size
-   card image when the user clicks any pocket art on /collection,
-   /missing, or /scan detail. ESC, backdrop-click, and × button close. */
+   card image when the user clicks any pocket art on /collection
+   or /scan detail. ESC, backdrop-click, and × button close. */
 .card-lightbox {
   position: fixed;
   inset: 0;
@@ -623,7 +623,7 @@ body.lightbox-open { overflow: hidden; }
   cursor: zoom-in;
 }
 
-/* "Closest to complete" highlight strip on /missing — surfaces the few
+/* "Closest to complete" highlight strip on /collection — surfaces the few
    sets the user could realistically finish next, ordered most-complete
    first. Tile is a clickable deep-link to the set's binder. */
 .closest-strip {
@@ -885,7 +885,6 @@ body.lightbox-open { overflow: hidden; }
   color: var(--secondary-on);
   border-bottom: 2px solid var(--primary);
 }
-.binder--missing > .binder-summary { background: var(--warning); }
 .binder-summary::-webkit-details-marker { display: none; }
 .binder-summary::before {
   content: '▸';
@@ -968,7 +967,6 @@ body.lightbox-open { overflow: hidden; }
   background: var(--success);
   transition: width 0.35s ease;
 }
-.binder--missing .binder-progress-fill { background: var(--surface); }
 
 /* ============================================================
    BINDER BOOK + PAGES (one page visible, others stacked off)
@@ -988,8 +986,8 @@ body.lightbox-open { overflow: hidden; }
   grid-template-rows: 1fr;
   width: 100%;
   /* Cap the page height so a full 3×3 grid fits the viewport without
-     scrolling. Numbers subtract the rest of the chrome on /collection +
-     /missing: topbar (~70) + page header (~80) + binder nav (~50) +
+     scrolling. Numbers subtract the rest of the chrome on /collection:
+     topbar (~70) + page header (~80) + binder nav (~50) +
      summary (~80) + book padding (~70). */
   height: clamp(420px, calc(100vh - 280px), 760px);
   transform-style: preserve-3d;
@@ -1156,11 +1154,9 @@ body.lightbox-open { overflow: hidden; }
   border-color: var(--text-faint);
 }
 
-/* Mode emphasis */
+/* Owned pockets are bright; missing pockets dim until hovered. */
 .binder--collection .pocket--missing { opacity: 0.45; }
 .binder--collection .pocket--missing:hover { opacity: 1; }
-.binder--missing .pocket--owned { opacity: 0.50; }
-.binder--missing .pocket--owned:hover { opacity: 1; }
 
 .pocket-art {
   position: relative;
@@ -1617,6 +1613,58 @@ body.lightbox-open { overflow: hidden; }
 }
 .empty-state h2 { color: var(--secondary); margin-bottom: var(--space-md); }
 .empty-state p { max-width: 480px; margin: 0 auto var(--space-md); color: var(--text-soft); }
+
+/* ============================================================
+   MARKETPLACE BADGES + REFRESH BANNER (Task 12)
+   ============================================================ */
+/* Price badge on empty pockets — links to the in-stock listing on a
+   matched marketplace. Uses the project's chunky border + hard-shadow
+   tokens so it reads as another Tetris-style block. */
+.pocket-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  margin-bottom: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--primary);
+  background: white;
+  border: 1.5px solid var(--primary);
+  border-radius: 12px;
+  text-decoration: none;
+  white-space: nowrap;
+  box-shadow: 1px 1px 0 var(--primary);
+  transition: background 0.10s ease, color 0.10s ease, transform 0.05s;
+}
+.pocket-badge:hover {
+  background: var(--secondary);
+  color: var(--secondary-on);
+  transform: translate(-1px, -1px);
+}
+
+/* Refreshed-at line under the /collection page header. Soft surface
+   panel anchored by a vibrant left rail in the design's accent color. */
+.marketplace-refreshed {
+  margin: 8px 0 16px;
+  padding: 8px 12px;
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  letter-spacing: 0.02em;
+  color: var(--text);
+  background: var(--surface-pale);
+  border: 2px solid var(--primary);
+  border-left: 6px solid var(--secondary);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  box-shadow: var(--shadow-block-sm);
+}
+.marketplace-refreshed code {
+  background: rgba(28, 32, 43, 0.08);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 0.85rem;
+  color: var(--primary);
+}
 
 /* ============================================================
    SMALL SCREENS

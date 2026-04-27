@@ -2,7 +2,7 @@
 
 The catalog API doesn't expose `released_on`, so we keep the canonical
 sequence as a code-side constant of stable Disney facts. Used by both
-the scan upload form (set selector) and the /missing page (per-set
+the scan upload form (set selector) and the /collection page (per-set
 completion list) so they show sets in the same order users expect.
 
 Adding a new chapter is a one-line append to LORCANA_RELEASE_ORDER.

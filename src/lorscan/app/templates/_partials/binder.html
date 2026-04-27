@@ -5,14 +5,11 @@
   Required context:
     binder  — dict from collection._build_binders() (set_code, name, chapter,
               owned_count, total, pct, pages: list[list[card_dict]])
-    mode    — 'collection' or 'missing'; flips emphasis between owned and
-              missing pockets (collection: owned bright, missing dim;
-              missing: missing bright, owned dim)
 
   Emits: <details> wrapper (so users can collapse a binder), default open
   for sets the caller wants prominent.
 #}
-<details class="binder binder--{{ mode }}" id="{{ binder.set_code }}">
+<details class="binder binder--collection" id="{{ binder.set_code }}">
   <summary class="binder-summary">
     <div class="binder-spine">
       <div class="binder-title">
@@ -25,7 +22,7 @@
         <span class="binder-stat-sep">/</span>
         <span class="binder-stat-tot">{{ binder.total }}</span>
         <span class="binder-stat-pct">{{ binder.pct }}%</span>
-        {% if mode == 'missing' %}
+        {% if binder.owned_count < binder.total %}
         {# JS listens with capture:true so it fires before the click can
            bubble to <summary> and toggle the <details>. No inline
            onclick handler needed. #}
@@ -97,6 +94,14 @@
             </form>
           </div>
           {% else %}
+          {% if card.badge %}
+          <a href="{{ card.badge.url }}" target="_blank" rel="noopener"
+             class="pocket-badge"
+             title="In stock at {{ card.badge.shop_name }}">
+            €{{ '%.2f' | format(card.badge.price_cents / 100) | replace('.', ',') }}
+            · {{ card.badge.shop_name }}
+          </a>
+          {% endif %}
           <form method="post" action="/collection/add" class="pocket-add-form">
             <input type="hidden" name="card_id" value="{{ card.card_id }}">
             <button type="submit" class="pocket-add-btn" aria-label="Add to collection">+ Add</button>

@@ -1,0 +1,70 @@
+# Hand-curated map of Lorcana set codes to Bazaar of Magic category IDs.
+#
+# Each entry maps one of lorscan's 3-letter set codes (matching the
+# `cards.set_code` value as synced from lorcana-api.com) to the
+# corresponding per-set category on bazaarofmagic.eu. The `category_path`
+# is the URL path component the scraper appends to the base URL during
+# a sweep.
+#
+# This file is read on every `lorscan marketplaces refresh` and upserted
+# into the marketplace_set_categories table. Sets not listed here are
+# silently skipped. Sets listed here whose set_code isn't in the catalog
+# are also skipped (with a stderr warning).
+#
+# To add a new Lorcana set when Bazaar starts carrying it:
+#   1. Look up the per-set URL in https://www.bazaarofmagic.eu/sitemap/categories.xml
+#      (filter on the slug — slugs match Bazaar's German-style hyphenated
+#      set names, e.g. "the-first-chapter").
+#   2. Append a `[[set]]` block here with the catalog set code, the
+#      numeric category id from the URL, and the full path.
+#   3. Run `lorscan marketplaces refresh --shop bazaarofmagic --set <CODE>`.
+
+[[set]]
+code = "TFC"  # The First Chapter
+category_id = "1000648"
+category_path = "/nl-NL/c/the-first-chapter/1000648"
+
+[[set]]
+code = "ROF"  # Rise of the Floodborn
+category_id = "1000676"
+category_path = "/nl-NL/c/rise-of-the-floodborn/1000676"
+
+[[set]]
+code = "INK"  # Into the Inklands (catalog uses INK, Bazaar slug is into-the-inklands)
+category_id = "1000697"
+category_path = "/nl-NL/c/into-the-inklands/1000697"
+
+[[set]]
+code = "URS"  # Ursula's Return
+category_id = "1000740"
+category_path = "/nl-NL/c/ursulas-return/1000740"
+
+[[set]]
+code = "SSK"  # Shimmering Skies
+category_id = "1000750"
+category_path = "/nl-NL/c/shimmering-skies/1000750"
+
+[[set]]
+code = "AZS"  # Azurite Sea
+category_id = "1000777"
+category_path = "/nl-NL/c/azurite-sea/1000777"
+
+[[set]]
+code = "ARI"  # Archazia's Island (Bazaar's slug is misspelled "archaziays-island")
+category_id = "1000799"
+category_path = "/nl-NL/c/archaziays-island/1000799"
+
+[[set]]
+code = "ROJ"  # Reign of Jafar
+category_id = "1000800"
+category_path = "/nl-NL/c/reign-of-jafar/1000800"
+
+[[set]]
+code = "FAB"  # Fabled
+category_id = "1000801"
+category_path = "/nl-NL/c/fabled/1000801"
+
+# Not yet on Bazaar (no category page exists in their sitemap):
+#   WHI (Whisperwood) — release on lorcana-api.com but Bazaar doesn't carry yet.
+#   WIN (Winter)      — same.
+# These will be auto-included when Bazaar adds them; just append [[set]] blocks.

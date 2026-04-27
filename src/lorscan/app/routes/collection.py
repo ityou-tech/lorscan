@@ -1,4 +1,4 @@
-"""Collection + Missing pages."""
+"""Collection page."""
 
 from __future__ import annotations
 
@@ -24,8 +24,34 @@ async def collection_index(request: Request) -> HTMLResponse:
     db = Database.connect(str(cfg.db_path))
     db.migrate()
     try:
-        binders = _build_binders(db)
+        # Fetch badge data: cheapest in-stock listing per card_id across all
+        # enabled marketplaces. Enrich with shop_name for display.
+        raw_badges = db.get_cheapest_in_stock_per_card()
+        shop_names = _shop_name_lookup(db)
+        badges = {
+            card_id: {**badge, "shop_name": shop_names.get(badge["marketplace_id"], "shop")}
+            for card_id, badge in raw_badges.items()
+        }
+
+        binders = _build_binders(db, badges=badges)
         total = db.get_collection_count()
+
+        # Header stats.
+        total_catalog = sum(b["total"] for b in binders)
+        distinct_owned = sum(b["owned_count"] for b in binders)
+        cards_needed = total_catalog - distinct_owned
+        unfinished_sets = sum(1 for b in binders if b["owned_count"] < b["total"])
+
+        # "Closest to complete" strip — top 3 sets in the 50-99% range.
+        closest = [
+            {**b, "missing_count": b["total"] - b["owned_count"]}
+            for b in binders
+            if 50.0 <= b["pct"] < 100.0
+        ][:3]
+
+        # Marketplace last-sweep info for the refreshed-at line.
+        mp = db.get_marketplace_by_slug("bazaarofmagic")
+        last_sweep = db.get_latest_finished_sweep(mp["id"]) if mp else None
     finally:
         db.close()
 
@@ -36,12 +62,24 @@ async def collection_index(request: Request) -> HTMLResponse:
         context={
             "binders": binders,
             "total": total,
-            "distinct_owned": sum(b["owned_count"] for b in binders),
+            "distinct_owned": distinct_owned,
+            "cards_needed": cards_needed,
+            "unfinished_sets": unfinished_sets,
+            "closest": closest,
+            "last_sweep": last_sweep,
         },
     )
 
 
-def _build_binders(db: Database) -> list[dict]:
+def _shop_name_lookup(db: Database) -> dict[int, str]:
+    """marketplace_id → display_name for badge labeling."""
+    rows = db.connection.execute(
+        "SELECT id, display_name FROM marketplaces WHERE enabled = 1"
+    ).fetchall()
+    return {int(r["id"]): r["display_name"] for r in rows}
+
+
+def _build_binders(db: Database, *, badges: dict | None = None) -> list[dict]:
     """Construct the per-set binder rendering data.
 
     For each set in release order, fetch every card joined to its collection
@@ -80,6 +118,7 @@ def _build_binders(db: Database) -> list[dict]:
                 "owned": r["collection_item_id"] is not None,
                 "collection_item_id": r["collection_item_id"],
                 "quantity": r["quantity"],
+                "badge": badges.get(r["card_id"]) if badges else None,
             }
             for r in rows
         ]
@@ -124,60 +163,6 @@ async def collection_add(
     finally:
         db.close()
     return RedirectResponse(url=f"/collection#{card.set_code}", status_code=303)
-
-
-@router.get("/missing", response_class=HTMLResponse)
-async def missing_index(request: Request) -> HTMLResponse:
-    """Want-list view: only sets you haven't fully completed, ordered by
-    how close you are to finishing them.
-
-    Differs from /collection in three ways:
-      - 100%-owned sets are filtered out (they're not "missing" anything)
-      - Sort key is pct_owned DESC, so sets you're closest to completing
-        rise to the top
-      - The template surfaces a "closest to complete" highlight strip and
-        copy-to-clipboard want-list buttons (per-binder + page-level)
-    """
-    cfg = request.app.state.config
-    db = Database.connect(str(cfg.db_path))
-    db.migrate()
-    try:
-        all_binders = _build_binders(db)
-    finally:
-        db.close()
-
-    incomplete = [b for b in all_binders if b["owned_count"] < b["total"]]
-    # Closest to complete first; for ties (especially the common 0%-owned
-    # case where the user hasn't started a set yet) fall back to release
-    # order so the layout reads chronologically — TFC, ROF, INK, … —
-    # instead of alphabetically by missing-count tiebreak (which surfaced
-    # tiny sets like "Adventure Set" above main releases).
-    incomplete.sort(
-        key=lambda b: (-b["pct"], release_sort_key(b["set_code"]))
-    )
-
-    # "Closest to complete" highlight: top 3 sets that are at least 50%
-    # owned but not yet finished. Hidden when no set qualifies (e.g. fresh
-    # collection where every set is mostly empty).
-    closest = [
-        {**b, "missing_count": b["total"] - b["owned_count"]}
-        for b in incomplete
-        if b["pct"] >= 50.0 and b["pct"] < 100.0
-    ][:3]
-
-    total_missing = sum(b["total"] - b["owned_count"] for b in incomplete)
-
-    templates = request.app.state.templates
-    return templates.TemplateResponse(
-        request=request,
-        name="missing/index.html",
-        context={
-            "binders": incomplete,
-            "closest": closest,
-            "total_missing": total_missing,
-            "incomplete_set_count": len(incomplete),
-        },
-    )
 
 
 @router.post("/collection/reset")
