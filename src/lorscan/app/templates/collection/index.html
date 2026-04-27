@@ -29,6 +29,11 @@
       <button type="submit" class="reset-link">↺ Reset collection</button>
     </form>
     {% endif %}
+    {% if cards_needed > 0 %}
+    <button type="button" class="primary copy-want-btn" data-copy-all>
+      📋 Copy full want-list
+    </button>
+    {% endif %}
   </div>
 </section>
 
@@ -81,4 +86,5 @@
   {% endfor %}
 </div>
 {% endif %}
+<div id="copy-toast" class="copy-toast" role="status" aria-live="polite" hidden>Copied to clipboard</div>
 {% endblock %}

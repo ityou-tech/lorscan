@@ -25,7 +25,7 @@
         <span class="binder-stat-sep">/</span>
         <span class="binder-stat-tot">{{ binder.total }}</span>
         <span class="binder-stat-pct">{{ binder.pct }}%</span>
-        {% if mode == 'missing' %}
+        {% if binder.owned_count < binder.total %}
         {# JS listens with capture:true so it fires before the click can
            bubble to <summary> and toggle the <details>. No inline
            onclick handler needed. #}

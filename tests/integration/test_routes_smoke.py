@@ -391,6 +391,19 @@ def test_collection_renders_scan_cta_even_when_badges_exist(client: TestClient):
     assert "€4,00" in body
 
 
+def test_collection_renders_global_copy_want_button(client: TestClient):
+    """The global copy-want-list button is rendered when there are missing
+    cards (data-copy-all attribute is the JS hook)."""
+    response = client.get("/collection")
+    assert response.status_code == 200
+    body = response.text
+    # The seeded catalog has 2 cards, none owned — so cards_needed > 0.
+    assert "data-copy-all" in body
+    assert "Copy full want-list" in body
+    # Toast div is also present so the copy success feedback works.
+    assert 'id="copy-toast"' in body
+
+
 def _import_unused_to_silence_lint() -> None:
     """Keep ParsedCard/ParsedScan imports referenced for future tests."""
     _ = ParsedCard
