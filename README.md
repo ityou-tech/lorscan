@@ -90,29 +90,31 @@ mean: …?" hint based on what's actually in your catalog.
 
 ### Manual image overrides
 
-The upstream catalog occasionally hands out image URLs whose
-content-hash 404s on Ravensburger's CDN — a publisher-side bug that
-re-syncing won't fix. Since the LorcanaJSON migration (April 2026) the
-URLs come from the official Lorcana app data feed and the workaround is
-expected to be needed less often, but the gap can still appear for
-brand-new releases. Without an image, `index-images` skips the card and
-any binder slot containing it gets misclassified as its nearest catalog
-neighbor in art space rather than reported as un-matchable.
+The LorcanaJSON migration (April 2026) sources image URLs from the
+official Lorcana app data feed, which currently has 100% coverage on
+released sets — the manual-override workaround is **typically not
+needed** any more. The mechanism is kept as a fallback for the rare
+case where Ravensburger's CDN drops a hash on a brand-new release.
 
-To plug the gap, drop a replacement image at:
+If `lorscan index-images` reports `Skipping card <SET>-<NUM>` for a
+card you care about, drop a replacement image at:
 
 ```
 ~/.lorscan/overrides/<card_id>.<ext>     # .jpg .jpeg .png .webp .avif
 ```
 
-`<card_id>` is the `<SET>-<NUMBER>` form printed in the warning during
-`lorscan index-images` (e.g. `WHI-102.jpg`). Overrides win over both the
-upstream URL and any previously-cached download, and they live outside
-the `cache/` subtree so a cache wipe won't nuke them.
+`<card_id>` is the `<SET>-<NUMBER>` form printed in the warning (e.g.
+`WHI-102.jpg`). Overrides win over both the upstream URL and any
+previously-cached download, and they live outside the `cache/` subtree
+so a cache wipe won't nuke them. Note that an override *suppresses* the
+upstream fetch entirely, so once Ravensburger publishes a working URL
+for the card you'll want to remove the override to pick up the (often
+higher-resolution) official image.
 
-[Lorcast](https://lorcast.com/) is a useful third-party catalog when
-you need a working image — its API at `https://api.lorcast.com/v0/cards/{set_num}/{collector_num}`
-returns AVIF URLs that Pillow 11+ can decode directly.
+[Lorcast](https://lorcast.com/) remains a useful third-party catalog
+when LorcanaJSON itself is missing an image — its API at
+`https://api.lorcast.com/v0/cards/{set_num}/{collector_num}` returns
+AVIF URLs that Pillow 11+ can decode directly.
 
 ---
 
