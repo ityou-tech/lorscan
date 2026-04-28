@@ -171,6 +171,39 @@ def test_is_main_set_card_distinguishes_promos():
     assert not is_main_set_card(d23)
 
 
+def test_suffix_variants_get_distinct_card_ids():
+    """ITI's 5 Dalmatian Puppies share JSON number=4 but have fullIdentifier
+    heads `4a`, `4b`, `4c`, `4d`, `4e`. Each must produce its own card_id
+    and collector_number so they render as distinct pockets."""
+    raws = []
+    for suffix in "abcde":
+        raws.append({
+            "setCode": "3", "number": 4,
+            "name": "Dalmatian Puppy", "fullName": "Dalmatian Puppy - Tail Wagger",
+            "fullIdentifier": f"4{suffix}/204 • EN • 3",
+            "type": "Character", "rarity": "Common", "cost": 2, "color": "Amber",
+        })
+
+    records = [map_lorcana_json_card(r) for r in raws]
+    card_ids = sorted(r.card_id for r in records)
+    assert card_ids == ["ITI-004a", "ITI-004b", "ITI-004c", "ITI-004d", "ITI-004e"]
+    coll_nums = sorted(r.collector_number for r in records)
+    assert coll_nums == ["4a", "4b", "4c", "4d", "4e"]
+
+
+def test_no_suffix_card_unchanged():
+    """Normal `1/204` head produces card_id with no suffix."""
+    raw = {
+        "setCode": "1", "number": 1,
+        "name": "Ariel", "fullName": "Ariel - On Human Legs",
+        "fullIdentifier": "1/204 • EN • 1",
+        "type": "Character", "rarity": "Common", "cost": 4, "color": "Amber",
+    }
+    rec = map_lorcana_json_card(raw)
+    assert rec.card_id == "TFC-001"
+    assert rec.collector_number == "1"
+
+
 def test_payload_filters_out_promos_with_duplicate_key(caplog):
     """A payload mixing main + promo for the same (setCode, number) emits
     only the main card."""

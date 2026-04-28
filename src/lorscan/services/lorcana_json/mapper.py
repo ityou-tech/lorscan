@@ -12,14 +12,19 @@ from lorscan.services.lorcana_json.set_codes import to_lorscan_set_code
 log = logging.getLogger(__name__)
 
 # Main-set / enchanted / iconic / Illumineer's Quest cards have a
-# `fullIdentifier` of the form `N/M • EN • <set>` where M is purely
-# numeric (the set total). Promos (P1), challenger decks (C1), D23 expo
-# variants etc. use letters in the second segment (`8/P1`, `1/C1`,
-# `01/D23`) — multiple promos can share a (setCode, number) tuple with
-# the main card and would collide on `cards.UNIQUE(set_code, collector_number)`.
-# Filtering them out matches what the prior lorcana-api.com importer
-# wrote, so existing collection_items rows continue to round-trip.
-_MAIN_FULL_ID_RE = re.compile(r"^\d+\s*/\s*\d+\s*•")
+# `fullIdentifier` of the form `N[suffix]/M • EN • <set>` where M is
+# purely numeric (the set total). The first segment may end with a
+# lowercase letter for suffix-variant cards — e.g. ITI's 5 Dalmatian
+# Puppies share collector_number 4 in the JSON `number` field but are
+# disambiguated as `4a/204`, `4b/204`, etc. in `fullIdentifier`. We
+# capture the suffix and thread it into the card_id and collector_number
+# so each variant is its own pocket.
+#
+# Promos (P1), challenger decks (C1), D23 expo variants etc. use letters
+# in the SECOND segment (`8/P1`, `1/C1`, `01/D23`) and multiple variants
+# can share a (setCode, number) tuple with the main card — those still
+# collide and we still drop them.
+_MAIN_FULL_ID_RE = re.compile(r"^(\d+)([a-z]?)\s*/\s*\d+\s*•")
 
 
 @dataclass(frozen=True)
@@ -50,18 +55,34 @@ def map_lorcana_json_card(raw: dict[str, Any]) -> CardRecord:
     Raises KeyError if the card's setCode is not in LORCANA_JSON_SET_CODE_MAP
     (callers should catch and skip).
 
-    card_id format: `<SET>-<NNN>` with 3-digit zero-padding for purely
-    numeric collector numbers (e.g. `TFC-001`, `TFC-127`, `ARI-205`). This
-    matches the format the prior lorcana-api.com importer wrote, so existing
-    `cards`, `collection_items`, and `marketplace_listings` rows continue
-    to round-trip without a renaming migration. `collector_number` itself
-    stays unpadded for display, matching the existing column convention.
+    card_id format: `<SET>-<NNN>[suffix]` with 3-digit zero-padding for
+    purely numeric collector numbers (e.g. `TFC-001`, `TFC-127`, `ARI-205`,
+    `ITI-004a`). The 3-digit pad matches the format the prior
+    lorcana-api.com importer wrote, so existing `cards`, `collection_items`,
+    and `marketplace_listings` rows continue to round-trip without a
+    renaming migration. `collector_number` carries the same suffix
+    (`4a`/`4b`/...) so the binder pocket prints what's on the physical card.
     """
     numeric_set = str(raw["setCode"])
     set_code = to_lorscan_set_code(numeric_set)
     raw_number = raw["number"]
-    collector_number = str(raw_number)
-    card_id_number = f"{int(raw_number):03d}" if isinstance(raw_number, int) else collector_number
+
+    # Extract suffix variant from fullIdentifier (e.g. "4a/204 • EN • 3" → "a").
+    # Falls back to no suffix for normal cards.
+    suffix = ""
+    fid = raw.get("fullIdentifier")
+    if isinstance(fid, str):
+        match = _MAIN_FULL_ID_RE.match(fid)
+        if match:
+            suffix = match.group(2)
+
+    if isinstance(raw_number, int):
+        card_id_number = f"{raw_number:03d}{suffix}"
+        collector_number = f"{raw_number}{suffix}"
+    else:
+        # String number (rare). Append suffix conservatively.
+        collector_number = f"{raw_number}{suffix}"
+        card_id_number = collector_number
     card_id = f"{set_code}-{card_id_number}"
 
     external = raw.get("externalLinks") or {}
