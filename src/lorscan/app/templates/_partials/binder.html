@@ -129,6 +129,7 @@
     </div>
     {% endfor %}
     </div>
+    {% if binder.pages | length > 0 %}
     <nav class="binder-flip-nav" aria-label="Page navigation">
       <button type="button" class="flip-btn flip-btn--prev" data-flip="prev" aria-label="Previous page">‹</button>
       <span class="flip-indicator">
@@ -138,5 +139,8 @@
       </span>
       <button type="button" class="flip-btn flip-btn--next" data-flip="next" aria-label="Next page">›</button>
     </nav>
+    {% else %}
+    <div class="binder-empty-note">No cards published yet — coming soon.</div>
+    {% endif %}
   </div>
 </details>

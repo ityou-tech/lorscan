@@ -1670,6 +1670,19 @@ body.lightbox-open { overflow: hidden; }
 .buy-link--cardmarket { color: #c0392b; }
 .buy-link--cardtrader { color: #16a085; }
 
+/* Empty-binder placeholder for upcoming sets (e.g. Attack of the Vine
+   while LorcanaJSON ships zero cards for it). Reads as a soft note,
+   not an error. */
+.binder-empty-note {
+  padding: 14px 18px;
+  font-size: 0.85rem;
+  font-style: italic;
+  color: rgba(28, 32, 43, 0.55);
+  background: rgba(28, 32, 43, 0.03);
+  border-top: 1px dashed rgba(28, 32, 43, 0.15);
+  text-align: center;
+}
+
 /* Refreshed-at line under the /collection page header. Soft surface
    panel anchored by a vibrant left rail in the design's accent color. */
 .marketplace-refreshed {

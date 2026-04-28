@@ -11,18 +11,20 @@ Adding a new chapter is a one-line append to LORCANA_RELEASE_ORDER.
 from __future__ import annotations
 
 LORCANA_RELEASE_ORDER: tuple[str, ...] = (
-    "TFC",  # 1. The First Chapter
-    "ROF",  # 2. Rise of the Floodborn
-    "ITI",  # 3. Into the Inklands
-    "URS",  # 4. Ursula's Return
-    "SSK",  # 5. Shimmering Skies
-    "AZS",  # 6. Azurite Sea
-    "ARI",  # 7. Archazia's Island
-    "ROJ",  # 8. Reign of Jafar
-    "FAB",  # 9. Fabled
+    "TFC",  # 1.  The First Chapter
+    "ROF",  # 2.  Rise of the Floodborn
+    "ITI",  # 3.  Into the Inklands
+    "URS",  # 4.  Ursula's Return
+    "SSK",  # 5.  Shimmering Skies
+    "AZS",  # 6.  Azurite Sea
+    "ARI",  # 7.  Archazia's Island
+    "ROJ",  # 8.  Reign of Jafar
+    "FAB",  # 9.  Fabled
     "WHI",  # 10. Whispers in the Well
     "WIN",  # 11. Winterspell
     "WUN",  # 12. Wilds Unknown
+    "AOV",  # 13. Attack of the Vine    (placeholder — 0 cards in upstream)
+    "HYC",  # 14. Hyperia City          (placeholder — 0 cards in upstream)
 )
 
 

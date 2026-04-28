@@ -126,8 +126,6 @@ def _build_binders(db: Database, *, badges: dict | None = None) -> list[dict]:
             }
             for r in rows
         ]
-        if not cards:
-            continue
         owned_count = sum(1 for c in cards if c["owned"])
         pages = [cards[i : i + page_size] for i in range(0, len(cards), page_size)]
         chapter = release_index(s["set_code"])

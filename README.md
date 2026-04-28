@@ -75,6 +75,8 @@ codes in official Ravensburger numeric order:
 | 10 | WHI  | Whispers in the Well  |
 | 11 | WIN  | Winterspell           |
 | 12 | WUN  | Wilds Unknown         |
+| 13 | AOV  | Attack of the Vine    |
+| 14 | HYC  | Hyperia City          |
 | Q1 | Q1   | Illumineer's Quest    |
 
 Each main set ships ~204 numbered cards plus higher-numbered enchanteds
