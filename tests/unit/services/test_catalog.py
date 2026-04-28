@@ -71,14 +71,14 @@ async def test_sync_catalog_imports_set_12(db: Database):
         "sets": {"12": {"name": "Wilds Unknown", "type": "expansion"}},
         "cards": [
             {
-                "setCode": "12", "number": "1",
+                "setCode": "12", "number": 1,
                 "name": "Buzz", "fullName": "Buzz Lightyear - Space Ranger",
                 "type": "Character", "rarity": "Common",
                 "cost": 3, "color": "Steel",
                 "externalLinks": {},
             },
             {
-                "setCode": "12", "number": "210",
+                "setCode": "12", "number": 210,
                 "name": "Buzz", "fullName": "Buzz Lightyear - Enchanted",
                 "type": "Character", "rarity": "Enchanted",
                 "cost": 3, "color": "Steel",
@@ -93,7 +93,7 @@ async def test_sync_catalog_imports_set_12(db: Database):
     rows = db.connection.execute(
         "SELECT card_id FROM cards WHERE set_code = 'WUN' ORDER BY card_id"
     ).fetchall()
-    assert [r["card_id"] for r in rows] == ["WUN-1", "WUN-210"]
+    assert [r["card_id"] for r in rows] == ["WUN-001", "WUN-210"]
 
 
 @pytest.mark.asyncio

@@ -22,6 +22,12 @@ LORCANA_JSON_SET_CODE_MAP: dict[str, str] = {
     "10": "WHI",   # Whispers in the Well      (Nov 2025)
     "11": "WIN",   # Winterspell               (Feb 2026)
     "12": "WUN",   # Wilds Unknown             (May 2026)
+    # 13/14 are upstream placeholders — 0 cards as of 2026-04. Codes are
+    # provisional; update once cards drop and the official 3-letter code
+    # is known. The empty rows are harmless because _build_binders skips
+    # sets without cards.
+    "13": "AOV",   # Attack of the Vine        (placeholder)
+    "14": "HYC",   # Hyperia City              (placeholder)
 }
 
 

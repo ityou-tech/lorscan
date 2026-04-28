@@ -15,12 +15,39 @@ FIXTURE = Path(__file__).parents[3] / "fixtures" / "lorcana_json" / "allCards.su
 
 
 def test_card_id_derivation_is_stable():
-    """card_id must be `<3-letter-set>-<collector-number>` to preserve
-    referential integrity with existing collection_items rows."""
+    """card_id must be `<3-letter-set>-<NNN>` (3-digit zero-pad) to preserve
+    referential integrity with existing collection_items rows that were
+    written by the prior lorcana-api.com importer."""
     payload = json.loads(FIXTURE.read_text())
     raw = next(c for c in payload["cards"] if c["setCode"] == "1")
     rec = map_lorcana_json_card(raw)
-    assert rec.card_id == f"TFC-{raw['number']}"
+    assert rec.card_id == f"TFC-{int(raw['number']):03d}"
+    # collector_number itself stays unpadded for display.
+    assert rec.collector_number == str(raw["number"])
+
+
+def test_card_id_zero_pads_low_collector_numbers():
+    """Cards 1-99 zero-pad to 3 digits in card_id — matches the legacy
+    lorcana-api.com Unique_ID format the user's existing rows reference."""
+    raw = {
+        "setCode": "1", "number": 7,
+        "name": "Stitch", "fullName": "Stitch - Carefree Surfer",
+        "type": "Character", "rarity": "Common", "cost": 4, "color": "Ruby",
+    }
+    rec = map_lorcana_json_card(raw)
+    assert rec.card_id == "TFC-007"
+    assert rec.collector_number == "7"
+
+
+def test_card_id_does_not_pad_above_99():
+    """Numbers >= 100 already have 3 digits and are kept as-is."""
+    raw = {
+        "setCode": "1", "number": 127,
+        "name": "Tigger", "fullName": "Tigger - Wonderful Thing",
+        "type": "Character", "rarity": "Rare", "cost": 5, "color": "Ruby",
+    }
+    rec = map_lorcana_json_card(raw)
+    assert rec.card_id == "TFC-127"
 
 
 def test_external_link_fields_propagate():
@@ -63,7 +90,9 @@ def test_high_collector_numbers_are_preserved():
     for raw in high_cards:
         rec = map_lorcana_json_card(raw)
         assert int(rec.collector_number) > 204
-        assert rec.card_id.endswith(f"-{raw['number']}")
+        # >204 numbers are 3 digits already; card_id ends with the
+        # number verbatim once zero-padding is applied.
+        assert rec.card_id.endswith(f"-{int(raw['number']):03d}")
 
 
 def test_set_12_wilds_unknown_imports():
@@ -71,7 +100,7 @@ def test_set_12_wilds_unknown_imports():
     treated as 'unknown set'."""
     raw = {
         "setCode": "12",
-        "number": "1",
+        "number": 1,
         "name": "Buzz",
         "fullName": "Buzz Lightyear - Space Ranger",
         "type": "Character",
@@ -81,14 +110,14 @@ def test_set_12_wilds_unknown_imports():
     }
     rec = map_lorcana_json_card(raw)
     assert rec.set_code == "WUN"
-    assert rec.card_id == "WUN-1"
+    assert rec.card_id == "WUN-001"
 
 
 def test_illumineers_quest_imports():
     """Q1 set codes pass through with their friendly form intact."""
     raw = {
         "setCode": "Q1",
-        "number": "5",
+        "number": 5,
         "name": "Quest",
         "fullName": "Quest - Sample",
         "type": "Character",
@@ -98,7 +127,7 @@ def test_illumineers_quest_imports():
     }
     rec = map_lorcana_json_card(raw)
     assert rec.set_code == "Q1"
-    assert rec.card_id == "Q1-5"
+    assert rec.card_id == "Q1-005"
 
 
 def test_unknown_set_code_is_skipped(caplog):

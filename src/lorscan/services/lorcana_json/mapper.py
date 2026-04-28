@@ -38,11 +38,20 @@ def map_lorcana_json_card(raw: dict[str, Any]) -> CardRecord:
 
     Raises KeyError if the card's setCode is not in LORCANA_JSON_SET_CODE_MAP
     (callers should catch and skip).
+
+    card_id format: `<SET>-<NNN>` with 3-digit zero-padding for purely
+    numeric collector numbers (e.g. `TFC-001`, `TFC-127`, `ARI-205`). This
+    matches the format the prior lorcana-api.com importer wrote, so existing
+    `cards`, `collection_items`, and `marketplace_listings` rows continue
+    to round-trip without a renaming migration. `collector_number` itself
+    stays unpadded for display, matching the existing column convention.
     """
     numeric_set = str(raw["setCode"])
     set_code = to_lorscan_set_code(numeric_set)
-    collector_number = str(raw["number"])
-    card_id = f"{set_code}-{collector_number}"
+    raw_number = raw["number"]
+    collector_number = str(raw_number)
+    card_id_number = f"{int(raw_number):03d}" if isinstance(raw_number, int) else collector_number
+    card_id = f"{set_code}-{card_id_number}"
 
     external = raw.get("externalLinks") or {}
     images = raw.get("images") or {}
