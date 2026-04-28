@@ -505,7 +505,7 @@ def sync_catalog_command(*, config: Config) -> int:
     print(
         f"Done. {result.cards_inserted} cards across {result.sets_seen} sets"
         + (
-            f" ({result.unknown_sets_skipped} cards from unknown sets skipped)."
+            f" ({result.unknown_sets_skipped} variants / unknown-set cards skipped)."
             if result.unknown_sets_skipped
             else "."
         )
