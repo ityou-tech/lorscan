@@ -73,6 +73,7 @@ async def test_sync_catalog_imports_set_12(db: Database):
             {
                 "setCode": "12", "number": 1,
                 "name": "Buzz", "fullName": "Buzz Lightyear - Space Ranger",
+                "fullIdentifier": "1/204 • EN • 12",
                 "type": "Character", "rarity": "Common",
                 "cost": 3, "color": "Steel",
                 "externalLinks": {},
@@ -80,6 +81,7 @@ async def test_sync_catalog_imports_set_12(db: Database):
             {
                 "setCode": "12", "number": 210,
                 "name": "Buzz", "fullName": "Buzz Lightyear - Enchanted",
+                "fullIdentifier": "210/204 • EN • 12",
                 "type": "Character", "rarity": "Enchanted",
                 "cost": 3, "color": "Steel",
                 "externalLinks": {},

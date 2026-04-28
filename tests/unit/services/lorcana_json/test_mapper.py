@@ -7,6 +7,7 @@ from pathlib import Path
 
 from lorscan.services.lorcana_json.mapper import (
     CardRecord,
+    is_main_set_card,
     map_lorcana_json_card,
     map_lorcana_json_payload,
 )
@@ -138,8 +139,10 @@ def test_unknown_set_code_is_skipped(caplog):
         "metadata": {},
         "sets": {},
         "cards": [
-            {"setCode": "999", "number": "1", "name": "X", "fullName": "X"},
+            {"setCode": "999", "number": "1", "name": "X", "fullName": "X",
+             "fullIdentifier": "1/204 • EN • 999"},
             {"setCode": "1", "number": "1", "name": "Y", "fullName": "Y - Z",
+             "fullIdentifier": "1/204 • EN • 1",
              "type": "Character", "rarity": "Common", "cost": 1, "color": "Amber"},
         ],
     }
@@ -147,6 +150,53 @@ def test_unknown_set_code_is_skipped(caplog):
     assert len(records) == 1
     assert records[0].set_code == "TFC"
     assert any("999" in r.message for r in caplog.records)
+
+
+def test_is_main_set_card_distinguishes_promos():
+    """Promo / challenger / D23 variants must not be mapped — they share
+    (setCode, number) with the main printing and would collide on
+    cards.UNIQUE(set_code, collector_number)."""
+    main = {"fullIdentifier": "1/204 • EN • 1"}
+    enchanted = {"fullIdentifier": "205/204 • EN • 1"}
+    quest = {"fullIdentifier": "1/31 • EN • Q1"}
+    promo_p1 = {"fullIdentifier": "1 TFC • EN • 1/P1"}
+    challenger_c1 = {"fullIdentifier": "1/C1 • EN • 1"}
+    d23 = {"fullIdentifier": "01/D23 • EN • 1"}
+
+    assert is_main_set_card(main)
+    assert is_main_set_card(enchanted)
+    assert is_main_set_card(quest)
+    assert not is_main_set_card(promo_p1)
+    assert not is_main_set_card(challenger_c1)
+    assert not is_main_set_card(d23)
+
+
+def test_payload_filters_out_promos_with_duplicate_key(caplog):
+    """A payload mixing main + promo for the same (setCode, number) emits
+    only the main card."""
+    import logging
+    caplog.set_level(logging.INFO)
+    payload = {
+        "metadata": {},
+        "sets": {},
+        "cards": [
+            {
+                "setCode": "1", "number": 1,
+                "name": "Ariel", "fullName": "Ariel - On Human Legs",
+                "fullIdentifier": "1/204 • EN • 1",
+                "type": "Character", "rarity": "Common", "cost": 4, "color": "Amber",
+            },
+            {
+                "setCode": "1", "number": 1,
+                "name": "Mickey Mouse", "fullName": "Mickey Mouse - Brave Little Tailor",
+                "fullIdentifier": "1 TFC • EN • 1/P1",
+                "type": "Character", "rarity": "Promo", "cost": 8, "color": "Steel",
+            },
+        ],
+    }
+    records = map_lorcana_json_payload(payload)
+    assert len(records) == 1
+    assert records[0].name == "Ariel"
 
 
 def test_record_is_a_dataclass():

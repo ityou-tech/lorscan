@@ -3,12 +3,23 @@
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass
 from typing import Any
 
 from lorscan.services.lorcana_json.set_codes import to_lorscan_set_code
 
 log = logging.getLogger(__name__)
+
+# Main-set / enchanted / iconic / Illumineer's Quest cards have a
+# `fullIdentifier` of the form `N/M • EN • <set>` where M is purely
+# numeric (the set total). Promos (P1), challenger decks (C1), D23 expo
+# variants etc. use letters in the second segment (`8/P1`, `1/C1`,
+# `01/D23`) — multiple promos can share a (setCode, number) tuple with
+# the main card and would collide on `cards.UNIQUE(set_code, collector_number)`.
+# Filtering them out matches what the prior lorcana-api.com importer
+# wrote, so existing collection_items rows continue to round-trip.
+_MAIN_FULL_ID_RE = re.compile(r"^\d+\s*/\s*\d+\s*•")
 
 
 @dataclass(frozen=True)
@@ -77,14 +88,31 @@ def map_lorcana_json_card(raw: dict[str, Any]) -> CardRecord:
     )
 
 
+def is_main_set_card(raw: dict[str, Any]) -> bool:
+    """True for main / enchanted / iconic / quest cards; False for promos.
+
+    Discriminator is the `fullIdentifier` field — main-set cards have a
+    purely-numeric `<number>/<total>` head (`1/204`, `205/204`, `1/31`),
+    while promos and challenger / D23 variants use `<n>/<P1>`, `<n>/<C1>`,
+    `<n>/<D23>` etc. with letters after the slash.
+    """
+    return bool(_MAIN_FULL_ID_RE.match(str(raw.get("fullIdentifier", ""))))
+
+
 def map_lorcana_json_payload(payload: dict[str, Any]) -> list[CardRecord]:
-    """Map the full allCards.json payload, dropping unknown-set cards.
+    """Map the full allCards.json payload, dropping unknown-set + promo cards.
 
     Cards from unmapped sets are logged at WARNING and skipped — one bad
-    set entry must not abort the whole sync.
+    set entry must not abort the whole sync. Promo / challenger / D23
+    variants are silently skipped (LorcanaJSON ships ~150 of them and they
+    collide on (set_code, collector_number) with the main-set printing).
     """
     records: list[CardRecord] = []
+    promos_skipped = 0
     for raw in payload.get("cards", []):
+        if not is_main_set_card(raw):
+            promos_skipped += 1
+            continue
         try:
             records.append(map_lorcana_json_card(raw))
         except KeyError as exc:
@@ -94,4 +122,6 @@ def map_lorcana_json_payload(payload: dict[str, Any]) -> list[CardRecord]:
                 raw.get("id"),
                 exc,
             )
+    if promos_skipped:
+        log.info("Skipped %d promo / variant cards (kept main + enchanted + quest)", promos_skipped)
     return records
