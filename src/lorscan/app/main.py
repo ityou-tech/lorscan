@@ -11,10 +11,13 @@ from fastapi.templating import Jinja2Templates
 
 from lorscan.app.routes import collection, scan
 from lorscan.config import Config, load_config
+from lorscan.services.buy_links import cardmarket_buy_url, cardtrader_buy_url
 from lorscan.storage.db import Database
 
 _PACKAGE_DIR = Path(__file__).resolve().parent
 TEMPLATES = Jinja2Templates(directory=str(_PACKAGE_DIR / "templates"))
+TEMPLATES.env.globals["cardmarket_buy_url"] = cardmarket_buy_url
+TEMPLATES.env.globals["cardtrader_buy_url"] = cardtrader_buy_url
 
 
 def create_app(config: Config | None = None) -> FastAPI:

@@ -1643,6 +1643,46 @@ body.lightbox-open { overflow: hidden; }
   transform: translate(-1px, -1px);
 }
 
+/* Cardmarket / CardTrader deep-link icons on empty pockets. Sit alongside
+   the Bazaar pocket-badge (when present) as equal citizens — the user is
+   comparing across marketplaces, not falling back. */
+.buy-links {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.buy-link {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-decoration: none;
+  border: 1.5px solid currentColor;
+  border-radius: 4px;
+  opacity: 0.85;
+  transition: opacity 0.10s ease, transform 0.05s;
+}
+.buy-link:hover {
+  opacity: 1;
+  transform: translate(-1px, -1px);
+}
+.buy-link--cardmarket { color: #c0392b; }
+.buy-link--cardtrader { color: #16a085; }
+
+/* Empty-binder placeholder for upcoming sets (e.g. Attack of the Vine
+   while LorcanaJSON ships zero cards for it). Reads as a soft note,
+   not an error. */
+.binder-empty-note {
+  padding: 14px 18px;
+  font-size: 0.85rem;
+  font-style: italic;
+  color: rgba(28, 32, 43, 0.55);
+  background: rgba(28, 32, 43, 0.03);
+  border-top: 1px dashed rgba(28, 32, 43, 0.15);
+  text-align: center;
+}
+
 /* Refreshed-at line under the /collection page header. Soft surface
    panel anchored by a vibrant left rail in the design's accent color. */
 .marketplace-refreshed {

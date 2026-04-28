@@ -102,6 +102,22 @@
             · {{ card.badge.shop_name }}
           </a>
           {% endif %}
+          {% if card.cardmarket_url or card.cardtrader_url %}
+          <div class="buy-links">
+            {% if card.cardmarket_url %}
+            <a class="buy-link buy-link--cardmarket"
+               href="{{ cardmarket_buy_url(card.cardmarket_url, filters=cardmarket_filters) }}"
+               target="_blank" rel="noopener"
+               title="Buy on Cardmarket (filters applied)">CM</a>
+            {% endif %}
+            {% if card.cardtrader_url %}
+            <a class="buy-link buy-link--cardtrader"
+               href="{{ cardtrader_buy_url(card.cardtrader_url) }}"
+               target="_blank" rel="noopener"
+               title="Buy on CardTrader">CT</a>
+            {% endif %}
+          </div>
+          {% endif %}
           <form method="post" action="/collection/add" class="pocket-add-form">
             <input type="hidden" name="card_id" value="{{ card.card_id }}">
             <button type="submit" class="pocket-add-btn" aria-label="Add to collection">+ Add</button>
@@ -113,6 +129,7 @@
     </div>
     {% endfor %}
     </div>
+    {% if binder.pages | length > 0 %}
     <nav class="binder-flip-nav" aria-label="Page navigation">
       <button type="button" class="flip-btn flip-btn--prev" data-flip="prev" aria-label="Previous page">‹</button>
       <span class="flip-indicator">
@@ -122,5 +139,8 @@
       </span>
       <button type="button" class="flip-btn flip-btn--next" data-flip="next" aria-label="Next page">›</button>
     </nav>
+    {% else %}
+    <div class="binder-empty-note">No cards published yet — coming soon.</div>
+    {% endif %}
   </div>
 </details>

@@ -1,0 +1,2748 @@
+{
+  "metadata": {
+    "formatVersion": "2.3.2",
+    "generatedOn": "2026-04-25T19:22:23",
+    "language": "en"
+  },
+  "sets": {
+    "1": {
+      "prereleaseDate": "2023-08-18",
+      "releaseDate": "2023-09-01",
+      "hasAllCards": true,
+      "type": "expansion",
+      "number": 1,
+      "allowedInFormats": {
+        "Core": {
+          "allowed": false,
+          "allowedUntilDate": "2025-09-05",
+          "rotationGroup": 1
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2023-09-08",
+      "name": "The First Chapter"
+    },
+    "2": {
+      "prereleaseDate": "2023-11-17",
+      "releaseDate": "2023-12-01",
+      "hasAllCards": true,
+      "type": "expansion",
+      "number": 2,
+      "allowedInFormats": {
+        "Core": {
+          "allowed": false,
+          "allowedUntilDate": "2025-09-05",
+          "rotationGroup": 1
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2023-12-08",
+      "name": "Rise of the Floodborn"
+    },
+    "3": {
+      "prereleaseDate": "2024-02-23",
+      "releaseDate": "2024-03-08",
+      "hasAllCards": true,
+      "type": "expansion",
+      "number": 3,
+      "allowedInFormats": {
+        "Core": {
+          "allowed": false,
+          "allowedUntilDate": "2025-09-05",
+          "rotationGroup": 1
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2024-03-15",
+      "name": "Into the Inklands"
+    },
+    "4": {
+      "prereleaseDate": "2024-05-17",
+      "releaseDate": "2024-05-31",
+      "hasAllCards": true,
+      "type": "expansion",
+      "number": 4,
+      "allowedInFormats": {
+        "Core": {
+          "allowed": false,
+          "allowedUntilDate": "2025-09-05",
+          "rotationGroup": 1
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2024-06-07",
+      "name": "Ursula's Return"
+    },
+    "5": {
+      "prereleaseDate": "2024-08-09",
+      "releaseDate": "2024-08-23",
+      "hasAllCards": true,
+      "type": "expansion",
+      "number": 5,
+      "allowedInFormats": {
+        "Core": {
+          "allowed": true,
+          "rotationGroup": 2
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2024-08-30",
+      "name": "Shimmering Skies"
+    },
+    "6": {
+      "prereleaseDate": "2024-11-15",
+      "releaseDate": "2024-11-25",
+      "hasAllCards": true,
+      "type": "expansion",
+      "number": 6,
+      "allowedInFormats": {
+        "Core": {
+          "allowed": true,
+          "rotationGroup": 2
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2024-12-06",
+      "name": "Azurite Sea"
+    },
+    "7": {
+      "prereleaseDate": "2025-03-07",
+      "releaseDate": "2025-03-21",
+      "hasAllCards": true,
+      "type": "expansion",
+      "number": 7,
+      "allowedInFormats": {
+        "Core": {
+          "allowed": true,
+          "rotationGroup": 2
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2025-03-28",
+      "name": "Archazia's Island"
+    },
+    "8": {
+      "prereleaseDate": "2025-05-30",
+      "releaseDate": "2025-06-06",
+      "hasAllCards": true,
+      "type": "expansion",
+      "number": 8,
+      "allowedInFormats": {
+        "Core": {
+          "allowed": true,
+          "rotationGroup": 2
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2025-06-20",
+      "name": "The Reign of Jafar"
+    },
+    "9": {
+      "prereleaseDate": "2025-08-29",
+      "releaseDate": "2025-09-05",
+      "hasAllCards": true,
+      "type": "expansion",
+      "number": 9,
+      "allowedInFormats": {
+        "Core": {
+          "allowed": true,
+          "rotationGroup": 3
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2025-09-19",
+      "name": "Fabled"
+    },
+    "10": {
+      "prereleaseDate": "2025-11-07",
+      "releaseDate": "2025-11-14",
+      "hasAllCards": true,
+      "type": "expansion",
+      "number": 10,
+      "allowedInFormats": {
+        "Core": {
+          "allowed": true,
+          "rotationGroup": 3
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2025-11-07",
+      "name": "Whispers in the Well"
+    },
+    "11": {
+      "prereleaseDate": "2026-02-13",
+      "releaseDate": "2026-02-20",
+      "hasAllCards": true,
+      "type": "expansion",
+      "number": 11,
+      "allowedInFormats": {
+        "Core": {
+          "allowed": true,
+          "rotationGroup": 3
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2026-02-13",
+      "name": "Winterspell"
+    },
+    "12": {
+      "prereleaseDate": "2026-05-08",
+      "releaseDate": "2026-05-15",
+      "hasAllCards": false,
+      "type": "expansion",
+      "number": 12,
+      "allowedInFormats": {
+        "Core": {
+          "allowed": false,
+          "rotationGroup": 3
+        },
+        "Infinity": {
+          "allowed": false
+        }
+      },
+      "allowedInTournamentsFromDate": null,
+      "name": "Wilds Unknown"
+    },
+    "13": {
+      "prereleaseDate": "2026-07-17",
+      "releaseDate": "2026-07-24",
+      "hasAllCards": false,
+      "type": "expansion",
+      "number": 13,
+      "allowedInFormats": {
+        "Core": {
+          "allowed": false,
+          "rotationGroup": 4
+        },
+        "Infinity": {
+          "allowed": false
+        }
+      },
+      "allowedInTournamentsFromDate": null,
+      "name": "Attack of the Vine"
+    },
+    "14": {
+      "prereleaseDate": null,
+      "releaseDate": null,
+      "hasAllCards": false,
+      "type": "expansion",
+      "number": 14,
+      "allowedInFormats": {
+        "Core": {
+          "allowed": false,
+          "rotationGroup": 4
+        },
+        "Infinity": {
+          "allowed": false
+        }
+      },
+      "allowedInTournamentsFromDate": null,
+      "name": "Hyperia City"
+    },
+    "Q1": {
+      "prereleaseDate": "2024-05-17",
+      "releaseDate": "2024-05-31",
+      "hasAllCards": true,
+      "type": "quest",
+      "number": 1,
+      "allowedInFormats": {
+        "Core": {
+          "allowed": false
+        },
+        "Infinity": {
+          "allowed": false
+        }
+      },
+      "allowedInTournamentsFromDate": null,
+      "name": "Illumineer's Quest: Deep Trouble"
+    },
+    "Q2": {
+      "prereleaseDate": "2025-05-30",
+      "releaseDate": "2025-06-06",
+      "hasAllCards": true,
+      "type": "quest",
+      "number": 2,
+      "allowedInFormats": {
+        "Core": {
+          "allowed": false
+        },
+        "Infinity": {
+          "allowed": false
+        }
+      },
+      "allowedInTournamentsFromDate": null,
+      "name": "Illumineer's Quest: Palace Heist"
+    }
+  },
+  "cards": [
+    {
+      "abilities": [
+        {
+          "effect": "This character can't \u27f3 to sing songs.",
+          "fullText": "VOICELESS This character can't \u27f3 to sing songs.",
+          "name": "VOICELESS",
+          "type": "static"
+        }
+      ],
+      "allowedInFormats": {
+        "Core": {
+          "allowed": false,
+          "allowedUntilDate": "2025-09-05"
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2023-09-08",
+      "artists": [
+        "Matthew Robert Davies"
+      ],
+      "artistsText": "Matthew Robert Davies",
+      "code": "01",
+      "color": "Amber",
+      "cost": 4,
+      "externalLinks": {
+        "cardTraderId": 258961,
+        "cardTraderUrl": "https://www.cardtrader.com/cards/258961",
+        "cardmarketId": 727081,
+        "cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/The-First-Chapter/Ariel-On-Human-Legs?language=1",
+        "tcgPlayerId": 494102,
+        "tcgPlayerUrl": "https://www.tcgplayer.com/product/494102"
+      },
+      "flavorText": "\u201c...\u201d",
+      "foilTypes": [
+        "None",
+        "Silver"
+      ],
+      "fullIdentifier": "1/204 \u2022 EN \u2022 1",
+      "fullName": "Ariel - On Human Legs",
+      "fullText": "VOICELESS This character can't \u27f3 to sing songs.",
+      "fullTextSections": [
+        "VOICELESS This character can't \u27f3 to sing songs."
+      ],
+      "id": 1,
+      "images": {
+        "foilMask": "https://api.lorcana.ravensburger.com/images/en/set1/1_f311aade3a7573cc24b23993f3820df8e8933dce.jpg",
+        "full": "https://api.lorcana.ravensburger.com/images/en/set1/1_ea50bda8825b4ccdf7e71c7052ee9688f92e75ab.jpg",
+        "thumbnail": "https://api.lorcana.ravensburger.com/images/en/set1/1_f713db8c34028061e24b4dc3933965b143dcff56.jpg"
+      },
+      "inkwell": true,
+      "lore": 2,
+      "name": "Ariel",
+      "number": 1,
+      "rarity": "Uncommon",
+      "setCode": "1",
+      "simpleName": "ariel on human legs",
+      "story": "The Little Mermaid",
+      "strength": 3,
+      "subtypes": [
+        "Storyborn",
+        "Hero",
+        "Princess"
+      ],
+      "subtypesText": "Storyborn \u2022 Hero \u2022 Princess",
+      "type": "Character",
+      "version": "On Human Legs",
+      "willpower": 4
+    },
+    {
+      "abilities": [
+        {
+          "fullText": "Shift 6 (You may pay 6 \u2b21 to play this on top of one\nof your characters named Hades.)",
+          "keyword": "Shift",
+          "keywordValue": "6",
+          "keywordValueNumber": 6,
+          "reminderText": "You may pay 6 \u2b21 to play this on top of one of your characters named Hades.",
+          "type": "keyword"
+        },
+        {
+          "effect": "This character gets +1 \u25ca for each other Villain character you have in play.",
+          "fullText": "SINISTER PLOT This character gets +1 \u25ca for each\nother Villain character you have in play.",
+          "name": "SINISTER PLOT",
+          "type": "static"
+        }
+      ],
+      "allowedInFormats": {
+        "Core": {
+          "allowed": false,
+          "allowedUntilDate": "2025-09-05"
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2023-09-08",
+      "artists": [
+        "Juan Diego Leon"
+      ],
+      "artistsNormalized": [
+        "Juan Diego Le\u00f3n"
+      ],
+      "artistsText": "Juan Diego Leon",
+      "baseId": 5,
+      "code": "3j",
+      "color": "Amber",
+      "cost": 8,
+      "externalLinks": {
+        "cardTraderId": 258459,
+        "cardTraderUrl": "https://www.cardtrader.com/cards/258459",
+        "cardmarketId": 729393,
+        "cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/The-First-Chapter/Hades-King-of-Olympus-V2?language=1",
+        "tcgPlayerId": 510148,
+        "tcgPlayerUrl": "https://www.tcgplayer.com/product/510148"
+      },
+      "foilTypes": [
+        "Lava"
+      ],
+      "fullIdentifier": "205/204 \u2022 EN \u2022 1",
+      "fullName": "Hades - King of Olympus",
+      "fullText": "Shift 6 (You may pay 6 \u2b21 to play this on top of one\nof your characters named Hades.)\nSINISTER PLOT This character gets +1 \u25ca for each\nother Villain character you have in play.",
+      "fullTextSections": [
+        "Shift 6 (You may pay 6 \u2b21 to play this on top of one\nof your characters named Hades.)",
+        "SINISTER PLOT This character gets +1 \u25ca for each\nother Villain character you have in play."
+      ],
+      "id": 205,
+      "images": {
+        "foilMask": "https://api.lorcana.ravensburger.com/images/en/set1/205_f6a4594da5fafca8abebfb362d09ad8041521d35.jpg",
+        "full": "https://api.lorcana.ravensburger.com/images/en/set1/205_b39a86f5b11b007683bbdc7d0f181d8a94134581.jpg",
+        "thumbnail": "https://api.lorcana.ravensburger.com/images/en/set1/205_9d92911e97f93e5d64c5bd1d11dfd04e478c2374.jpg"
+      },
+      "inkwell": false,
+      "keywordAbilities": [
+        "Shift"
+      ],
+      "lore": 1,
+      "name": "Hades",
+      "number": 205,
+      "rarity": "Enchanted",
+      "setCode": "1",
+      "simpleName": "hades king of olympus",
+      "story": "Hercules",
+      "strength": 6,
+      "subtypes": [
+        "Floodborn",
+        "Villain",
+        "King",
+        "Deity"
+      ],
+      "subtypesText": "Floodborn \u2022 Villain \u2022 King \u2022 Deity",
+      "type": "Character",
+      "version": "King of Olympus",
+      "willpower": 7
+    },
+    {
+      "abilities": [
+        {
+          "fullText": "Bodyguard (This character may enter play exerted.\nAn opposing character who challenges one of your\ncharacters must choose one with Bodyguard if able.)",
+          "keyword": "Bodyguard",
+          "reminderText": "This character may enter play exerted. An opposing character who challenges one of your characters must choose one with Bodyguard if able.",
+          "type": "keyword"
+        },
+        {
+          "fullText": "Support (Whenever this character quests, you may\nadd their \u00a4 to another chosen character's\n\u00a4 this turn.)",
+          "keyword": "Support",
+          "reminderText": "Whenever this character quests, you may add their \u00a4 to another chosen character's \u00a4 this turn.",
+          "type": "keyword"
+        }
+      ],
+      "allowedInFormats": {
+        "Core": {
+          "allowed": true
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2025-11-07",
+      "artists": [
+        "Amanda Duarte",
+        "Julio Cesar"
+      ],
+      "artistsText": "Amanda Duarte / Julio Cesar",
+      "code": "zk",
+      "color": "Amber",
+      "cost": 6,
+      "externalLinks": {
+        "cardTraderId": 356445,
+        "cardTraderUrl": "https://www.cardtrader.com/cards/356445",
+        "cardmarketId": 855989,
+        "cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/Whispers-in-the-Well/Baloo-Friend-and-Guardian?language=1",
+        "tcgPlayerId": 659178,
+        "tcgPlayerUrl": "https://www.tcgplayer.com/product/659178"
+      },
+      "foilTypes": [
+        "None",
+        "Silver"
+      ],
+      "fullIdentifier": "1/204 \u2022 EN \u2022 10",
+      "fullName": "Baloo - Friend and Guardian",
+      "fullText": "Bodyguard (This character may enter play exerted.\nAn opposing character who challenges one of your\ncharacters must choose one with Bodyguard if able.)\nSupport (Whenever this character quests, you may\nadd their \u00a4 to another chosen character's\n\u00a4 this turn.)",
+      "fullTextSections": [
+        "Bodyguard (This character may enter play exerted.\nAn opposing character who challenges one of your\ncharacters must choose one with Bodyguard if able.)",
+        "Support (Whenever this character quests, you may\nadd their \u00a4 to another chosen character's\n\u00a4 this turn.)"
+      ],
+      "id": 2190,
+      "images": {
+        "foilMask": "https://api.lorcana.ravensburger.com/images/en/set10/1_6eebc971d29ada4b43863bb3eaeaf66171eae168.jpg",
+        "full": "https://api.lorcana.ravensburger.com/images/en/set10/1_cb1a0b5d95157e7641ce5e77b22e824bbca3981a.jpg",
+        "thumbnail": "https://api.lorcana.ravensburger.com/images/en/set10/1_094193050b51454a1c715770a4b927f8e8595635.jpg"
+      },
+      "inkwell": true,
+      "keywordAbilities": [
+        "Bodyguard",
+        "Support"
+      ],
+      "lore": 2,
+      "name": "Baloo",
+      "number": 1,
+      "rarity": "Rare",
+      "setCode": "10",
+      "simpleName": "baloo friend and guardian",
+      "story": "The Jungle Book",
+      "strength": 3,
+      "subtypes": [
+        "Storyborn",
+        "Ally"
+      ],
+      "subtypesText": "Storyborn \u2022 Ally",
+      "type": "Character",
+      "version": "Friend and Guardian",
+      "willpower": 8
+    },
+    {
+      "abilities": [
+        {
+          "effect": "When you play this character, chosen opposing character gets -1 \u00a4 until the start of your next turn.",
+          "fullText": "PERFECT TRAP When you play this character,\nchosen opposing character gets -1 \u00a4 until the\nstart of your next turn.",
+          "name": "PERFECT TRAP",
+          "type": "triggered"
+        }
+      ],
+      "allowedInFormats": {
+        "Core": {
+          "allowed": true
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2025-11-07",
+      "artists": [
+        "Janel Reh"
+      ],
+      "artistsText": "Janel Reh",
+      "baseId": 2210,
+      "code": "CC",
+      "color": "Amber",
+      "cost": 4,
+      "externalLinks": {
+        "cardTraderId": 356628,
+        "cardTraderUrl": "https://www.cardtrader.com/cards/356628",
+        "cardmarketId": 856244,
+        "cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/Whispers-in-the-Well/Goofy-Ghost-Hunter-V2?language=1",
+        "tcgPlayerId": 660359,
+        "tcgPlayerUrl": "https://www.tcgplayer.com/product/660359"
+      },
+      "flavorText": "\u201cIf you wanna beat a ghost, you gotta think like\na ghost.\u201d",
+      "foilTypes": [
+        "Satin"
+      ],
+      "fullIdentifier": "205/204 \u2022 EN \u2022 10",
+      "fullName": "Goofy - Ghost Hunter",
+      "fullText": "PERFECT TRAP When you play this character,\nchosen opposing character gets -1 \u00a4 until the\nstart of your next turn.",
+      "fullTextSections": [
+        "PERFECT TRAP When you play this character,\nchosen opposing character gets -1 \u00a4 until the\nstart of your next turn."
+      ],
+      "id": 2394,
+      "images": {
+        "foilMask": "https://api.lorcana.ravensburger.com/images/en/set10/205_ef571fa3ad66b562b2e8b792be8fd5721d473eed.jpg",
+        "full": "https://api.lorcana.ravensburger.com/images/en/set10/205_c8155f8eb7a6f9006ca31b46f8840b6514a09b78.jpg",
+        "thumbnail": "https://api.lorcana.ravensburger.com/images/en/set10/205_48b0b298efe3263334136c6068b68fa3306d95aa.jpg",
+        "varnishMask": "https://api.lorcana.ravensburger.com/images/en/set10/205_f117d35c981548eb9a8d2114b9b80d89537cb53e.jpg"
+      },
+      "inkwell": true,
+      "lore": 1,
+      "name": "Goofy",
+      "number": 205,
+      "rarity": "Epic",
+      "setCode": "10",
+      "simpleName": "goofy ghost hunter",
+      "story": "Mickey Mouse & Friends",
+      "strength": 4,
+      "subtypes": [
+        "Dreamborn",
+        "Hero",
+        "Detective"
+      ],
+      "subtypesText": "Dreamborn \u2022 Hero \u2022 Detective",
+      "type": "Character",
+      "varnishType": "HighGloss",
+      "version": "Ghost Hunter",
+      "willpower": 5
+    },
+    {
+      "abilities": [
+        {
+          "fullText": "Boost 3 \u2b21",
+          "keyword": "Boost",
+          "keywordValue": "3",
+          "keywordValueNumber": 3,
+          "type": "keyword"
+        },
+        {
+          "effect": "Whenever you put a card under this character, you may reveal the top card of your deck. If it's a character card, you may play that character for free and they enter play exerted. Otherwise, put it on the bottom of your deck.",
+          "fullText": "TIMELY ALLIANCE Whenever you put a card under\nthis character, you may reveal the top card of your\ndeck. If it's a character card, you may play that\ncharacter for free and they enter play exerted.\nOtherwise, put it on the bottom of your deck.",
+          "name": "TIMELY ALLIANCE",
+          "type": "triggered"
+        }
+      ],
+      "allowedInFormats": {
+        "Core": {
+          "allowed": true
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2025-11-07",
+      "artists": [
+        "noc4urne",
+        "Alice Pisoni"
+      ],
+      "artistsText": "noc4urne / Alice Pisoni",
+      "baseId": 2209,
+      "code": "CV",
+      "color": "Amber",
+      "cost": 7,
+      "externalLinks": {
+        "cardTraderId": 356645,
+        "cardTraderUrl": "https://www.cardtrader.com/cards/356645",
+        "cardmarketId": 856263,
+        "cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/Whispers-in-the-Well/Simba-King-in-the-Making-V2?language=1",
+        "tcgPlayerId": 658449,
+        "tcgPlayerUrl": "https://www.tcgplayer.com/product/658449"
+      },
+      "foilTypes": [
+        "Magma"
+      ],
+      "fullIdentifier": "224/204 \u2022 EN \u2022 10",
+      "fullName": "Simba - King in the Making",
+      "fullText": "Boost 3 \u2b21\nTIMELY ALLIANCE Whenever you put a card under\nthis character, you may reveal the top card of your\ndeck. If it's a character card, you may play that\ncharacter for free and they enter play exerted.\nOtherwise, put it on the bottom of your deck.",
+      "fullTextSections": [
+        "Boost 3 \u2b21",
+        "TIMELY ALLIANCE Whenever you put a card under\nthis character, you may reveal the top card of your\ndeck. If it's a character card, you may play that\ncharacter for free and they enter play exerted.\nOtherwise, put it on the bottom of your deck."
+      ],
+      "id": 2413,
+      "images": {
+        "foilMask": "https://api.lorcana.ravensburger.com/images/en/set10/224_42e2318d7be2f7b47f5977415fb245f335d6fc38.jpg",
+        "full": "https://api.lorcana.ravensburger.com/images/en/set10/224_fc4f7b56f24cfdbaf6a3592c1e1328c0df971bae.jpg",
+        "thumbnail": "https://api.lorcana.ravensburger.com/images/en/set10/224_f49b25c21a195a10b2aa6135c3a07ce434b050d0.jpg",
+        "varnishMask": "https://api.lorcana.ravensburger.com/images/en/set10/224_f00974f4274761f8c1370212317f01ef7bc2cae2.jpg"
+      },
+      "inkwell": true,
+      "keywordAbilities": [
+        "Boost"
+      ],
+      "lore": 3,
+      "name": "Simba",
+      "number": 224,
+      "rarity": "Enchanted",
+      "setCode": "10",
+      "simpleName": "simba king in the making",
+      "story": "The Lion King",
+      "strength": 5,
+      "subtypes": [
+        "Storyborn",
+        "Hero",
+        "Prince",
+        "Whisper"
+      ],
+      "subtypesText": "Storyborn \u2022 Hero \u2022 Prince \u2022 Whisper",
+      "type": "Character",
+      "varnishType": "MetallicHotFoil",
+      "version": "King in the Making",
+      "willpower": 5
+    },
+    {
+      "allowedInFormats": {
+        "Core": {
+          "allowed": true
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2026-02-13",
+      "artists": [
+        "Valentin Palombo"
+      ],
+      "artistsText": "Valentin Palombo",
+      "code": "DK",
+      "color": "Amber",
+      "cost": 1,
+      "externalLinks": {
+        "cardTraderId": 371615,
+        "cardTraderUrl": "https://www.cardtrader.com/cards/371615",
+        "cardmarketId": 871163,
+        "cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/Winterspell/Thomas-Wide-Eyed-Recruit?language=1",
+        "tcgPlayerId": 674816,
+        "tcgPlayerUrl": "https://www.tcgplayer.com/product/674816"
+      },
+      "flavorText": "\u201cI've never seen a winter so beautiful! Look at the\nsnow\u2014pristine as far as the eye can see!\u201d",
+      "foilTypes": [
+        "None",
+        "Silver"
+      ],
+      "fullIdentifier": "1/204 \u2022 EN \u2022 11",
+      "fullName": "Thomas - Wide-Eyed Recruit",
+      "fullText": "",
+      "fullTextSections": [],
+      "id": 2464,
+      "images": {
+        "foilMask": "https://api.lorcana.ravensburger.com/images/en/set11/1_19f5820c141a22b312257094ef1f95f6866466d9.jpg",
+        "full": "https://api.lorcana.ravensburger.com/images/en/set11/1_aa6b6ac1610c03573b33eb0d5956c867ee36acaf.jpg",
+        "thumbnail": "https://api.lorcana.ravensburger.com/images/en/set11/1_60cf84f7dffb24c64966772f586f978edd3f713f.jpg"
+      },
+      "inkwell": true,
+      "lore": 1,
+      "name": "Thomas",
+      "number": 1,
+      "rarity": "Common",
+      "setCode": "11",
+      "simpleName": "thomas wide-eyed recruit",
+      "story": "Pocahontas",
+      "strength": 0,
+      "subtypes": [
+        "Storyborn",
+        "Ally"
+      ],
+      "subtypesText": "Storyborn \u2022 Ally",
+      "type": "Character",
+      "version": "Wide-Eyed Recruit",
+      "willpower": 4
+    },
+    {
+      "abilities": [
+        {
+          "fullText": "Support (Whenever this character quests, you may add\ntheir \u00a4 to another chosen character's \u00a4 this turn.)",
+          "keyword": "Support",
+          "reminderText": "Whenever this character quests, you may add their \u00a4 to another chosen character's \u00a4 this turn.",
+          "type": "keyword"
+        }
+      ],
+      "allowedInFormats": {
+        "Core": {
+          "allowed": true
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2026-02-13",
+      "artists": [
+        "Kiersten Hale"
+      ],
+      "artistsText": "Kiersten Hale",
+      "baseId": 2468,
+      "code": "H2",
+      "color": "Amber",
+      "cost": 4,
+      "externalLinks": {
+        "cardTraderId": 371815,
+        "cardTraderUrl": "https://www.cardtrader.com/cards/371815",
+        "cardmarketId": 871407,
+        "cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/Winterspell/Tiana-Warm-and-Happy-V2?language=1",
+        "tcgPlayerId": 677142,
+        "tcgPlayerUrl": "https://www.tcgplayer.com/product/677142"
+      },
+      "flavorText": "\u201cThis cocoa will warm you up like a hug from your mama.\u201d",
+      "foilTypes": [
+        "Satin"
+      ],
+      "fullIdentifier": "205/204 \u2022 EN \u2022 11",
+      "fullName": "Tiana - Warm and Happy",
+      "fullText": "Support (Whenever this character quests, you may add\ntheir \u00a4 to another chosen character's \u00a4 this turn.)",
+      "fullTextSections": [
+        "Support (Whenever this character quests, you may add\ntheir \u00a4 to another chosen character's \u00a4 this turn.)"
+      ],
+      "id": 2668,
+      "images": {
+        "foilMask": "https://api.lorcana.ravensburger.com/images/en/set11/205_65c9ee8d169148d932288a53025668bb377b5867.jpg",
+        "full": "https://api.lorcana.ravensburger.com/images/en/set11/205_8443184e5cb986452d3b62b7b7dc46dafaa77ccb.jpg",
+        "thumbnail": "https://api.lorcana.ravensburger.com/images/en/set11/205_3ee9876ef95826d877e7b38948a73343703a103d.jpg",
+        "varnishMask": "https://api.lorcana.ravensburger.com/images/en/set11/205_c203f282a98e413b5d0af0274a525c4092bc9a0f.jpg"
+      },
+      "inkwell": true,
+      "keywordAbilities": [
+        "Support"
+      ],
+      "lore": 2,
+      "name": "Tiana",
+      "number": 205,
+      "rarity": "Epic",
+      "setCode": "11",
+      "simpleName": "tiana warm and happy",
+      "story": "The Princess And The Frog",
+      "strength": 3,
+      "subtypes": [
+        "Dreamborn",
+        "Hero",
+        "Princess"
+      ],
+      "subtypesText": "Dreamborn \u2022 Hero \u2022 Princess",
+      "type": "Character",
+      "varnishType": "HighGloss",
+      "version": "Warm and Happy",
+      "willpower": 4
+    },
+    {
+      "allowedInFormats": {
+        "Core": {
+          "allowed": true
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2026-02-13",
+      "artists": [
+        "Kei Yotsuba"
+      ],
+      "artistsText": "Kei Yotsuba",
+      "baseId": 2495,
+      "code": "Hl",
+      "color": "Amber",
+      "cost": 3,
+      "effects": [
+        "Remove all damage from chosen character of\nyours. Draw a card for each 1 damage removed\nthis way."
+      ],
+      "externalLinks": {
+        "cardTraderId": 371834,
+        "cardTraderUrl": "https://www.cardtrader.com/cards/371834",
+        "cardmarketId": 871426,
+        "cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/Winterspell/Ohana-Means-Family-V2?language=1",
+        "tcgPlayerId": 673068,
+        "tcgPlayerUrl": "https://www.tcgplayer.com/product/673068"
+      },
+      "foilTypes": [
+        "Magma"
+      ],
+      "fullIdentifier": "224/204 \u2022 EN \u2022 11",
+      "fullName": "Ohana Means Family",
+      "fullText": "Remove all damage from chosen character of\nyours. Draw a card for each 1 damage removed\nthis way.",
+      "fullTextSections": [
+        "Remove all damage from chosen character of\nyours. Draw a card for each 1 damage removed\nthis way."
+      ],
+      "id": 2687,
+      "images": {
+        "foilMask": "https://api.lorcana.ravensburger.com/images/en/set11/224_a445055255062e74c9782f612911b3c9c5fda079.jpg",
+        "full": "https://api.lorcana.ravensburger.com/images/en/set11/224_face6cebc1848935d7768d44be66222e51696e7a.jpg",
+        "thumbnail": "https://api.lorcana.ravensburger.com/images/en/set11/224_b5d426fccf6a732b077b8bab61612ebee92a83fa.jpg",
+        "varnishMask": "https://api.lorcana.ravensburger.com/images/en/set11/224_008626d04635d594dc13cadc0876ecd75aec3b82.jpg"
+      },
+      "inkwell": true,
+      "name": "Ohana Means Family",
+      "number": 224,
+      "rarity": "Enchanted",
+      "setCode": "11",
+      "simpleName": "ohana means family",
+      "story": "Lilo & Stitch",
+      "type": "Action",
+      "varnishType": "SnowHotFoil"
+    },
+    {
+      "abilities": [
+        {
+          "effect": "This character can't quest unless you have another Seven Dwarfs character in play.",
+          "fullText": "OH, GOSH! This character can't quest unless you\nhave another Seven Dwarfs character in play.",
+          "name": "OH, GOSH!",
+          "type": "static"
+        }
+      ],
+      "allowedInFormats": {
+        "Core": {
+          "allowed": false,
+          "allowedUntilDate": "2025-09-05"
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2023-12-08",
+      "artists": [
+        "Kendall Hale"
+      ],
+      "artistsText": "Kendall Hale",
+      "code": "3v",
+      "color": "Amber",
+      "cost": 4,
+      "externalLinks": {
+        "cardTraderId": 268047,
+        "cardTraderUrl": "https://www.cardtrader.com/cards/268047",
+        "cardmarketId": 745019,
+        "cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/Rise-of-the-Floodborn/Bashful-Hopeless-Romantic?language=1",
+        "tcgPlayerId": 526599,
+        "tcgPlayerUrl": "https://www.tcgplayer.com/product/526599"
+      },
+      "flavorText": "Life is sweeter with friends.",
+      "foilTypes": [
+        "None",
+        "Silver"
+      ],
+      "fullIdentifier": "1/204 \u2022 EN \u2022 2",
+      "fullName": "Bashful - Hopeless Romantic",
+      "fullText": "OH, GOSH! This character can't quest unless you\nhave another Seven Dwarfs character in play.",
+      "fullTextSections": [
+        "OH, GOSH! This character can't quest unless you\nhave another Seven Dwarfs character in play."
+      ],
+      "id": 217,
+      "images": {
+        "foilMask": "https://api.lorcana.ravensburger.com/images/en/set2/1_e9393041a2e1bd10b9730147e1645842ca27eaa3.jpg",
+        "full": "https://api.lorcana.ravensburger.com/images/en/set2/1_1e38ef5974bbcb4bd38af1df1c050cd8018f5f3e.jpg",
+        "thumbnail": "https://api.lorcana.ravensburger.com/images/en/set2/1_504c0c5fca740ee661fb406907706644efb439d1.jpg"
+      },
+      "inkwell": true,
+      "lore": 3,
+      "name": "Bashful",
+      "number": 1,
+      "rarity": "Uncommon",
+      "setCode": "2",
+      "simpleName": "bashful hopeless romantic",
+      "story": "Snow White and the Seven Dwarfs",
+      "strength": 2,
+      "subtypes": [
+        "Storyborn",
+        "Ally",
+        "Seven Dwarfs"
+      ],
+      "subtypesText": "Storyborn \u2022 Ally \u2022 Seven Dwarfs",
+      "type": "Character",
+      "version": "Hopeless Romantic",
+      "willpower": 5
+    },
+    {
+      "abilities": [
+        {
+          "fullText": "Singer 3 (This character counts as cost 3 to sing songs.)",
+          "keyword": "Singer",
+          "keywordValue": "3",
+          "keywordValueNumber": 3,
+          "reminderText": "This character counts as cost 3 to sing songs.",
+          "type": "keyword"
+        }
+      ],
+      "allowedInFormats": {
+        "Core": {
+          "allowed": false,
+          "allowedUntilDate": "2025-09-05"
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2023-12-08",
+      "artists": [
+        "Casey Robin"
+      ],
+      "artistsText": "Casey Robin",
+      "baseId": 219,
+      "code": "6N",
+      "color": "Amber",
+      "cost": 1,
+      "externalLinks": {
+        "cardTraderId": 268478,
+        "cardTraderUrl": "https://www.cardtrader.com/cards/268478",
+        "cardmarketId": 745473,
+        "cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/Rise-of-the-Floodborn/Cinderella-Ballroom-Sensation-V2?language=1",
+        "tcgPlayerId": 527802,
+        "tcgPlayerUrl": "https://www.tcgplayer.com/product/527802"
+      },
+      "foilTypes": [
+        "Lava"
+      ],
+      "fullIdentifier": "205/204 \u2022 EN \u2022 2",
+      "fullName": "Cinderella - Ballroom Sensation",
+      "fullText": "Singer 3 (This character counts as cost 3 to sing songs.)",
+      "fullTextSections": [
+        "Singer 3 (This character counts as cost 3 to sing songs.)"
+      ],
+      "id": 421,
+      "images": {
+        "foilMask": "https://api.lorcana.ravensburger.com/images/en/set2/205_42d3ee9f8819bc91e8acc4799212ae88b4257874.jpg",
+        "full": "https://api.lorcana.ravensburger.com/images/en/set2/205_891366ac59b88bdbda111b2cdfd864e5f875ebb8.jpg",
+        "thumbnail": "https://api.lorcana.ravensburger.com/images/en/set2/205_6b703de457f9b691292b14f8aa4d09a3b8bb48ab.jpg"
+      },
+      "inkwell": true,
+      "keywordAbilities": [
+        "Singer"
+      ],
+      "lore": 1,
+      "name": "Cinderella",
+      "number": 205,
+      "rarity": "Enchanted",
+      "setCode": "2",
+      "simpleName": "cinderella ballroom sensation",
+      "story": "Cinderella",
+      "strength": 1,
+      "subtypes": [
+        "Storyborn",
+        "Hero",
+        "Princess"
+      ],
+      "subtypesText": "Storyborn \u2022 Hero \u2022 Princess",
+      "type": "Character",
+      "version": "Ballroom Sensation",
+      "willpower": 2
+    },
+    {
+      "abilities": [
+        {
+          "fullText": "Bodyguard (This character may enter play exerted.\nAn opposing character who challenges one of your\ncharacters must choose one with Bodyguard if able.)",
+          "keyword": "Bodyguard",
+          "reminderText": "This character may enter play exerted. An opposing character who challenges one of your characters must choose one with Bodyguard if able.",
+          "type": "keyword"
+        },
+        {
+          "effect": "When this character is banished, gain 2 lore.",
+          "fullText": "LET'S MAKE LIKE A TREE When this character is\nbanished, gain 2 lore.",
+          "name": "LET'S MAKE LIKE A TREE",
+          "type": "triggered"
+        }
+      ],
+      "allowedInFormats": {
+        "Core": {
+          "allowed": false,
+          "allowedUntilDate": "2025-09-05"
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2024-03-15",
+      "artists": [
+        "Cam Kendell"
+      ],
+      "artistsText": "Cam Kendell",
+      "code": "6Z",
+      "color": "Amber",
+      "cost": 3,
+      "externalLinks": {
+        "cardTraderId": 278055,
+        "cardTraderUrl": "https://www.cardtrader.com/cards/278055",
+        "cardmarketId": 757259,
+        "cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/Into-the-Inklands/Baloo-Von-Bruinwald-XIII?language=1",
+        "tcgPlayerId": 539060,
+        "tcgPlayerUrl": "https://www.tcgplayer.com/product/539060"
+      },
+      "foilTypes": [
+        "None",
+        "Silver"
+      ],
+      "fullIdentifier": "1/204 \u2022 EN \u2022 3",
+      "fullName": "Baloo - von Bruinwald XIII",
+      "fullText": "Bodyguard (This character may enter play exerted.\nAn opposing character who challenges one of your\ncharacters must choose one with Bodyguard if able.)\nLET'S MAKE LIKE A TREE When this character is\nbanished, gain 2 lore.",
+      "fullTextSections": [
+        "Bodyguard (This character may enter play exerted.\nAn opposing character who challenges one of your\ncharacters must choose one with Bodyguard if able.)",
+        "LET'S MAKE LIKE A TREE When this character is\nbanished, gain 2 lore."
+      ],
+      "id": 433,
+      "images": {
+        "foilMask": "https://api.lorcana.ravensburger.com/images/en/set3/1_4b87afc10ee3ddb9f71a4b1db5e66bd8951dbb3e.jpg",
+        "full": "https://api.lorcana.ravensburger.com/images/en/set3/1_544e9ed3cec18d07d84b71788c5e04032d9e6a7c.jpg",
+        "thumbnail": "https://api.lorcana.ravensburger.com/images/en/set3/1_0a492894135f18c10891c4e48dbd10055b396d37.jpg"
+      },
+      "inkwell": false,
+      "keywordAbilities": [
+        "Bodyguard"
+      ],
+      "lore": 1,
+      "name": "Baloo",
+      "number": 1,
+      "rarity": "Rare",
+      "setCode": "3",
+      "simpleName": "baloo von bruinwald xiii",
+      "story": "TaleSpin",
+      "strength": 0,
+      "subtypes": [
+        "Dreamborn",
+        "Hero"
+      ],
+      "subtypesText": "Dreamborn \u2022 Hero",
+      "type": "Character",
+      "version": "von Bruinwald XIII",
+      "willpower": 3
+    },
+    {
+      "abilities": [
+        {
+          "effect": "For each character card in your discard, you pay 1 \u2b21 less to play this character.",
+          "fullText": "THE POWER OF EVIL For each character card\nin your discard, you pay 1 \u2b21 less to play this\ncharacter.",
+          "name": "THE POWER OF EVIL",
+          "type": "static"
+        },
+        {
+          "effect": "When you play this character, shuffle all character cards from your discard into your deck.",
+          "fullText": "SUMMON THE SPIRITS When you play this\ncharacter, shuffle all character cards from your\ndiscard into your deck.",
+          "name": "SUMMON THE SPIRITS",
+          "type": "triggered"
+        }
+      ],
+      "allowedInFormats": {
+        "Core": {
+          "allowed": false,
+          "allowedUntilDate": "2025-09-05"
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2024-03-15",
+      "artists": [
+        "Thomas Brissot"
+      ],
+      "artistsText": "Thomas Brissot",
+      "baseId": 435,
+      "code": "al",
+      "color": "Amber",
+      "cost": 10,
+      "externalLinks": {
+        "cardTraderId": 278065,
+        "cardTraderUrl": "https://www.cardtrader.com/cards/278065",
+        "cardmarketId": 757400,
+        "cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/Into-the-Inklands/Chernabog-Evildoer-V2?language=1",
+        "tcgPlayerId": 539156,
+        "tcgPlayerUrl": "https://www.tcgplayer.com/product/539156"
+      },
+      "foilTypes": [
+        "Lava"
+      ],
+      "fullIdentifier": "205/204 \u2022 EN \u2022 3",
+      "fullName": "Chernabog - Evildoer",
+      "fullText": "THE POWER OF EVIL For each character card\nin your discard, you pay 1 \u2b21 less to play this\ncharacter.\nSUMMON THE SPIRITS When you play this\ncharacter, shuffle all character cards from your\ndiscard into your deck.",
+      "fullTextSections": [
+        "THE POWER OF EVIL For each character card\nin your discard, you pay 1 \u2b21 less to play this\ncharacter.",
+        "SUMMON THE SPIRITS When you play this\ncharacter, shuffle all character cards from your\ndiscard into your deck."
+      ],
+      "id": 641,
+      "images": {
+        "foilMask": "https://api.lorcana.ravensburger.com/images/en/set3/205_a89fed18effb6480891eeb37af01f3eb8b5e2b78.jpg",
+        "full": "https://api.lorcana.ravensburger.com/images/en/set3/205_40561fbb84c552efe01b6325c269ab9362cf528b.jpg",
+        "thumbnail": "https://api.lorcana.ravensburger.com/images/en/set3/205_e615e6c7c45887d69848ed1f7e516076d24ee97c.jpg"
+      },
+      "inkwell": false,
+      "lore": 3,
+      "name": "Chernabog",
+      "number": 205,
+      "rarity": "Enchanted",
+      "setCode": "3",
+      "simpleName": "chernabog evildoer",
+      "story": "Fantasia",
+      "strength": 9,
+      "subtypes": [
+        "Storyborn",
+        "Villain"
+      ],
+      "subtypesText": "Storyborn \u2022 Villain",
+      "type": "Character",
+      "version": "Evildoer",
+      "willpower": 9
+    },
+    {
+      "allowedInFormats": {
+        "Core": {
+          "allowed": false,
+          "allowedUntilDate": "2025-09-05"
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2024-06-07",
+      "artists": [
+        "Eri Welli"
+      ],
+      "artistsText": "Eri Welli",
+      "code": "ba",
+      "color": "Amber",
+      "cost": 1,
+      "externalLinks": {
+        "cardTraderId": 287168,
+        "cardTraderUrl": "https://www.cardtrader.com/cards/287168",
+        "cardmarketId": 770259,
+        "cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/Ursulas-Return/Agustin-Madrigal-Clumsy-Dad?language=1",
+        "tcgPlayerId": 549618,
+        "tcgPlayerUrl": "https://www.tcgplayer.com/product/549618"
+      },
+      "flavorText": "Falling for Julieta was the easiest thing he'd ever\ndone.",
+      "foilTypes": [
+        "None",
+        "Silver"
+      ],
+      "fullIdentifier": "1/204 \u2022 EN \u2022 4",
+      "fullName": "Agustin Madrigal - Clumsy Dad",
+      "fullText": "",
+      "fullTextSections": [],
+      "id": 692,
+      "images": {
+        "foilMask": "https://api.lorcana.ravensburger.com/images/en/set4/1_e1b7bfca03ec6dd3b58b8a698075c3556fb045ef.jpg",
+        "full": "https://api.lorcana.ravensburger.com/images/en/set4/1_f87864076f72760374435808ea620cc42e43f8a9.jpg",
+        "thumbnail": "https://api.lorcana.ravensburger.com/images/en/set4/1_31362daf0f7ca855a318dabb2bcd78f62fb43c53.jpg"
+      },
+      "inkwell": true,
+      "lore": 1,
+      "name": "Agustin Madrigal",
+      "number": 1,
+      "rarity": "Common",
+      "setCode": "4",
+      "simpleName": "agustin madrigal clumsy dad",
+      "story": "Encanto",
+      "strength": 2,
+      "subtypes": [
+        "Storyborn",
+        "Mentor",
+        "Madrigal"
+      ],
+      "subtypesText": "Storyborn \u2022 Mentor \u2022 Madrigal",
+      "type": "Character",
+      "version": "Clumsy Dad",
+      "willpower": 2
+    },
+    {
+      "abilities": [
+        {
+          "fullText": "Singer 9 (This character counts as cost 9 to sing\nsongs.)",
+          "keyword": "Singer",
+          "keywordValue": "9",
+          "keywordValueNumber": 9,
+          "reminderText": "This character counts as cost 9 to sing songs.",
+          "type": "keyword"
+        },
+        {
+          "effect": "Whenever this character sings a song, your other Princess characters get +1 \u25ca this turn.",
+          "fullText": "BEAUTIFUL VOICE Whenever this character sings\na song, your other Princess characters get +1 \u25ca\nthis turn.",
+          "name": "BEAUTIFUL VOICE",
+          "type": "triggered"
+        }
+      ],
+      "allowedInFormats": {
+        "Core": {
+          "allowed": false,
+          "allowedUntilDate": "2025-09-05"
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2024-06-07",
+      "artists": [
+        "noc4urne"
+      ],
+      "artistsText": "noc4urne",
+      "baseId": 695,
+      "code": "es",
+      "color": "Amber",
+      "cost": 5,
+      "externalLinks": {
+        "cardTraderId": 287244,
+        "cardTraderUrl": "https://www.cardtrader.com/cards/287244",
+        "cardmarketId": 770396,
+        "cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/Ursulas-Return/Cinderella-Melody-Weaver-V2?language=1",
+        "tcgPlayerId": 550544,
+        "tcgPlayerUrl": "https://www.tcgplayer.com/product/550544"
+      },
+      "foilTypes": [
+        "Lava"
+      ],
+      "fullIdentifier": "205/204 \u2022 EN \u2022 4",
+      "fullName": "Cinderella - Melody Weaver",
+      "fullText": "Singer 9 (This character counts as cost 9 to sing\nsongs.)\nBEAUTIFUL VOICE Whenever this character sings\na song, your other Princess characters get +1 \u25ca\nthis turn.",
+      "fullTextSections": [
+        "Singer 9 (This character counts as cost 9 to sing\nsongs.)",
+        "BEAUTIFUL VOICE Whenever this character sings\na song, your other Princess characters get +1 \u25ca\nthis turn."
+      ],
+      "id": 896,
+      "images": {
+        "foilMask": "https://api.lorcana.ravensburger.com/images/en/set4/205_825e61470933d5a9e444a8ff7792d6d8ac526c37.jpg",
+        "full": "https://api.lorcana.ravensburger.com/images/en/set4/205_ef71ff654b0dbb7bb85954f0365e6ff601ec01cf.jpg",
+        "thumbnail": "https://api.lorcana.ravensburger.com/images/en/set4/205_769d77b2e3cbe931482e835a808f5698b1b68e20.jpg"
+      },
+      "inkwell": true,
+      "keywordAbilities": [
+        "Singer"
+      ],
+      "lore": 2,
+      "name": "Cinderella",
+      "number": 205,
+      "rarity": "Enchanted",
+      "setCode": "4",
+      "simpleName": "cinderella melody weaver",
+      "story": "Cinderella",
+      "strength": 1,
+      "subtypes": [
+        "Dreamborn",
+        "Hero",
+        "Princess"
+      ],
+      "subtypesText": "Dreamborn \u2022 Hero \u2022 Princess",
+      "type": "Character",
+      "version": "Melody Weaver",
+      "willpower": 5
+    },
+    {
+      "abilities": [
+        {
+          "fullText": "Shift 5 (You may pay 5 \u2b21 to play this on top of one of your\ncharacters named Mulan.)",
+          "keyword": "Shift",
+          "keywordValue": "5",
+          "keywordValueNumber": 5,
+          "reminderText": "You may pay 5 \u2b21 to play this on top of one of your characters named Mulan.",
+          "type": "keyword"
+        },
+        {
+          "effect": "When you play this character, if you used Shift to play her, she gets +3 \u00a4 this turn.",
+          "fullText": "STRAIGHT SHOOTER When you play this character, if you\nused Shift to play her, she gets +3 \u00a4 this turn.",
+          "name": "STRAIGHT SHOOTER",
+          "type": "triggered"
+        },
+        {
+          "effect": "During your turn, whenever this character deals damage to another character in a challenge, deal the same amount of damage to up to 2 other chosen characters.",
+          "fullText": "TRIPLE SHOT During your turn, whenever this character\ndeals damage to another character in a challenge, deal the\nsame amount of damage to up to 2 other chosen characters.",
+          "name": "TRIPLE SHOT",
+          "type": "triggered"
+        }
+      ],
+      "allowedInFormats": {
+        "Core": {
+          "allowed": true
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2024-06-07",
+      "artists": [
+        "Nicola Saviori"
+      ],
+      "artistsText": "Nicola Saviori",
+      "baseId": 805,
+      "code": "fi",
+      "color": "Ruby",
+      "cost": 6,
+      "externalLinks": {
+        "cardTraderId": 282824,
+        "cardTraderUrl": "https://www.cardtrader.com/cards/282824",
+        "cardmarketId": 767844,
+        "cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/Ursulas-Return/Mulan-Elite-Archer-V2?language=1",
+        "tcgPlayerId": 544494,
+        "tcgPlayerUrl": "https://www.tcgplayer.com/product/544494"
+      },
+      "foilTypes": [
+        "Silver"
+      ],
+      "fullIdentifier": "224/204 \u2022 EN \u2022 4",
+      "fullName": "Mulan - Elite Archer",
+      "fullText": "Shift 5 (You may pay 5 \u2b21 to play this on top of one of your\ncharacters named Mulan.)\nSTRAIGHT SHOOTER When you play this character, if you\nused Shift to play her, she gets +3 \u00a4 this turn.\nTRIPLE SHOT During your turn, whenever this character\ndeals damage to another character in a challenge, deal the\nsame amount of damage to up to 2 other chosen characters.",
+      "fullTextSections": [
+        "Shift 5 (You may pay 5 \u2b21 to play this on top of one of your\ncharacters named Mulan.)",
+        "STRAIGHT SHOOTER When you play this character, if you\nused Shift to play her, she gets +3 \u00a4 this turn.",
+        "TRIPLE SHOT During your turn, whenever this character\ndeals damage to another character in a challenge, deal the\nsame amount of damage to up to 2 other chosen characters."
+      ],
+      "id": 948,
+      "images": {
+        "foilMask": "https://api.lorcana.ravensburger.com/images/en/set4/224_16fddb515e47e79617d0bf247c0f7af2702bc58c.jpg",
+        "full": "https://api.lorcana.ravensburger.com/images/en/set4/224_416a3e861939dc49524df1fdba2a1c9412717f6e.jpg",
+        "thumbnail": "https://api.lorcana.ravensburger.com/images/en/set4/224_5353848f17d4f560b8ffb10ef0e5aa17463f4125.jpg"
+      },
+      "inkwell": true,
+      "keywordAbilities": [
+        "Shift"
+      ],
+      "lore": 2,
+      "name": "Mulan",
+      "number": 224,
+      "rarity": "Legendary",
+      "setCode": "4",
+      "simpleName": "mulan elite archer",
+      "story": "Mulan",
+      "strength": 2,
+      "subtypes": [
+        "Floodborn",
+        "Hero",
+        "Princess"
+      ],
+      "subtypesText": "Floodborn \u2022 Hero \u2022 Princess",
+      "type": "Character",
+      "version": "Elite Archer",
+      "willpower": 6
+    },
+    {
+      "abilities": [
+        {
+          "effect": "During opponents' turns, you can't lose lore.",
+          "fullText": "TELL EVERYBODY During opponents' turns, you\ncan't lose lore.",
+          "name": "TELL EVERYBODY",
+          "type": "static"
+        }
+      ],
+      "allowedInFormats": {
+        "Core": {
+          "allowed": true
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2024-08-30",
+      "artists": [
+        "Therese Vildefall"
+      ],
+      "artistsText": "Therese Vildefall",
+      "code": "fr",
+      "color": "Amber",
+      "cost": 2,
+      "externalLinks": {
+        "cardTraderId": 294408,
+        "cardTraderUrl": "https://www.cardtrader.com/cards/294408",
+        "cardmarketId": 781324,
+        "cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/Shimmering-Skies/Koda-Talkative-Cub?language=1",
+        "tcgPlayerId": 560505,
+        "tcgPlayerUrl": "https://www.tcgplayer.com/product/560505"
+      },
+      "flavorText": "\u201cI mean, I don't want to brag or nothing, but I got\nsome moves.\u201d",
+      "foilTypes": [
+        "None",
+        "Silver"
+      ],
+      "fullIdentifier": "1/204 \u2022 EN \u2022 5",
+      "fullName": "Koda - Talkative Cub",
+      "fullText": "TELL EVERYBODY During opponents' turns, you\ncan't lose lore.",
+      "fullTextSections": [
+        "TELL EVERYBODY During opponents' turns, you\ncan't lose lore."
+      ],
+      "id": 957,
+      "images": {
+        "foilMask": "https://api.lorcana.ravensburger.com/images/en/set5/1_d867a1073923d09605251a75e922e3a7940979e6.jpg",
+        "full": "https://api.lorcana.ravensburger.com/images/en/set5/1_91b50444e296a71032e64adb2e9fca7c927a8063.jpg",
+        "thumbnail": "https://api.lorcana.ravensburger.com/images/en/set5/1_846e74e7ff291c50c1f2b87889dd9f332b463ab4.jpg"
+      },
+      "inkwell": true,
+      "lore": 2,
+      "name": "Koda",
+      "number": 1,
+      "rarity": "Rare",
+      "setCode": "5",
+      "simpleName": "koda talkative cub",
+      "story": "Brother Bear",
+      "strength": 2,
+      "subtypes": [
+        "Storyborn",
+        "Ally"
+      ],
+      "subtypesText": "Storyborn \u2022 Ally",
+      "type": "Character",
+      "version": "Talkative Cub",
+      "willpower": 1
+    },
+    {
+      "abilities": [
+        {
+          "fullText": "Singer 6 (This character counts as cost 6 to\nsing songs.)",
+          "keyword": "Singer",
+          "keywordValue": "6",
+          "keywordValueNumber": 6,
+          "reminderText": "This character counts as cost 6 to sing songs.",
+          "type": "keyword"
+        },
+        {
+          "effect": "When you play this character, you may play a song with cost 6 or less for free.",
+          "fullText": "IT'S BEAUTIFUL, NO? When you play this\ncharacter, you may play a song with cost 6 or\nless for free.",
+          "name": "IT'S BEAUTIFUL, NO?",
+          "type": "triggered"
+        }
+      ],
+      "allowedInFormats": {
+        "Core": {
+          "allowed": true
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2024-08-30",
+      "artists": [
+        "Aisha Durmagambetova"
+      ],
+      "artistsText": "Aisha Durmagambetova",
+      "baseId": 959,
+      "code": "iJ",
+      "color": "Amber",
+      "cost": 4,
+      "externalLinks": {
+        "cardTraderId": 295704,
+        "cardTraderUrl": "https://www.cardtrader.com/cards/295704",
+        "cardmarketId": 781528,
+        "cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/Shimmering-Skies/Prince-Naveen-Ukulele-Player-V2?language=1",
+        "tcgPlayerId": 561993,
+        "tcgPlayerUrl": "https://www.tcgplayer.com/product/561993"
+      },
+      "foilTypes": [
+        "VerticalWave"
+      ],
+      "fullIdentifier": "205/204 \u2022 EN \u2022 5",
+      "fullName": "Prince Naveen - Ukulele Player",
+      "fullText": "Singer 6 (This character counts as cost 6 to\nsing songs.)\nIT'S BEAUTIFUL, NO? When you play this\ncharacter, you may play a song with cost 6 or\nless for free.",
+      "fullTextSections": [
+        "Singer 6 (This character counts as cost 6 to\nsing songs.)",
+        "IT'S BEAUTIFUL, NO? When you play this\ncharacter, you may play a song with cost 6 or\nless for free."
+      ],
+      "id": 1161,
+      "images": {
+        "foilMask": "https://api.lorcana.ravensburger.com/images/en/set5/205_2dead20d1397ba0ea211be7f01890aaf16fc63a4.jpg",
+        "full": "https://api.lorcana.ravensburger.com/images/en/set5/205_fc99764b71ce0197950c6926cdb2b0962838cc34.jpg",
+        "thumbnail": "https://api.lorcana.ravensburger.com/images/en/set5/205_6cf691b12b9659693f5e4d39c7f6a5dcb03d9bd1.jpg"
+      },
+      "inkwell": false,
+      "keywordAbilities": [
+        "Singer"
+      ],
+      "lore": 2,
+      "name": "Prince Naveen",
+      "number": 205,
+      "rarity": "Enchanted",
+      "setCode": "5",
+      "simpleName": "prince naveen ukulele player",
+      "story": "The Princess And The Frog",
+      "strength": 3,
+      "subtypes": [
+        "Storyborn",
+        "Hero",
+        "Prince"
+      ],
+      "subtypesText": "Storyborn \u2022 Hero \u2022 Prince",
+      "type": "Character",
+      "version": "Ukulele Player",
+      "willpower": 3
+    },
+    {
+      "abilities": [
+        {
+          "effect": "During your turn, whenever a card is put into your inkwell, chosen opposing character gets -1 \u00a4 until the start of your next turn.",
+          "fullText": "WELL SPOTTED During your turn, whenever a card\nis put into your inkwell, chosen opposing character\ngets -1 \u00a4 until the start of your next turn.",
+          "name": "WELL SPOTTED",
+          "type": "triggered"
+        }
+      ],
+      "allowedInFormats": {
+        "Core": {
+          "allowed": true
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2024-12-06",
+      "artists": [
+        "Omar Lozano"
+      ],
+      "artistsText": "Omar Lozano",
+      "code": "jm",
+      "color": "Amber",
+      "cost": 3,
+      "externalLinks": {
+        "cardTraderId": 306655,
+        "cardTraderUrl": "https://www.cardtrader.com/cards/306655",
+        "cardmarketId": 798978,
+        "cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/Azurite-Sea/Owl-Pirate-Lookout?language=1",
+        "tcgPlayerId": 588072,
+        "tcgPlayerUrl": "https://www.tcgplayer.com/product/588072"
+      },
+      "flavorText": "\u201cI say, land who! Er, ho\u2014land ho!\u201d",
+      "foilTypes": [
+        "None",
+        "Silver"
+      ],
+      "fullIdentifier": "1/204 \u2022 EN \u2022 6",
+      "fullName": "Owl - Pirate Lookout",
+      "fullText": "WELL SPOTTED During your turn, whenever a card\nis put into your inkwell, chosen opposing character\ngets -1 \u00a4 until the start of your next turn.",
+      "fullTextSections": [
+        "WELL SPOTTED During your turn, whenever a card\nis put into your inkwell, chosen opposing character\ngets -1 \u00a4 until the start of your next turn."
+      ],
+      "id": 1200,
+      "images": {
+        "foilMask": "https://api.lorcana.ravensburger.com/images/en/set6/1_29ee95514befeafb13161bd13e3901c322951981.jpg",
+        "full": "https://api.lorcana.ravensburger.com/images/en/set6/1_9414b0800f056cef77d5bc36272a739f7fa62f8f.jpg",
+        "thumbnail": "https://api.lorcana.ravensburger.com/images/en/set6/1_4a16d7fb0ff76e2a77c71d1f98d44d6708ff51d3.jpg"
+      },
+      "inkwell": true,
+      "lore": 1,
+      "name": "Owl",
+      "number": 1,
+      "rarity": "Uncommon",
+      "setCode": "6",
+      "simpleName": "owl pirate lookout",
+      "story": "Winnie the Pooh",
+      "strength": 3,
+      "subtypes": [
+        "Storyborn",
+        "Ally",
+        "Pirate"
+      ],
+      "subtypesText": "Storyborn \u2022 Ally \u2022 Pirate",
+      "type": "Character",
+      "version": "Pirate Lookout",
+      "willpower": 3
+    },
+    {
+      "abilities": [
+        {
+          "fullText": "Shift 5 (You may pay 5 \u2b21 to play this on top of one of\nyour characters named Chip or Dale.)",
+          "keyword": "Shift",
+          "keywordValue": "5",
+          "keywordValueNumber": 5,
+          "reminderText": "You may pay 5 \u2b21 to play this on top of one of your characters named Chip or Dale.",
+          "type": "keyword"
+        },
+        {
+          "effect": "This character counts as being named both Chip and Dale.",
+          "fullText": "(This character counts as being named both Chip and Dale.)",
+          "type": "static"
+        },
+        {
+          "effect": "During your turn, whenever a card is put into your inkwell, you may return a character card from your discard to your hand.",
+          "fullText": "SEARCH AND RESCUE During your turn, whenever a card\nis put into your inkwell, you may return a character card\nfrom your discard to your hand.",
+          "name": "SEARCH AND RESCUE",
+          "type": "triggered"
+        }
+      ],
+      "allowedInFormats": {
+        "Core": {
+          "allowed": true
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2024-12-06",
+      "artists": [
+        "Jennifer Park"
+      ],
+      "artistsText": "Jennifer Park",
+      "baseId": 1213,
+      "code": "mE",
+      "color": "Amber",
+      "cost": 8,
+      "externalLinks": {
+        "cardTraderId": 309975,
+        "cardTraderUrl": "https://www.cardtrader.com/cards/309975",
+        "cardmarketId": 799152,
+        "cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/Azurite-Sea/Chip-n-Dale-Recovery-Rangers-V2?language=1",
+        "tcgPlayerId": 592030,
+        "tcgPlayerUrl": "https://www.tcgplayer.com/product/592030"
+      },
+      "foilTypes": [
+        "VerticalWave"
+      ],
+      "fullIdentifier": "205/204 \u2022 EN \u2022 6",
+      "fullName": "Chip 'n' Dale - Recovery Rangers",
+      "fullText": "Shift 5 (You may pay 5 \u2b21 to play this on top of one of\nyour characters named Chip or Dale.)\n(This character counts as being named both Chip and Dale.)\nSEARCH AND RESCUE During your turn, whenever a card\nis put into your inkwell, you may return a character card\nfrom your discard to your hand.",
+      "fullTextSections": [
+        "Shift 5 (You may pay 5 \u2b21 to play this on top of one of\nyour characters named Chip or Dale.)",
+        "(This character counts as being named both Chip and Dale.)",
+        "SEARCH AND RESCUE During your turn, whenever a card\nis put into your inkwell, you may return a character card\nfrom your discard to your hand."
+      ],
+      "id": 1404,
+      "images": {
+        "foilMask": "https://api.lorcana.ravensburger.com/images/en/set6/205_55febb9d0c34ec8f1680995af519c07bf8db2897.jpg",
+        "full": "https://api.lorcana.ravensburger.com/images/en/set6/205_558de9c855ba2af29aa69353b537bc046fc3b6a1.jpg",
+        "thumbnail": "https://api.lorcana.ravensburger.com/images/en/set6/205_23cecf3632283f06406291c6f15bb79dee64ef09.jpg"
+      },
+      "inkwell": false,
+      "keywordAbilities": [
+        "Shift"
+      ],
+      "lore": 3,
+      "name": "Chip 'n' Dale",
+      "number": 205,
+      "rarity": "Enchanted",
+      "setCode": "6",
+      "simpleName": "chip 'n' dale recovery rangers",
+      "story": "Chip 'n Dale: Rescue Rangers",
+      "strength": 6,
+      "subtypes": [
+        "Floodborn",
+        "Hero"
+      ],
+      "subtypesText": "Floodborn \u2022 Hero",
+      "type": "Character",
+      "version": "Recovery Rangers",
+      "willpower": 6
+    },
+    {
+      "abilities": [
+        {
+          "effect": "Your other characters get +2 \u26c9.",
+          "fullText": "DESTINY CALLING Your other characters get +2 \u26c9.",
+          "name": "DESTINY CALLING",
+          "type": "static"
+        }
+      ],
+      "allowedInFormats": {
+        "Core": {
+          "allowed": true
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2025-03-28",
+      "artists": [
+        "Stefano Zanchi"
+      ],
+      "artistsText": "Stefano Zanchi",
+      "code": "n8",
+      "color": "Amber-Steel",
+      "colors": [
+        "Amber",
+        "Steel"
+      ],
+      "cost": 6,
+      "externalLinks": {
+        "cardTraderId": 322728,
+        "cardTraderUrl": "https://www.cardtrader.com/cards/322728",
+        "cardmarketId": 814035,
+        "cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/Archazias-Island/Rhino-Motivational-Speaker?language=1",
+        "tcgPlayerId": 619407,
+        "tcgPlayerUrl": "https://www.tcgplayer.com/product/619407"
+      },
+      "flavorText": "\u201cDon't forget, you are awesome. You can handle\nanything. Now channel your inner awesomeness and\nCLEAR THIS TRAP!\u201d",
+      "foilTypes": [
+        "None",
+        "Silver"
+      ],
+      "fullIdentifier": "1/204 \u2022 EN \u2022 7",
+      "fullName": "Rhino - Motivational Speaker",
+      "fullText": "DESTINY CALLING Your other characters get +2 \u26c9.",
+      "fullTextSections": [
+        "DESTINY CALLING Your other characters get +2 \u26c9."
+      ],
+      "id": 1434,
+      "images": {
+        "foilMask": "https://api.lorcana.ravensburger.com/images/en/set7/1_e7e5a8f7a49f4ad3c85016dc39f43b0b5b400329.jpg",
+        "full": "https://api.lorcana.ravensburger.com/images/en/set7/1_a32a6dfd2862b3c52e889edcbb8022fd19d42af5.jpg",
+        "thumbnail": "https://api.lorcana.ravensburger.com/images/en/set7/1_7ddb6a0038d87c1695a8f5187ada289314c5c8b1.jpg"
+      },
+      "inkwell": false,
+      "lore": 2,
+      "name": "Rhino",
+      "number": 1,
+      "rarity": "Rare",
+      "setCode": "7",
+      "simpleName": "rhino motivational speaker",
+      "story": "Bolt",
+      "strength": 4,
+      "subtypes": [
+        "Storyborn",
+        "Ally"
+      ],
+      "subtypesText": "Storyborn \u2022 Ally",
+      "type": "Character",
+      "version": "Motivational Speaker",
+      "willpower": 7
+    },
+    {
+      "abilities": [
+        {
+          "fullText": "Singer 5 (This character counts as cost 5 to sing\nsongs.)",
+          "keyword": "Singer",
+          "keywordValue": "5",
+          "keywordValueNumber": 5,
+          "reminderText": "This character counts as cost 5 to sing songs.",
+          "type": "keyword"
+        },
+        {
+          "effect": "Whenever you remove 1 or more damage from a character, ready this character. She can't quest or challenge for the rest of this turn.",
+          "fullText": "SWEET DREAMS Whenever you remove 1 or more\ndamage from a character, ready this character.\nShe can't quest or challenge for the rest of this\nturn.",
+          "name": "SWEET DREAMS",
+          "type": "triggered"
+        }
+      ],
+      "allowedInFormats": {
+        "Core": {
+          "allowed": true
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2025-03-28",
+      "artists": [
+        "Viv Tanner"
+      ],
+      "artistsText": "Viv Tanner",
+      "baseId": 1447,
+      "code": "qq",
+      "color": "Amber",
+      "cost": 3,
+      "externalLinks": {
+        "cardTraderId": 323980,
+        "cardTraderUrl": "https://www.cardtrader.com/cards/323980",
+        "cardmarketId": 814239,
+        "cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/Archazias-Island/Aurora-Waking-Beauty-V2?language=1",
+        "tcgPlayerId": 619733,
+        "tcgPlayerUrl": "https://www.tcgplayer.com/product/619733"
+      },
+      "foilTypes": [
+        "VerticalWave"
+      ],
+      "fullIdentifier": "205/204 \u2022 EN \u2022 7",
+      "fullName": "Aurora - Waking Beauty",
+      "fullText": "Singer 5 (This character counts as cost 5 to sing\nsongs.)\nSWEET DREAMS Whenever you remove 1 or more\ndamage from a character, ready this character.\nShe can't quest or challenge for the rest of this\nturn.",
+      "fullTextSections": [
+        "Singer 5 (This character counts as cost 5 to sing\nsongs.)",
+        "SWEET DREAMS Whenever you remove 1 or more\ndamage from a character, ready this character.\nShe can't quest or challenge for the rest of this\nturn."
+      ],
+      "id": 1638,
+      "images": {
+        "foilMask": "https://api.lorcana.ravensburger.com/images/en/set7/205_ca3479e80ae826a14a01ef1b22f8cb6b28bc2bf1.jpg",
+        "full": "https://api.lorcana.ravensburger.com/images/en/set7/205_5ce8986304b4ce1016c260044664bcb1f56369f0.jpg",
+        "thumbnail": "https://api.lorcana.ravensburger.com/images/en/set7/205_4be08ff873a8988385acc52f03ce1c9538bc8a3d.jpg"
+      },
+      "inkwell": true,
+      "keywordAbilities": [
+        "Singer"
+      ],
+      "lore": 2,
+      "name": "Aurora",
+      "number": 205,
+      "rarity": "Enchanted",
+      "setCode": "7",
+      "simpleName": "aurora waking beauty",
+      "story": "Sleeping Beauty",
+      "strength": 1,
+      "subtypes": [
+        "Storyborn",
+        "Hero",
+        "Princess"
+      ],
+      "subtypesText": "Storyborn \u2022 Hero \u2022 Princess",
+      "type": "Character",
+      "version": "Waking Beauty",
+      "willpower": 4
+    },
+    {
+      "abilities": [
+        {
+          "fullText": "Shift 4 (You may pay 4 \u2b21 to play this on top of one\nof your characters named Elsa.)",
+          "keyword": "Shift",
+          "keywordValue": "4",
+          "keywordValueNumber": 4,
+          "reminderText": "You may pay 4 \u2b21 to play this on top of one of your characters named Elsa.",
+          "type": "keyword"
+        },
+        {
+          "effect": "Whenever this character quests, you may exert chosen character. If you do and you have a character named Anna in play, the chosen character can't ready at the start of their next turn.",
+          "fullText": "WINTER WALL Whenever this character quests,\nyou may exert chosen character. If you do and you\nhave a character named Anna in play, the chosen\ncharacter can't ready at the start of their next turn.",
+          "name": "WINTER WALL",
+          "type": "triggered"
+        }
+      ],
+      "allowedInFormats": {
+        "Core": {
+          "allowed": true
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2025-03-28",
+      "artists": [
+        "Ian MacDonald"
+      ],
+      "artistsText": "Ian MacDonald",
+      "baseId": 1502,
+      "code": "va",
+      "color": "Amethyst-Sapphire",
+      "colors": [
+        "Amethyst",
+        "Sapphire"
+      ],
+      "cost": 7,
+      "externalLinks": {
+        "cardTraderId": 332020,
+        "cardTraderUrl": "https://www.cardtrader.com/cards/332020",
+        "cardmarketId": 826597,
+        "cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/Archazias-Island/Elsa-Ice-Maker-V2?language=1",
+        "tcgPlayerId": 634265,
+        "tcgPlayerUrl": "https://www.tcgplayer.com/product/634265"
+      },
+      "foilTypes": [
+        "SeaWave"
+      ],
+      "fullIdentifier": "224/204 \u2022 EN \u2022 7",
+      "fullName": "Elsa - Ice Maker",
+      "fullText": "Shift 4 (You may pay 4 \u2b21 to play this on top of one\nof your characters named Elsa.)\nWINTER WALL Whenever this character quests,\nyou may exert chosen character. If you do and you\nhave a character named Anna in play, the chosen\ncharacter can't ready at the start of their next turn.",
+      "fullTextSections": [
+        "Shift 4 (You may pay 4 \u2b21 to play this on top of one\nof your characters named Elsa.)",
+        "WINTER WALL Whenever this character quests,\nyou may exert chosen character. If you do and you\nhave a character named Anna in play, the chosen\ncharacter can't ready at the start of their next turn."
+      ],
+      "id": 1932,
+      "images": {
+        "foilMask": "https://api.lorcana.ravensburger.com/images/en/set7/224_b297b488f8166ee9149f3faf29de09c7981b0b82.jpg",
+        "full": "https://api.lorcana.ravensburger.com/images/en/set7/224_c79a27d6430b8f6f4f3ac46ace6db6e182e5fc7f.jpg",
+        "thumbnail": "https://api.lorcana.ravensburger.com/images/en/set7/224_27be875370d3b36b96b85ac554ccf5770d29e284.jpg"
+      },
+      "inkwell": false,
+      "keywordAbilities": [
+        "Shift"
+      ],
+      "lore": 2,
+      "name": "Elsa",
+      "number": 224,
+      "rarity": "Super Rare",
+      "setCode": "7",
+      "simpleName": "elsa ice maker",
+      "story": "Frozen",
+      "strength": 5,
+      "subtypes": [
+        "Floodborn",
+        "Hero",
+        "Queen",
+        "Sorcerer"
+      ],
+      "subtypesText": "Floodborn \u2022 Hero \u2022 Queen \u2022 Sorcerer",
+      "type": "Character",
+      "version": "Ice Maker",
+      "willpower": 5
+    },
+    {
+      "abilities": [
+        {
+          "effect": "While this character is being challenged, the challenging character gets -1 \u00a4.",
+          "fullText": "SPRING THE TRAP While this character is being\nchallenged, the challenging character gets -1 \u00a4.",
+          "name": "SPRING THE TRAP",
+          "type": "static"
+        }
+      ],
+      "allowedInFormats": {
+        "Core": {
+          "allowed": true
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2025-06-20",
+      "artists": [
+        "Federico Maria Cugliari"
+      ],
+      "artistsText": "Federico Maria Cugliari",
+      "code": "qR",
+      "color": "Amber",
+      "cost": 3,
+      "externalLinks": {
+        "cardTraderId": 334318,
+        "cardTraderUrl": "https://www.cardtrader.com/cards/334318",
+        "cardmarketId": 826334,
+        "cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/Reign-of-Jafar/Louie-One-Cool-Duck-V1?language=1",
+        "tcgPlayerId": 631349,
+        "tcgPlayerUrl": "https://www.tcgplayer.com/product/631349"
+      },
+      "flavorText": "\u201cThe snakes are cool, I guess. Pretty standard\ntrap, though.\u201d",
+      "foilTypes": [
+        "None",
+        "Silver"
+      ],
+      "fullIdentifier": "1/204 \u2022 EN \u2022 8",
+      "fullName": "Louie - One Cool Duck",
+      "fullText": "SPRING THE TRAP While this character is being\nchallenged, the challenging character gets -1 \u00a4.",
+      "fullTextSections": [
+        "SPRING THE TRAP While this character is being\nchallenged, the challenging character gets -1 \u00a4."
+      ],
+      "id": 1665,
+      "images": {
+        "foilMask": "https://api.lorcana.ravensburger.com/images/en/set8/1_1123f34eb8cd806bdc60ccb5da04bd0e150c7c32.jpg",
+        "full": "https://api.lorcana.ravensburger.com/images/en/set8/1_cc9920a269e2ac64924de1c0aee9d1a0814969d1.jpg",
+        "fullFoil": "https://api.lorcana.ravensburger.com/images/en/set8/1_7cfa5a75f47aa865e9553aff888ddc654a597d20.jpg",
+        "thumbnail": "https://api.lorcana.ravensburger.com/images/en/set8/1_1d626efc983d7a2b13e71f4731dfef4fd9ae6b79.jpg"
+      },
+      "inkwell": true,
+      "lore": 2,
+      "name": "Louie",
+      "number": 1,
+      "rarity": "Uncommon",
+      "setCode": "8",
+      "simpleName": "louie one cool duck",
+      "story": "DuckTales",
+      "strength": 2,
+      "subtypes": [
+        "Storyborn",
+        "Ally"
+      ],
+      "subtypesText": "Storyborn \u2022 Ally",
+      "type": "Character",
+      "version": "One Cool Duck",
+      "willpower": 3
+    },
+    {
+      "abilities": [
+        {
+          "effect": "Whenever you play a character, this character gets +1 \u00a4 this turn.",
+          "fullText": "PACK OF HER OWN Whenever you play a\ncharacter, this character gets +1 \u00a4 this turn.",
+          "name": "PACK OF HER OWN",
+          "type": "triggered"
+        },
+        {
+          "effect": "While this character has 3 \u00a4 or more, she gets +2 \u25ca.",
+          "fullText": "TAKE THE LEAD While this character has 3 \u00a4\nor more, she gets +2 \u25ca.",
+          "name": "TAKE THE LEAD",
+          "type": "static"
+        }
+      ],
+      "allowedInFormats": {
+        "Core": {
+          "allowed": true
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2025-06-20",
+      "artists": [
+        "Juan Diego Le\u00f3n"
+      ],
+      "artistsText": "Juan Diego Le\u00f3n",
+      "baseId": 1697,
+      "code": "u9",
+      "color": "Amber-Emerald",
+      "colors": [
+        "Amber",
+        "Emerald"
+      ],
+      "cost": 1,
+      "externalLinks": {
+        "cardTraderId": 333591,
+        "cardTraderUrl": "https://www.cardtrader.com/cards/333591",
+        "cardmarketId": 826543,
+        "cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/Reign-of-Jafar/Lady-Decisive-Dog-V2?language=1",
+        "tcgPlayerId": 633053,
+        "tcgPlayerUrl": "https://www.tcgplayer.com/product/633053"
+      },
+      "foilTypes": [
+        "VerticalWave"
+      ],
+      "fullIdentifier": "205/204 \u2022 EN \u2022 8",
+      "fullName": "Lady - Decisive Dog",
+      "fullText": "PACK OF HER OWN Whenever you play a\ncharacter, this character gets +1 \u00a4 this turn.\nTAKE THE LEAD While this character has 3 \u00a4\nor more, she gets +2 \u25ca.",
+      "fullTextSections": [
+        "PACK OF HER OWN Whenever you play a\ncharacter, this character gets +1 \u00a4 this turn.",
+        "TAKE THE LEAD While this character has 3 \u00a4\nor more, she gets +2 \u25ca."
+      ],
+      "id": 1869,
+      "images": {
+        "foilMask": "https://api.lorcana.ravensburger.com/images/en/set8/205_c33fa3f41ef9460973e2229ec3ad4697be56242b.jpg",
+        "full": "https://api.lorcana.ravensburger.com/images/en/set8/205_4b8c734d29d78935c0737f2b1b970809e67f76ea.jpg",
+        "thumbnail": "https://api.lorcana.ravensburger.com/images/en/set8/205_5a2d5242ef7691e0d5fdfa1b277a87637a4dca36.jpg"
+      },
+      "inkwell": true,
+      "lore": 1,
+      "name": "Lady",
+      "number": 205,
+      "promoIds": [
+        1888
+      ],
+      "rarity": "Enchanted",
+      "setCode": "8",
+      "simpleName": "lady decisive dog",
+      "story": "Lady and the Tramp",
+      "strength": 0,
+      "subtypes": [
+        "Storyborn",
+        "Hero"
+      ],
+      "subtypesText": "Storyborn \u2022 Hero",
+      "type": "Character",
+      "version": "Decisive Dog",
+      "willpower": 3
+    },
+    {
+      "abilities": [
+        {
+          "fullText": "Evasive (Only characters with Evasive can\nchallenge this character.)",
+          "keyword": "Evasive",
+          "reminderText": "Only characters with Evasive can challenge this character.",
+          "type": "keyword"
+        },
+        {
+          "effect": "Once during your turn, whenever you ready this character, you may draw a card.",
+          "fullText": "GOT TO KEEP REAL QUIET Once during your turn,\nwhenever you ready this character, you may draw\na card.",
+          "name": "GOT TO KEEP REAL QUIET",
+          "type": "triggered"
+        }
+      ],
+      "allowedInFormats": {
+        "Core": {
+          "allowed": true
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2025-06-20",
+      "artists": [
+        "Hedvig H-S"
+      ],
+      "artistsText": "Hedvig H-S",
+      "baseId": 1725,
+      "code": "vc",
+      "color": "Amethyst",
+      "cost": 4,
+      "externalLinks": {
+        "cardTraderId": 334377,
+        "cardTraderUrl": "https://www.cardtrader.com/cards/334377",
+        "cardmarketId": 826562,
+        "cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/Reign-of-Jafar/Pinocchio-Strings-Attached-V2?language=1",
+        "tcgPlayerId": 634264,
+        "tcgPlayerUrl": "https://www.tcgplayer.com/product/634264"
+      },
+      "foilTypes": [
+        "SeaWave"
+      ],
+      "fullIdentifier": "224/204 \u2022 EN \u2022 8",
+      "fullName": "Pinocchio - Strings Attached",
+      "fullText": "Evasive (Only characters with Evasive can\nchallenge this character.)\nGOT TO KEEP REAL QUIET Once during your turn,\nwhenever you ready this character, you may draw\na card.",
+      "fullTextSections": [
+        "Evasive (Only characters with Evasive can\nchallenge this character.)",
+        "GOT TO KEEP REAL QUIET Once during your turn,\nwhenever you ready this character, you may draw\na card."
+      ],
+      "id": 1934,
+      "images": {
+        "foilMask": "https://api.lorcana.ravensburger.com/images/en/set8/224_3960b32ffba6ccda52ceaf7eaa72b8aa776c2cca.jpg",
+        "full": "https://api.lorcana.ravensburger.com/images/en/set8/224_38fa74e31bdf7c0ba242f464c87780ddc2c3c239.jpg",
+        "thumbnail": "https://api.lorcana.ravensburger.com/images/en/set8/224_bbf5463f019c4689a2da738aba3df872673adfa6.jpg",
+        "varnishMask": "https://api.lorcana.ravensburger.com/images/en/set8/224_e8ef51a382ebd123f56a5bf9144275cd13725d6d.jpg"
+      },
+      "inkwell": true,
+      "keywordAbilities": [
+        "Evasive"
+      ],
+      "lore": 2,
+      "name": "Pinocchio",
+      "number": 224,
+      "rarity": "Legendary",
+      "setCode": "8",
+      "simpleName": "pinocchio strings attached",
+      "story": "Pinocchio",
+      "strength": 0,
+      "subtypes": [
+        "Storyborn",
+        "Hero"
+      ],
+      "subtypesText": "Storyborn \u2022 Hero",
+      "type": "Character",
+      "varnishType": "HighGloss",
+      "version": "Strings Attached",
+      "willpower": 4
+    },
+    {
+      "abilities": [
+        {
+          "fullText": "Evasive (Only characters with Evasive can challenge\nthis character.)",
+          "keyword": "Evasive",
+          "reminderText": "Only characters with Evasive can challenge this character.",
+          "type": "keyword"
+        },
+        {
+          "costs": [
+            "\u27f3"
+          ],
+          "costsText": "\u27f3",
+          "effect": "Name a card, then reveal the top card of your deck. If it's the named card, put it into your hand and gain 3 lore. Otherwise, put it on the top of your deck.",
+          "fullText": "YOU JUST HAVE TO SEE IT \u27f3 \u2014 Name a card, then\nreveal the top card of your deck. If it's the named\ncard, put it into your hand and gain 3 lore. Otherwise,\nput it on the top of your deck.",
+          "name": "YOU JUST HAVE TO SEE IT",
+          "type": "activated"
+        }
+      ],
+      "allowedInFormats": {
+        "Core": {
+          "allowed": true
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2024-06-07",
+      "artists": [
+        "Juan Diego Le\u00f3n"
+      ],
+      "artistsText": "Juan Diego Le\u00f3n",
+      "code": "ve",
+      "color": "Amethyst",
+      "cost": 4,
+      "externalLinks": {
+        "cardTraderId": 347408,
+        "cardTraderUrl": "https://www.cardtrader.com/cards/347408",
+        "cardmarketId": 844191,
+        "cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/Fabled/Bruno-Madrigal-Undetected-Uncle?language=1",
+        "tcgPlayerId": 651127,
+        "tcgPlayerUrl": "https://www.tcgplayer.com/product/651127"
+      },
+      "foilTypes": [
+        "None",
+        "Silver"
+      ],
+      "fullIdentifier": "0/204 \u2022 EN \u2022 9",
+      "fullName": "Bruno Madrigal - Undetected Uncle",
+      "fullText": "Evasive (Only characters with Evasive can challenge\nthis character.)\nYOU JUST HAVE TO SEE IT \u27f3 \u2014 Name a card, then\nreveal the top card of your deck. If it's the named\ncard, put it into your hand and gain 3 lore. Otherwise,\nput it on the top of your deck.",
+      "fullTextSections": [
+        "Evasive (Only characters with Evasive can challenge\nthis character.)",
+        "YOU JUST HAVE TO SEE IT \u27f3 \u2014 Name a card, then\nreveal the top card of your deck. If it's the named\ncard, put it into your hand and gain 3 lore. Otherwise,\nput it on the top of your deck."
+      ],
+      "id": 1936,
+      "images": {
+        "foilMask": "https://api.lorcana.ravensburger.com/images/en/set9/0_cab15625c3744db1406ea62863bc61cccb9da7c5.jpg",
+        "full": "https://api.lorcana.ravensburger.com/images/en/set9/0_efc0c1177b6f8d76e49b512505c961fa4855628b.jpg",
+        "thumbnail": "https://api.lorcana.ravensburger.com/images/en/set9/0_056fe7b7709e9f6ab33e7d134bb084eca0ca74f6.jpg"
+      },
+      "inkwell": true,
+      "keywordAbilities": [
+        "Evasive"
+      ],
+      "lore": 1,
+      "name": "Bruno Madrigal",
+      "number": 0,
+      "promoIds": [
+        1194
+      ],
+      "rarity": "Super Rare",
+      "reprintOfId": 730,
+      "setCode": "9",
+      "simpleName": "bruno madrigal undetected uncle",
+      "story": "Encanto",
+      "strength": 3,
+      "subtypes": [
+        "Storyborn",
+        "Ally",
+        "Madrigal"
+      ],
+      "subtypesText": "Storyborn \u2022 Ally \u2022 Madrigal",
+      "type": "Character",
+      "version": "Undetected Uncle",
+      "willpower": 3
+    },
+    {
+      "abilities": [
+        {
+          "fullText": "Support (Whenever this character quests, you may add\ntheir \u00a4 to another chosen character's \u00a4 this turn.)",
+          "keyword": "Support",
+          "reminderText": "Whenever this character quests, you may add their \u00a4 to another chosen character's \u00a4 this turn.",
+          "type": "keyword"
+        },
+        {
+          "effect": "At the start of your turn, you may choose and discard a Princess or Queen character card to return a character card from your discard to your hand.",
+          "fullText": "ROYAL SUMMONS At the start of your turn, you may\nchoose and discard a Princess or Queen character\ncard to return a character card from your discard to\nyour hand.",
+          "name": "ROYAL SUMMONS",
+          "type": "triggered"
+        }
+      ],
+      "allowedInFormats": {
+        "Core": {
+          "allowed": true
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2025-09-19",
+      "artists": [
+        "Eri Welli"
+      ],
+      "artistsText": "Eri Welli",
+      "baseId": 1937,
+      "code": "yP",
+      "color": "Amber",
+      "cost": 3,
+      "externalLinks": {
+        "cardTraderId": 346494,
+        "cardTraderUrl": "https://www.cardtrader.com/cards/346494",
+        "cardmarketId": 844158,
+        "cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/Fabled/The-Queen-Conceited-Ruler-V2?language=1",
+        "tcgPlayerId": 650141,
+        "tcgPlayerUrl": "https://www.tcgplayer.com/product/650141"
+      },
+      "foilTypes": [
+        "Satin"
+      ],
+      "fullIdentifier": "205/204 \u2022 EN \u2022 9",
+      "fullName": "The Queen - Conceited Ruler",
+      "fullText": "Support (Whenever this character quests, you may add\ntheir \u00a4 to another chosen character's \u00a4 this turn.)\nROYAL SUMMONS At the start of your turn, you may\nchoose and discard a Princess or Queen character\ncard to return a character card from your discard to\nyour hand.",
+      "fullTextSections": [
+        "Support (Whenever this character quests, you may add\ntheir \u00a4 to another chosen character's \u00a4 this turn.)",
+        "ROYAL SUMMONS At the start of your turn, you may\nchoose and discard a Princess or Queen character\ncard to return a character card from your discard to\nyour hand."
+      ],
+      "id": 2159,
+      "images": {
+        "foilMask": "https://api.lorcana.ravensburger.com/images/en/set9/205_54643ea3375be72bfae4d89aaa3191a056882303.jpg",
+        "full": "https://api.lorcana.ravensburger.com/images/en/set9/205_62acc44798cda182710f8be20268c233d776cf58.jpg",
+        "thumbnail": "https://api.lorcana.ravensburger.com/images/en/set9/205_f26be77b70ccc0716edb22b65d2b8932e4e8a495.jpg",
+        "varnishMask": "https://api.lorcana.ravensburger.com/images/en/set9/205_370f1181c4acf0345f391037baac43e513206648.jpg"
+      },
+      "inkwell": true,
+      "keywordAbilities": [
+        "Support"
+      ],
+      "lore": 1,
+      "name": "The Queen",
+      "number": 205,
+      "promoIds": [
+        2181
+      ],
+      "rarity": "Epic",
+      "setCode": "9",
+      "simpleName": "the queen conceited ruler",
+      "story": "Snow White and the Seven Dwarfs",
+      "strength": 2,
+      "subtypes": [
+        "Storyborn",
+        "Villain",
+        "Queen",
+        "Sorcerer"
+      ],
+      "subtypesText": "Storyborn \u2022 Villain \u2022 Queen \u2022 Sorcerer",
+      "type": "Character",
+      "varnishType": "HighGloss",
+      "version": "Conceited Ruler",
+      "willpower": 4
+    },
+    {
+      "abilities": [
+        {
+          "effect": "Your Princess characters get +1 \u00a4 and +1 \u26c9.",
+          "fullText": "FULL DANCE CARD Your Princess characters\nget +1 \u00a4 and +1 \u26c9.",
+          "name": "FULL DANCE CARD",
+          "type": "static"
+        }
+      ],
+      "allowedInFormats": {
+        "Core": {
+          "allowed": true
+        },
+        "Infinity": {
+          "allowed": true
+        }
+      },
+      "allowedInTournamentsFromDate": "2025-09-19",
+      "artists": [
+        "Ian MacDonald"
+      ],
+      "artistsText": "Ian MacDonald",
+      "baseId": 1940,
+      "code": "yy",
+      "color": "Amber",
+      "cost": 5,
+      "externalLinks": {
+        "cardTraderId": 346509,
+        "cardTraderUrl": "https://www.cardtrader.com/cards/346509",
+        "cardmarketId": 844176,
+        "cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/Fabled/Beast-Gracious-Prince-V2?language=1",
+        "tcgPlayerId": 651122,
+        "tcgPlayerUrl": "https://www.tcgplayer.com/product/651122"
+      },
+      "foilTypes": [
+        "Magma"
+      ],
+      "fullIdentifier": "224/204 \u2022 EN \u2022 9",
+      "fullName": "Beast - Gracious Prince",
+      "fullText": "FULL DANCE CARD Your Princess characters\nget +1 \u00a4 and +1 \u26c9.",
+      "fullTextSections": [
+        "FULL DANCE CARD Your Princess characters\nget +1 \u00a4 and +1 \u26c9."
+      ],
+      "id": 2142,
+      "images": {
+        "foilMask": "https://api.lorcana.ravensburger.com/images/en/set9/224_79c8bd282890fb44d0645e3d1a1fcedcf2c32357.jpg",
+        "full": "https://api.lorcana.ravensburger.com/images/en/set9/224_7f17c04013ed08ca46ff1a029608cc2fb8c5a3cb.jpg",
+        "thumbnail": "https://api.lorcana.ravensburger.com/images/en/set9/224_2523f25f178e7ea29a2a61d92a55e0e447cc87a3.jpg",
+        "varnishMask": "https://api.lorcana.ravensburger.com/images/en/set9/224_6b7fc4e15f5edc222f9f9bcbddb99f45288b086a.jpg"
+      },
+      "inkwell": true,
+      "lore": 1,
+      "name": "Beast",
+      "number": 224,
+      "promoIds": [
+        2461
+      ],
+      "rarity": "Enchanted",
+      "setCode": "9",
+      "simpleName": "beast gracious prince",
+      "story": "Beauty and the Beast",
+      "strength": 5,
+      "subtypes": [
+        "Storyborn",
+        "Hero",
+        "Prince"
+      ],
+      "subtypesText": "Storyborn \u2022 Hero \u2022 Prince",
+      "type": "Character",
+      "varnishType": "MetallicHotFoil",
+      "version": "Gracious Prince",
+      "willpower": 4
+    },
+    {
+      "abilities": [
+        {
+          "fullText": "Evasive (Only characters with Evasive can\nchallenge this character.)",
+          "keyword": "Evasive",
+          "reminderText": "Only characters with Evasive can challenge this character.",
+          "type": "keyword"
+        }
+      ],
+      "allowedInFormats": {
+        "Core": {
+          "allowed": false
+        },
+        "Infinity": {
+          "allowed": false
+        }
+      },
+      "allowedInTournamentsFromDate": null,
+      "artists": [
+        "Dustin Panzino"
+      ],
+      "artistsText": "Dustin Panzino",
+      "code": "eK",
+      "color": "",
+      "cost": 6,
+      "externalLinks": {
+        "cardTraderId": 291166,
+        "cardTraderUrl": "https://www.cardtrader.com/cards/291166",
+        "cardmarketId": 771365,
+        "cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/Ursulas-Deck/Anna-Ensnared-Sister?language=1",
+        "tcgPlayerId": 552746,
+        "tcgPlayerUrl": "https://www.tcgplayer.com/product/552746"
+      },
+      "flavorText": "\u201cAh, royalty! So pretty. So naive. So utterly\nimpressionable.\u201d\n\u2014Ursula",
+      "foilTypes": [
+        "None"
+      ],
+      "fullIdentifier": "1/31 \u2022 EN \u2022 Q1",
+      "fullName": "Anna - Ensnared Sister",
+      "fullText": "Evasive (Only characters with Evasive can\nchallenge this character.)",
+      "fullTextSections": [
+        "Evasive (Only characters with Evasive can\nchallenge this character.)"
+      ],
+      "id": 914,
+      "images": {
+        "full": "https://api.lorcana.ravensburger.com/images/en/quest1/1_a9b59bdf870a5057e1f9e78193146cb8b2aee390.jpg",
+        "thumbnail": "https://api.lorcana.ravensburger.com/images/en/quest1/1_dc38c8fa88dbc7a64181b9c1d1ac567a45fb8334.jpg"
+      },
+      "inkwell": true,
+      "keywordAbilities": [
+        "Evasive"
+      ],
+      "lore": 2,
+      "name": "Anna",
+      "number": 1,
+      "promoSourceCategory": "Illumineer's Quest",
+      "rarity": "Special",
+      "setCode": "Q1",
+      "simpleName": "anna ensnared sister",
+      "story": "Frozen",
+      "strength": 5,
+      "subtypes": [
+        "Entangled",
+        "Hero",
+        "Queen"
+      ],
+      "subtypesText": "Entangled \u2022 Hero \u2022 Queen",
+      "type": "Character",
+      "version": "Ensnared Sister",
+      "willpower": 6
+    },
+    {
+      "abilities": [
+        {
+          "fullText": "Evasive (Only characters with Evasive can\nchallenge this character.)",
+          "keyword": "Evasive",
+          "reminderText": "Only characters with Evasive can challenge this character.",
+          "type": "keyword"
+        },
+        {
+          "effect": "When Jafar plays this character, each Illumineer chooses and banishes one of their characters, one of their items, and one of their locations.",
+          "fullText": "SIMULTANEOUS STRIKE When Jafar plays this\ncharacter, each Illumineer chooses and banishes\none of their characters, one of their items, and one\nof their locations.",
+          "name": "SIMULTANEOUS STRIKE",
+          "type": "triggered"
+        }
+      ],
+      "allowedInFormats": {
+        "Core": {
+          "allowed": false
+        },
+        "Infinity": {
+          "allowed": false
+        }
+      },
+      "allowedInTournamentsFromDate": null,
+      "artists": [
+        "Carlos Ruiz"
+      ],
+      "artistsText": "Carlos Ruiz",
+      "code": "uA",
+      "color": "",
+      "cost": 7,
+      "externalLinks": {
+        "cardTraderId": 334375,
+        "cardTraderUrl": "https://www.cardtrader.com/cards/334375",
+        "cardmarketId": 828111,
+        "cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/Illumineers-Quest-Palace-Heist/Metal-Scorpion-Deadly-Statue?language=1",
+        "tcgPlayerId": 634273,
+        "tcgPlayerUrl": "https://www.tcgplayer.com/product/634273"
+      },
+      "foilTypes": [
+        "None"
+      ],
+      "fullIdentifier": "1/35 \u2022 EN \u2022 Q2",
+      "fullName": "Metal Scorpion - Deadly Statue",
+      "fullText": "Evasive (Only characters with Evasive can\nchallenge this character.)\nSIMULTANEOUS STRIKE When Jafar plays this\ncharacter, each Illumineer chooses and banishes\none of their characters, one of their items, and one\nof their locations.",
+      "fullTextSections": [
+        "Evasive (Only characters with Evasive can\nchallenge this character.)",
+        "SIMULTANEOUS STRIKE When Jafar plays this\ncharacter, each Illumineer chooses and banishes\none of their characters, one of their items, and one\nof their locations."
+      ],
+      "id": 1896,
+      "images": {
+        "full": "https://api.lorcana.ravensburger.com/images/en/quest2/1_973b9d3242abfb4c83bc71dc5aafd6365ff2421e.jpg",
+        "thumbnail": "https://api.lorcana.ravensburger.com/images/en/quest2/1_1de6c626c3cccfc77d707d203db60c5c25634fe2.jpg"
+      },
+      "inkwell": true,
+      "keywordAbilities": [
+        "Evasive"
+      ],
+      "lore": 2,
+      "name": "Metal Scorpion",
+      "number": 1,
+      "promoSourceCategory": "Illumineer's Quest",
+      "rarity": "Special",
+      "setCode": "Q2",
+      "simpleName": "metal scorpion deadly statue",
+      "story": "Lorcana",
+      "strength": 8,
+      "subtypes": [
+        "Colossus"
+      ],
+      "subtypesText": "Colossus",
+      "type": "Character",
+      "version": "Deadly Statue",
+      "willpower": 5
+    },
+    {
+      "abilities": [
+        {
+          "effect": "When you play this character, you may ready chosen character with cost 2 or less. If you do, they can't quest or challenge for the rest of this turn.",
+          "fullText": "HEROIC INTERVENTION When you play this\ncharacter, you may ready chosen character\nwith cost 2 or less. If you do, they can't quest or\nchallenge for the rest of this turn.",
+          "name": "HEROIC INTERVENTION",
+          "type": "triggered"
+        }
+      ],
+      "allowedInFormats": {
+        "Core": {
+          "allowed": false
+        },
+        "Infinity": {
+          "allowed": false
+        }
+      },
+      "allowedInTournamentsFromDate": null,
+      "artists": [
+        "Cam Kendell"
+      ],
+      "artistsText": "Cam Kendell",
+      "code": "HO",
+      "color": "Amber",
+      "cost": 2,
+      "externalLinks": {},
+      "flavorText": "\u201cI bet Dad never caught any flowers like this!\u201d",
+      "foilTypes": [
+        "None",
+        "Silver"
+      ],
+      "fullIdentifier": "1/204 \u2022 EN \u2022 12",
+      "fullName": "Gosalyn Mallard - The Quiverwing Quack",
+      "fullText": "HEROIC INTERVENTION When you play this\ncharacter, you may ready chosen character\nwith cost 2 or less. If you do, they can't quest or\nchallenge for the rest of this turn.",
+      "fullTextSections": [
+        "HEROIC INTERVENTION When you play this\ncharacter, you may ready chosen character\nwith cost 2 or less. If you do, they can't quest or\nchallenge for the rest of this turn."
+      ],
+      "id": 2716,
+      "images": {
+        "foilMask": "https://api.lorcana.ravensburger.com/images/en/set12/1_7d725bcba747016e5290c14270ea31da48edc3db.jpg",
+        "full": "https://api.lorcana.ravensburger.com/images/en/set12/1_9eb855145614cc35fadef8b45c193ad77d62b84d.jpg",
+        "thumbnail": "https://api.lorcana.ravensburger.com/images/en/set12/1_c172fd61df26d5a9706d772b282c91c71285cf2e.jpg"
+      },
+      "inkwell": false,
+      "lore": 1,
+      "name": "Gosalyn Mallard",
+      "number": 1,
+      "rarity": "Common",
+      "setCode": "12",
+      "simpleName": "gosalyn mallard the quiverwing quack",
+      "story": "Darkwing Duck",
+      "strength": 2,
+      "subtypes": [
+        "Dreamborn",
+        "Super",
+        "Hero"
+      ],
+      "subtypesText": "Dreamborn \u2022 Super \u2022 Hero",
+      "type": "Character",
+      "version": "The Quiverwing Quack",
+      "willpower": 3
+    },
+    {
+      "allowedInFormats": {
+        "Core": {
+          "allowed": false
+        },
+        "Infinity": {
+          "allowed": false
+        }
+      },
+      "allowedInTournamentsFromDate": null,
+      "artists": [
+        "Federico Maria Cugliari"
+      ],
+      "artistsText": "Federico Maria Cugliari",
+      "baseId": 2718,
+      "code": "L6",
+      "color": "Amber",
+      "cost": 1,
+      "externalLinks": {},
+      "flavorText": "\u201cStarin' over the jungle from this huge vine\nI think back to when I was laughin' and feelin' fine\nMy friends were all around to welcome me back home\nBut now I'm lost in Lorcana and oh so alone\u201d",
+      "foilTypes": [
+        "Satin"
+      ],
+      "fullIdentifier": "205/204 \u2022 EN \u2022 12",
+      "fullName": "Woody - Waiting for a Friend",
+      "fullText": "",
+      "fullTextSections": [],
+      "id": 2920,
+      "images": {
+        "foilMask": "https://api.lorcana.ravensburger.com/images/en/set12/205_dc7ea8131f74b3e1aaff76963bb06d0221db7302.jpg",
+        "full": "https://api.lorcana.ravensburger.com/images/en/set12/205_67915aba241e867f3577595f55ec10305945839b.jpg",
+        "thumbnail": "https://api.lorcana.ravensburger.com/images/en/set12/205_6547308acc60850f21526ca2189f2a7adc35f8b3.jpg",
+        "varnishMask": "https://api.lorcana.ravensburger.com/images/en/set12/205_b2c8b34a480463232de59d56e9452797ddf71c17.jpg"
+      },
+      "inkwell": true,
+      "lore": 1,
+      "name": "Woody",
+      "number": 205,
+      "rarity": "Epic",
+      "setCode": "12",
+      "simpleName": "woody waiting for a friend",
+      "story": "Toy Story",
+      "strength": 2,
+      "subtypes": [
+        "Storyborn",
+        "Hero",
+        "Toy"
+      ],
+      "subtypesText": "Storyborn \u2022 Hero \u2022 Toy",
+      "type": "Character",
+      "varnishType": "HighGloss",
+      "version": "Waiting for a Friend",
+      "willpower": 2
+    },
+    {
+      "abilities": [
+        {
+          "fullText": "Shift 4 \u2b21",
+          "keyword": "Shift",
+          "keywordValue": "4",
+          "keywordValueNumber": 4,
+          "type": "keyword"
+        },
+        {
+          "effect": "Whenever you remove damage from one of your characters, gain 1 lore for each 1 damage removed.",
+          "fullText": "DO NO WRONG Whenever you remove\ndamage from one of your characters, gain 1\nlore for each 1 damage removed.",
+          "name": "DO NO WRONG",
+          "type": "triggered"
+        }
+      ],
+      "allowedInFormats": {
+        "Core": {
+          "allowed": false
+        },
+        "Infinity": {
+          "allowed": false
+        }
+      },
+      "allowedInTournamentsFromDate": null,
+      "artists": [
+        "Viv Tanner"
+      ],
+      "artistsText": "Viv Tanner",
+      "baseId": 2734,
+      "code": "Lp",
+      "color": "Amber",
+      "cost": 6,
+      "externalLinks": {},
+      "foilTypes": [
+        "Magma"
+      ],
+      "fullIdentifier": "224/204 \u2022 EN \u2022 12",
+      "fullName": "Isabela Madrigal - Caring Cultivator",
+      "fullText": "Shift 4 \u2b21\nDO NO WRONG Whenever you remove\ndamage from one of your characters, gain 1\nlore for each 1 damage removed.",
+      "fullTextSections": [
+        "Shift 4 \u2b21",
+        "DO NO WRONG Whenever you remove\ndamage from one of your characters, gain 1\nlore for each 1 damage removed."
+      ],
+      "id": 2939,
+      "images": {
+        "foilMask": "https://api.lorcana.ravensburger.com/images/en/set12/224_3855671c2d26d0f7af2fc986c2bcaf6ac89c1277.jpg",
+        "full": "https://api.lorcana.ravensburger.com/images/en/set12/224_9e87c3271c69a4cab9757a1381fa0a84c949acde.jpg",
+        "thumbnail": "https://api.lorcana.ravensburger.com/images/en/set12/224_8c61d3750c41d841c64f98b7ebe49fadd847524e.jpg",
+        "varnishMask": "https://api.lorcana.ravensburger.com/images/en/set12/224_f386e4c871d3cc77bf1f283079fc5361ae9cf08a.jpg"
+      },
+      "inkwell": true,
+      "keywordAbilities": [
+        "Shift"
+      ],
+      "lore": 2,
+      "name": "Isabela Madrigal",
+      "number": 224,
+      "rarity": "Enchanted",
+      "setCode": "12",
+      "simpleName": "isabela madrigal caring cultivator",
+      "story": "Encanto",
+      "strength": 4,
+      "subtypes": [
+        "Floodborn",
+        "Ally",
+        "Madrigal"
+      ],
+      "subtypesText": "Floodborn \u2022 Ally \u2022 Madrigal",
+      "type": "Character",
+      "varnishType": "MetallicHotFoil",
+      "version": "Caring Cultivator",
+      "willpower": 5
+    }
+  ]
+}

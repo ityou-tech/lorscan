@@ -328,6 +328,90 @@ def test_missing_route_is_gone(client: TestClient):
     assert response.status_code == 404
 
 
+def test_collection_empty_pocket_shows_cardmarket_link_when_url_present(
+    client: TestClient,
+):
+    """Cards with a cardmarket_url should render a CM link in their pocket."""
+    cfg = client.app.state.config
+    db = Database.connect(str(cfg.db_path))
+    db.migrate()
+    try:
+        db.connection.execute(
+            "UPDATE cards SET cardmarket_url = ? WHERE card_id = 'rof-001'",
+            (
+                "https://www.cardmarket.com/en/Lorcana/Products/Singles/"
+                "Rise-of-the-Floodborn/Pinocchio-Wooden-Rascal",
+            ),
+        )
+        db.connection.commit()
+    finally:
+        db.close()
+
+    response = client.get("/collection")
+    assert response.status_code == 200
+    body = response.text
+    assert "buy-link--cardmarket" in body
+    assert "sellerCountry=23" in body  # NL filter applied via Jinja global
+
+
+def test_collection_pocket_omits_buy_link_when_url_absent(client: TestClient):
+    """No cardmarket_url → no CM badge."""
+    response = client.get("/collection")
+    assert response.status_code == 200
+    body = response.text
+    # The seeded rof-001 card has no cardmarket_url set, so no buy-link
+    # markup should appear for that pocket. The class only shows up when a
+    # URL is present.
+    assert "buy-link--cardmarket" not in body
+    # But the card itself still renders.
+    assert "Pinocchio" in body
+
+
+def test_collection_pocket_shows_buy_links_alongside_bazaar_listing(
+    client: TestClient,
+):
+    """Buy links coexist with a Bazaar listing — not a fallback."""
+    from datetime import UTC, datetime
+
+    cfg = client.app.state.config
+    db = Database.connect(str(cfg.db_path))
+    db.migrate()
+    try:
+        db.connection.execute(
+            "UPDATE cards SET cardmarket_url = ?, cardtrader_url = ? "
+            "WHERE card_id = 'rof-001'",
+            (
+                "https://www.cardmarket.com/en/Lorcana/Products/Singles/"
+                "Rise-of-the-Floodborn/Pinocchio-Wooden-Rascal",
+                "https://www.cardtrader.com/cards/pinocchio-wooden-rascal",
+            ),
+        )
+        mp = db.get_marketplace_by_slug("bazaarofmagic")
+        db.upsert_listing(
+            marketplace_id=mp["id"],
+            external_id="bz-side-by-side",
+            card_id="rof-001",
+            finish="regular",
+            price_cents=450,
+            currency="EUR",
+            in_stock=True,
+            url="https://www.bazaarofmagic.eu/p/x/sbs",
+            title="Pinocchio (#1)",
+            fetched_at=datetime.now(UTC).isoformat(),
+        )
+        db.connection.commit()
+    finally:
+        db.close()
+
+    response = client.get("/collection")
+    assert response.status_code == 200
+    body = response.text
+    # All three marketplace markers visible at once.
+    assert "buy-link--cardmarket" in body
+    assert "buy-link--cardtrader" in body
+    assert "€4,50" in body  # Bazaar price badge still renders
+
+
 def test_scan_apply_adds_matched_cards_to_collection(client: TestClient):
     payload = _make_jpeg(200, 200, color=(0, 0, 0))
 

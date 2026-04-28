@@ -2,7 +2,7 @@
 
 Local Disney Lorcana TCG collection manager. Photographs of binder pages
 go in via the CLI or web UI; **local CLIP embeddings** identify each card
-visually against a catalog synced from `lorcana-api.com`. Fully offline
+visually against a catalog synced from `lorcanajson.org`. Fully offline
 after the one-time setup — no API keys, no rate limits, no cost.
 
 > **Status:** Plan 1 + Plan 2 MVP + Phase A (CLIP recognition) + Plan 3
@@ -58,50 +58,65 @@ uv run lorscan serve
 
 ### Set codes
 
-After `sync-catalog`, the local DB carries the canonical 3-letter set codes:
+After `sync-catalog`, the local DB carries the canonical 3-letter set
+codes in official Ravensburger numeric order:
 
-| Code | Name |
-| ---- | ---- |
-| TFC | The First Chapter |
-| ROF | Rise of the Floodborn |
-| ITI | Into the Inklands |
-| URS | Ursula's Return |
-| SSK | Shimmering Skies |
-| ARI | Archazia's Island |
-| ROJ | Reign of Jafar |
-| FAB | Fabled |
-| WHI | Whisperwood |
-| WIN | Winter |
-| AZS | Azurite Sea |
+| #  | Code | Name                  |
+| -- | ---- | --------------------- |
+| 1  | TFC  | The First Chapter     |
+| 2  | ROF  | Rise of the Floodborn |
+| 3  | ITI  | Into the Inklands     |
+| 4  | URS  | Ursula's Return       |
+| 5  | SSK  | Shimmering Skies      |
+| 6  | AZS  | Azurite Sea           |
+| 7  | ARI  | Archazia's Island     |
+| 8  | ROJ  | Reign of Jafar        |
+| 9  | FAB  | Fabled                |
+| 10 | WHI  | Whispers in the Well  |
+| 11 | WIN  | Winterspell           |
+| 12 | WUN  | Wilds Unknown         |
+| 13 | AOV  | Attack of the Vine    |
+| 14 | HYC  | Hyperia City          |
+| Q1 | Q1   | Illumineer's Quest    |
 
-(Exact list depends on what `lorcana-api.com` currently exposes.)
+Each main set ships ~204 numbered cards plus higher-numbered enchanteds
+(typically 205-223), iconics, and a handful of promos with their own
+numbering. `lorscan` imports all of them — when a "missing" pocket on
+`/collection` shows an enchanted, it's just another collector number to
+hunt down, treated identically to a common.
+
+(Exact list depends on what `lorcanajson.org` currently exposes.)
 
 If you mistype a set code, `lorscan scan` fails fast with a "Did you
 mean: …?" hint based on what's actually in your catalog.
 
 ### Manual image overrides
 
-The upstream catalog (`lorcana-api.com`) occasionally hands out image
-URLs whose content-hash 404s on Ravensburger's CDN — a publisher-side
-bug that re-syncing won't fix. Without an image, `index-images` skips
-the card and any binder slot containing it gets misclassified as its
-nearest catalog neighbor in art space rather than reported as
-un-matchable.
+The LorcanaJSON migration (April 2026) sources image URLs from the
+official Lorcana app data feed, which currently has 100% coverage on
+released sets — the manual-override workaround is **typically not
+needed** any more. The mechanism is kept as a fallback for the rare
+case where Ravensburger's CDN drops a hash on a brand-new release.
 
-To plug the gap, drop a replacement image at:
+If `lorscan index-images` reports `Skipping card <SET>-<NUM>` for a
+card you care about, drop a replacement image at:
 
 ```
 ~/.lorscan/overrides/<card_id>.<ext>     # .jpg .jpeg .png .webp .avif
 ```
 
-`<card_id>` is the `<SET>-<NUMBER>` form printed in the warning during
-`lorscan index-images` (e.g. `WHI-102.jpg`). Overrides win over both the
-upstream URL and any previously-cached download, and they live outside
-the `cache/` subtree so a cache wipe won't nuke them.
+`<card_id>` is the `<SET>-<NUMBER>` form printed in the warning (e.g.
+`WHI-102.jpg`). Overrides win over both the upstream URL and any
+previously-cached download, and they live outside the `cache/` subtree
+so a cache wipe won't nuke them. Note that an override *suppresses* the
+upstream fetch entirely, so once Ravensburger publishes a working URL
+for the card you'll want to remove the override to pick up the (often
+higher-resolution) official image.
 
-[Lorcast](https://lorcast.com/) is a useful third-party catalog when
-you need a working image — its API at `https://api.lorcast.com/v0/cards/{set_num}/{collector_num}`
-returns AVIF URLs that Pillow 11+ can decode directly.
+[Lorcast](https://lorcast.com/) remains a useful third-party catalog
+when LorcanaJSON itself is missing an image — its API at
+`https://api.lorcast.com/v0/cards/{set_num}/{collector_num}` returns
+AVIF URLs that Pillow 11+ can decode directly.
 
 ---
 
@@ -113,10 +128,10 @@ returns AVIF URLs that Pillow 11+ can decode directly.
   see the per-cell recognition + match table inline. Recent scans list
   underneath, click any to revisit.
 - **Collection** — every card per set with quantity controls on owned
-  pockets and "+ Add" / "€X · Bazaar" badges on missing pockets. Page
-  header shows cards-needed, sets-unfinished, the marketplace
-  refreshed-at line, and the "closest to complete" highlight strip.
-  Per-binder and global "📋 Copy want-list" buttons.
+  pockets and "+ Add" / "€X · Bazaar" / `CM` / `CT` badges on missing
+  pockets. Page header shows cards-needed, sets-unfinished, the
+  marketplace refreshed-at line, and the "closest to complete"
+  highlight strip. Per-binder and global "📋 Copy want-list" buttons.
 
 After a scan finishes, the **Accept matched cards into collection**
 button atomically increments quantities for every cell with a confirmed
@@ -151,7 +166,7 @@ once in the set surface as `(ambiguous: N candidates)` for manual pick.
 ## How recognition works
 
 `lorscan index-images` downloads every catalog card image from
-`lorcana-api.com`, runs each through OpenCLIP ViT-B-32, and saves a
+`lorcanajson.org`, runs each through OpenCLIP ViT-B-32, and saves a
 512-dim L2-normalized embedding per card to `~/.lorscan/embeddings.npz`
 (~5MB for ~2300 cards).
 
@@ -211,6 +226,42 @@ automatically. Sets not listed here are silently skipped.
 
 ---
 
+## Buy missing cards
+
+Every card in the catalog carries direct links to its Cardmarket,
+CardTrader, and TCGplayer product pages (sourced from LorcanaJSON's
+`externalLinks` block). On `/collection`, empty pockets show small
+`CM` / `CT` icons next to any Bazaar price badge — clicking opens the
+marketplace product page with your preferred filters pre-applied. The
+buy links coexist with the Bazaar badge rather than acting as a
+fallback, so you can compare across marketplaces side-by-side.
+
+The default Cardmarket filter set is tuned for a Netherlands-based
+collector:
+
+| Filter            | Default                 |
+| ----------------- | ----------------------- |
+| Seller country    | Netherlands (23)        |
+| Seller reputation | Good and above (4)      |
+| Language          | English (1)             |
+| Min condition     | Excellent and above (3) |
+
+Override any of these in `~/.lorscan/config.toml`:
+
+```toml
+[buy_links.cardmarket]
+sellerCountry = [23, 5, 21]   # widen to NL + DE + BE
+minCondition  = 2              # near-mint and above only
+isFoil        = "Y"            # foils only
+```
+
+Pass a list to repeat a query parameter (Cardmarket honours repeated
+`sellerCountry` and `language`). Any keys not in the default set
+flow through to the URL untouched, so you can surface filters lorscan
+doesn't default (`isReverseHolo`, `isAltered`, etc.).
+
+---
+
 ## Development
 
 ```bash
@@ -232,13 +283,15 @@ src/lorscan/
 │   ├── templates/
 │   └── static/
 ├── services/
-│   ├── catalog.py     # lorcana-api.com sync
-│   ├── photos.py      # hash, save, HEIC→JPEG transcode
-│   ├── embeddings.py  # OpenCLIP wrapper + CardImageIndex
-│   ├── image_cache.py # async catalog-image downloader
-│   ├── visual_scan.py # tile-and-CLIP scanner
-│   ├── scan_result.py # ParsedCard, ParsedScan, MatchResult dataclasses
-│   └── marketplaces/  # marketplace stock scraping (Plan 3)
+│   ├── catalog.py            # LorcanaJSON sync (sets + cards + external links)
+│   ├── lorcana_json/         # LorcanaJSON-specific fetcher, mapper, set-code map
+│   ├── buy_links.py          # Cardmarket/CardTrader URL builders
+│   ├── photos.py             # hash, save, HEIC→JPEG transcode
+│   ├── embeddings.py         # OpenCLIP wrapper + CardImageIndex
+│   ├── image_cache.py        # async catalog-image downloader
+│   ├── visual_scan.py        # tile-and-CLIP scanner
+│   ├── scan_result.py        # ParsedCard, ParsedScan, MatchResult dataclasses
+│   └── marketplaces/         # marketplace stock scraping (Plan 3)
 │       ├── base.py            # ShopAdapter Protocol + Listing dataclass
 │       ├── bazaarofmagic.py   # Bazaar adapter (parser + crawler)
 │       ├── matching.py        # strict (set,collector) → card_id
@@ -247,7 +300,7 @@ src/lorscan/
 └── storage/
     ├── db.py          # SQLite wrapper (only place SQL lives)
     ├── models.py      # CardSet, Card, CollectionItem, Binder
-    └── migrations/    # 001-007 SQL migrations
+    └── migrations/    # 001-008 SQL migrations
 
 data/                  # bundled non-Python data
 └── bazaarofmagic_set_map.toml

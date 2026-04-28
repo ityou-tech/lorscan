@@ -4,14 +4,23 @@ from __future__ import annotations
 
 import tomllib
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
+
+from lorscan.services.buy_links import DEFAULT_CARDMARKET_FILTERS
 
 DEFAULT_MODEL = "claude-opus-4-7"
 DEFAULT_PER_SCAN_BUDGET_USD = 0.50
 DEFAULT_MONTHLY_BUDGET_USD: float | None = None
 DEFAULT_DATA_DIR = Path.home() / ".lorscan"
-DEFAULT_CATALOG_API_BASE = "https://api.lorcana-api.com"
+
+
+@dataclass(frozen=True)
+class BuyLinksConfig:
+    cardmarket_filters: dict[str, Any] = field(
+        default_factory=lambda: dict(DEFAULT_CARDMARKET_FILTERS)
+    )
 
 
 @dataclass(frozen=True)
@@ -25,7 +34,7 @@ class Config:
     # then ANTHROPIC_API_KEY env var, etc.). The field is preserved for
     # users who want to centralize their key in the config file.
     anthropic_api_key: str | None = None
-    catalog_api_base: str = DEFAULT_CATALOG_API_BASE
+    buy_links: BuyLinksConfig = field(default_factory=BuyLinksConfig)
 
     @property
     def db_path(self) -> Path:
@@ -66,6 +75,7 @@ def load_config(
     anthropic = data.get("anthropic", {})
     budget = data.get("budget", {})
     storage = data.get("storage", {})
+    buy_links_section = data.get("buy_links", {})
 
     env_key = (env.get("ANTHROPIC_API_KEY") or "").strip()
     toml_key = (anthropic.get("api_key") or "").strip()
@@ -79,10 +89,15 @@ def load_config(
     data_dir_str = env.get("LORSCAN_DATA_DIR") or storage.get("data_dir")
     data_dir = Path(data_dir_str).expanduser() if data_dir_str else DEFAULT_DATA_DIR
 
+    cardmarket_overrides = buy_links_section.get("cardmarket", {}) if isinstance(buy_links_section, dict) else {}
+    cardmarket_filters: dict[str, Any] = dict(DEFAULT_CARDMARKET_FILTERS)
+    cardmarket_filters.update(cardmarket_overrides)
+
     return Config(
         anthropic_api_key=api_key,
         anthropic_model=model,
         per_scan_budget_usd=per_scan,
         monthly_budget_usd=monthly,
         data_dir=data_dir,
+        buy_links=BuyLinksConfig(cardmarket_filters=cardmarket_filters),
     )

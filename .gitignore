@@ -30,3 +30,6 @@ tests/fixtures/photos/*.jpeg
 tests/fixtures/photos/*.png
 tests/fixtures/photos/*.heic
 tests/fixtures/photos/*.HEIC
+
+# MacOS
+.DS_Store
