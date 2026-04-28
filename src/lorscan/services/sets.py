@@ -13,7 +13,7 @@ from __future__ import annotations
 LORCANA_RELEASE_ORDER: tuple[str, ...] = (
     "TFC",  # 1. The First Chapter
     "ROF",  # 2. Rise of the Floodborn
-    "INK",  # 3. Into the Inklands
+    "ITI",  # 3. Into the Inklands
     "URS",  # 4. Ursula's Return
     "SSK",  # 5. Shimmering Skies
     "AZS",  # 6. Azurite Sea
@@ -22,6 +22,7 @@ LORCANA_RELEASE_ORDER: tuple[str, ...] = (
     "FAB",  # 9. Fabled
     "WHI",  # 10. Whispers in the Well
     "WIN",  # 11. Winterspell
+    "WUN",  # 12. Wilds Unknown
 )
 
 
