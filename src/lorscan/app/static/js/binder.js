@@ -317,23 +317,17 @@
       const tail = sub ? `${cardName} — ${sub}` : cardName;
       lines.push(`${id.padEnd(8)}${tail}`);
     });
-    return lines.join('\n');
+    return { text: lines.join('\n'), count: missing.length };
   }
 
-  // Cardmarket's exact deck-list import format:
-  //   1x Card Name - Subtitle (V.N) (Set Name)
-  // (V.N) selects the printing within a set: V.1 = standard, V.2 = enchanted
-  // reprint, V.3 = infinity. (Set Name) scopes the lookup to the right
-  // expansion (so a TFC card doesn't match a Fabled reprint).
-  //
-  // `scope` filters by collector number band so the user can copy just the
-  // standard ≤204 cards (skipping pricey V.2/V.3 reprints) or just the
-  // specials. Scope === 'all' (or undefined) emits everything.
+  // Cardmarket deck-list format: `1x Name - Subtitle (V.N) (Set Name)`.
+  // V.N is set on each pocket as data-cm-version by the server; scope
+  // filtering uses data-card-type (single source of truth in collection.py).
   function formatBinderCardmarket(binderEl, scope) {
     let missing = Array.from(binderEl.querySelectorAll('.pocket--missing'));
-    if (scope === 'standard') missing = missing.filter(p => collectorNum(p) <= 204);
-    else if (scope === 'specials') missing = missing.filter(p => collectorNum(p) > 204);
-    if (missing.length === 0) return { text: null, count: 0 };
+    if (scope === 'standard') missing = missing.filter(p => p.dataset.cardType === 'standard');
+    else if (scope === 'specials') missing = missing.filter(p => p.dataset.cardType !== 'standard');
+    if (missing.length === 0) return null;
     const setName = binderEl
       .querySelector(':scope > summary .binder-name')
       ?.textContent.trim() || '';
@@ -351,12 +345,6 @@
     return { text: lines.join('\n'), count: lines.length };
   }
 
-  function collectorNum(pocket) {
-    const id = pocket.querySelector('.pocket-id')?.textContent.trim() || '';
-    const m = (id.split('-')[1] || '').match(/^(\d+)/);
-    return m ? parseInt(m[1], 10) : 0;
-  }
-
   function copyText(text) {
     if (!text) return Promise.resolve(false);
     if (navigator.clipboard && window.isSecureContext) {
@@ -365,12 +353,10 @@
     return Promise.resolve(copyTextSync(text));
   }
 
-  // Synchronous copy via legacy execCommand('copy'). Used by the Cardmarket
-  // buttons because they also call window.open(), which transfers focus —
-  // and navigator.clipboard.writeText requires the document to stay focused.
-  // Both calls must happen inside the user-gesture frame, which forces a
-  // synchronous copy path. execCommand is deprecated but every major browser
-  // still supports it.
+  // Synchronous copy: navigator.clipboard.writeText requires the document
+  // to stay focused, but the Cardmarket flow used to pair the copy with a
+  // window.open() that transferred focus. execCommand is the only path
+  // that runs synchronously inside the user-gesture frame.
   function copyTextSync(text) {
     if (!text) return false;
     const ta = document.createElement('textarea');
@@ -435,16 +421,22 @@
     const blocks = [];
     let total = 0;
     document.querySelectorAll('.binder').forEach((b) => {
-      const block = formatter(b);
-      if (block) {
-        blocks.push(block);
-        total += b.querySelectorAll('.pocket--missing').length;
+      const result = formatter(b);
+      if (result) {
+        blocks.push(result.text);
+        total += result.count;
       }
     });
     return { blocks, total };
   }
 
+  // Tracks whether any Cardmarket menu is currently open, so the click-handler
+  // can skip the close-everything sweep when there's nothing to close. Without
+  // this guard, every document click triggers two `querySelectorAll` scans.
+  let anyMenuOpen = false;
+
   function closeAllCardmarketMenus() {
+    if (!anyMenuOpen) return;
     document.querySelectorAll('[data-cm-menu]').forEach((m) => {
       m.hidden = true;
       m.style.top = '';
@@ -454,6 +446,7 @@
     document.querySelectorAll('[data-cm-trigger][aria-expanded="true"]').forEach((t) => {
       t.setAttribute('aria-expanded', 'false');
     });
+    anyMenuOpen = false;
   }
 
   // Position a fixed-position menu directly below its trigger, right-aligned
@@ -498,6 +491,7 @@
         positionCardmarketMenu(cmTrigger, menu);
         menu.hidden = false;
         cmTrigger.setAttribute('aria-expanded', 'true');
+        anyMenuOpen = true;
       }
       return;
     }
@@ -505,9 +499,9 @@
     if (inline) {
       const code = inline.dataset.copyBinder;
       const binder = document.getElementById(code);
-      const text = binder ? formatBinder(binder) : null;
-      if (!text) return flashToast('Nothing to copy');
-      return copyText(text).then((ok) =>
+      const result = binder ? formatBinder(binder) : null;
+      if (!result) return flashToast('Nothing to copy');
+      return copyText(result.text).then((ok) =>
         flashToast(ok ? `Copied ${code} want-list` : 'Copy failed')
       );
     }
@@ -522,17 +516,16 @@
       );
     }
 
-    // Per-binder Cardmarket menu item: copy filtered missing cards, show
-    // a lingering instruction toast, close the menu. We deliberately don't
-    // auto-open the Wants tab — Cardmarket caps wantlists at ~150 cards
-    // and the user controls when to switch tabs.
+    // Per-binder Cardmarket menu item: copy filtered cards + show a
+    // lingering toast. No auto-tab — Cardmarket caps wantlists at ~150
+    // entries and the user picks when to switch tabs.
     if (inlineCM) {
       const code = inlineCM.dataset.copyCmBinder;
       const scope = inlineCM.dataset.cmScope || 'all';
       const binder = document.getElementById(code);
       const result = binder ? formatBinderCardmarket(binder, scope) : null;
       closeAllCardmarketMenus();
-      if (!result || !result.text) return flashToast('Nothing to copy');
+      if (!result) return flashToast('Nothing to copy');
       if (!copyTextSync(result.text)) return flashToast('Copy failed');
       const setLabel = binder.querySelector('.binder-name')?.textContent.trim() || code;
       showToast({ node: buildCardmarketToast(setLabel, result.count), durationMs: 6000 });

@@ -48,26 +48,24 @@
                 data-copy-binder="{{ binder.set_code }}">
           📋 Copy want-list
         </button>
-        <span class="cm-button-wrap">
-          <button type="button" class="copy-want-btn copy-want-btn--inline copy-want-btn--cardmarket"
-                  data-cm-trigger="{{ binder.set_code }}"
-                  aria-haspopup="menu" aria-expanded="false">
-            🛒 Cardmarket ▾
+        <button type="button" class="copy-want-btn copy-want-btn--inline copy-want-btn--cardmarket"
+                data-cm-trigger="{{ binder.set_code }}"
+                aria-haspopup="menu" aria-expanded="false">
+          🛒 Cardmarket ▾
+        </button>
+        <span class="cm-menu" data-cm-menu="{{ binder.set_code }}" role="menu" hidden>
+          <button type="button" class="cm-menu-item" role="menuitem"
+                  data-copy-cm-binder="{{ binder.set_code }}" data-cm-scope="standard">
+            Standard (≤ 204)
           </button>
-          <span class="cm-menu" data-cm-menu="{{ binder.set_code }}" role="menu" hidden>
-            <button type="button" class="cm-menu-item" role="menuitem"
-                    data-copy-cm-binder="{{ binder.set_code }}" data-cm-scope="standard">
-              Standard (≤ 204)
-            </button>
-            <button type="button" class="cm-menu-item" role="menuitem"
-                    data-copy-cm-binder="{{ binder.set_code }}" data-cm-scope="specials">
-              Specials (&gt; 204)
-            </button>
-            <button type="button" class="cm-menu-item" role="menuitem"
-                    data-copy-cm-binder="{{ binder.set_code }}" data-cm-scope="all">
-              All
-            </button>
-          </span>
+          <button type="button" class="cm-menu-item" role="menuitem"
+                  data-copy-cm-binder="{{ binder.set_code }}" data-cm-scope="specials">
+            Specials (&gt; 204)
+          </button>
+          <button type="button" class="cm-menu-item" role="menuitem"
+                  data-copy-cm-binder="{{ binder.set_code }}" data-cm-scope="all">
+            All
+          </button>
         </span>
         {% endif %}
       </div>
@@ -90,7 +88,8 @@
       <div class="binder-page-grid">
         {% for card in page %}
         <article class="pocket {% if card.owned %}pocket--owned{% else %}pocket--missing{% endif %}"
-                 data-cm-version="{{ card.cardmarket_version }}">
+                 data-cm-version="{{ card.cardmarket_version }}"
+                 data-card-type="{{ card.card_type }}">
           <div class="pocket-art">
             {% if card.owned %}
               <img src="/card/{{ card.card_id }}/image"
