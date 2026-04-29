@@ -2,11 +2,42 @@
 
 from __future__ import annotations
 
+import re
+
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from lorscan.services.sets import release_index, release_sort_key
 from lorscan.storage.db import Database
+
+# Lorcana sets are numbered in three contiguous bands: 1–204 are standard
+# rarity printings (Common through Legendary), 205–216 are the Enchanted
+# reprints, 217+ are the Iconic / Infinity tier. We bucket on collector
+# number rather than `rarity` because the cutoff is set-stable and lets the
+# UI dropdown filter "≤ 204" precisely without needing a rarity allowlist.
+_TYPE_STANDARD_MAX = 204
+_TYPE_ENCHANTED_MAX = 216
+_LEADING_DIGITS = re.compile(r"^(\d+)")
+
+
+def _classify_card_type(collector_number: str | None) -> str:
+    """Return one of `standard`, `enchanted`, `iconic` for a collector number.
+
+    Non-numeric or alpha-suffixed collector numbers (e.g. ITI's `4a`/`4b`
+    alt-art commons) classify as `standard` — they're regular-rarity
+    printings that just share a base position.
+    """
+    if not collector_number:
+        return "standard"
+    m = _LEADING_DIGITS.match(collector_number)
+    if not m:
+        return "standard"
+    n = int(m.group(1))
+    if n <= _TYPE_STANDARD_MAX:
+        return "standard"
+    if n <= _TYPE_ENCHANTED_MAX:
+        return "enchanted"
+    return "iconic"
 
 router = APIRouter()
 
@@ -68,6 +99,7 @@ async def collection_index(request: Request) -> HTMLResponse:
             "closest": closest,
             "last_sweep": last_sweep,
             "cardmarket_filters": cfg.buy_links.cardmarket_filters,
+            "cardtrader_filters": cfg.buy_links.cardtrader_filters,
         },
     )
 
@@ -126,6 +158,29 @@ def _build_binders(db: Database, *, badges: dict | None = None) -> list[dict]:
             }
             for r in rows
         ]
+        # Cardmarket "Version" index: rows are already collector-number sorted,
+        # so the Nth occurrence of a (name, subtitle) within a set is V.N.
+        # V.1 = standard, V.2 = enchanted, V.3 = infinity in the typical case;
+        # for cards with more printings (e.g. alternate-art commons) the
+        # position carries through and Cardmarket falls back to name match if
+        # it doesn't know that V.N.
+        version_seen: dict[tuple[str, str | None], int] = {}
+        for card in cards:
+            key = (card["name"], card["subtitle"])
+            version_seen[key] = version_seen.get(key, 0) + 1
+            card["cardmarket_version"] = version_seen[key]
+            card["card_type"] = _classify_card_type(card["collector_number"])
+
+        buckets: dict[str, dict[str, int]] = {
+            "standard": {"owned": 0, "total": 0},
+            "enchanted": {"owned": 0, "total": 0},
+            "iconic": {"owned": 0, "total": 0},
+        }
+        for card in cards:
+            b = buckets[card["card_type"]]
+            b["total"] += 1
+            if card["owned"]:
+                b["owned"] += 1
         owned_count = sum(1 for c in cards if c["owned"])
         pages = [cards[i : i + page_size] for i in range(0, len(cards), page_size)]
         chapter = release_index(s["set_code"])
@@ -138,6 +193,7 @@ def _build_binders(db: Database, *, badges: dict | None = None) -> list[dict]:
                 "total": len(cards),
                 "pct": round(owned_count / len(cards) * 100, 1) if cards else 0,
                 "pages": pages,
+                "buckets": buckets,
             }
         )
     return binders

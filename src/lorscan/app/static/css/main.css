@@ -721,13 +721,97 @@ body.lightbox-open { overflow: hidden; }
 }
 .copy-want-btn--inline:hover { background: white; }
 
+/* Card-type breakdown chips next to the binder progress total. Three
+   tints differentiate Std / Ench / Iconic at a glance without needing
+   to read the labels. Hover reveals the tooltip explaining the bands. */
+.stat-chip {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--secondary-on);
+  cursor: help;
+}
+.stat-chip--standard {
+  background: rgba(255, 255, 255, 0.18);
+}
+.stat-chip--enchanted {
+  /* warm amber to evoke the Enchanted-rarity card frame */
+  background: rgba(243, 165, 53, 0.55);
+  border-color: rgba(243, 165, 53, 0.85);
+  color: #1a0f00;
+}
+.stat-chip--iconic {
+  /* cool teal — distinct from amber so the two never blur together */
+  background: rgba(64, 211, 191, 0.55);
+  border-color: rgba(64, 211, 191, 0.85);
+  color: #001a17;
+}
+
+/* Cardmarket scope dropdown menu. position:fixed (with JS-set coords)
+   so it escapes the binder's `overflow: hidden` — anything :absolute
+   inside a binder gets cropped at its rounded-corner edge. */
+.cm-menu {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+  padding: 4px;
+  background: white;
+  border: 2px solid var(--primary);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-block);
+}
+.cm-menu[hidden] { display: none; }
+.cm-menu-item {
+  background: white;
+  color: var(--primary);
+  border: none;
+  padding: 8px 12px;
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.cm-menu-item:hover {
+  background: var(--secondary);
+  color: var(--secondary-on);
+}
+
+/* Cardmarket-flavored copy button — same shape as the plain copy-want
+   button but tinted with Cardmarket's blue so the two affordances read as
+   different actions at a glance. The icon (🛒) reinforces "this fills a
+   shopping cart, not a paste buffer". */
+.copy-want-btn--cardmarket {
+  border-color: #1d4f9c;
+  color: #1d4f9c;
+}
+.copy-want-btn--cardmarket:hover {
+  background: #1d4f9c;
+  color: white;
+}
+.copy-want-btn--inline.copy-want-btn--cardmarket {
+  margin-left: 6px;
+}
+
 /* Toast that briefly confirms a copy. Anchored to the bottom-right of
-   the viewport, fades in/out via .is-visible. */
+   the viewport, fades in/out via .is-visible. The Cardmarket flavor uses
+   a two-line .copy-toast-body layout with a clickable hint underneath. */
 .copy-toast {
   position: fixed;
   bottom: 24px;
   right: 24px;
   z-index: 200;
+  max-width: 360px;
   padding: 10px 16px;
   background: var(--primary);
   color: var(--primary-on);
@@ -735,6 +819,7 @@ body.lightbox-open { overflow: hidden; }
   border-radius: var(--radius-sm);
   font-family: var(--font-display);
   letter-spacing: 0.04em;
+  line-height: 1.35;
   box-shadow: var(--shadow-block);
   opacity: 0;
   transform: translateY(8px);
@@ -745,6 +830,18 @@ body.lightbox-open { overflow: hidden; }
   transform: translateY(0);
 }
 .copy-toast[hidden] { display: none; }
+.copy-toast-hint {
+  margin-top: 4px;
+  font-size: 11px;
+  opacity: 0.85;
+  letter-spacing: 0.02em;
+}
+.copy-toast-hint a {
+  color: var(--primary-on);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.copy-toast-hint a:hover { opacity: 0.9; }
 
 /* Duplicate-upload banner: warns the user that they're about to re-add
    matches they already applied. Two-column on wide screens (text + actions),
@@ -1114,7 +1211,35 @@ body.lightbox-open { overflow: hidden; }
   min-width: 70px;
   text-align: center;
 }
-.flip-current { color: var(--secondary); font-size: 14px; font-weight: 700; }
+/* Page indicator is an <input type=number> so users can type-to-jump.
+   Strip the native browser chrome (border, spinners, default font) and
+   restyle to match the surrounding `.flip-indicator` span. */
+input.flip-current {
+  color: var(--secondary);
+  font-size: 14px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  text-align: center;
+  width: 2.5em;
+  appearance: textfield;
+  -moz-appearance: textfield;
+  font-variant-numeric: tabular-nums;
+  cursor: text;
+}
+input.flip-current::-webkit-inner-spin-button,
+input.flip-current::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input.flip-current:focus {
+  outline: 2px solid var(--secondary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
 .flip-sep { margin: 0 6px; color: var(--text-faint); }
 
 /* ============================================================

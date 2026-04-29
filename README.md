@@ -260,6 +260,92 @@ Pass a list to repeat a query parameter (Cardmarket honours repeated
 flow through to the URL untouched, so you can surface filters lorscan
 doesn't default (`isReverseHolo`, `isAltered`, etc.).
 
+CardTrader uses a separate filter section with its own vocabulary
+(extracted from their card-page `filter.json` schema):
+
+| Filter      | Type    | Values |
+| ----------- | ------- | ------ |
+| `language`  | string  | `en`, `fr`, `it`, `de`, `es`, `jp`, `zh-CN` |
+| `condition` | string  | `Near Mint`, `Slightly Played`, `Moderately Played`, `Played`, `Poor` |
+| `foil`      | boolean | `true` / `false` |
+| `signed`    | boolean | `true` / `false` |
+| `altered`   | boolean | `true` / `false` |
+
+Default ships `language = "en"`. Override or extend in
+`~/.lorscan/config.toml`:
+
+```toml
+[buy_links.cardtrader]
+language  = "en"
+condition = "Near Mint"
+foil      = false
+```
+
+**Seller country on CardTrader**: their "Same Country" toggle is
+applied **client-side** off the country in your CardTrader profile —
+not via URL params — so lorscan can't pre-filter to NL sellers the
+way it can on Cardmarket. Set your country in your CardTrader
+account once and stay logged in when clicking the buy-link if you
+want country-locked listings. Unlike Cardmarket, CardTrader's
+condition filter is also single-value (not a min-floor), so
+`condition = "Near Mint"` shows only Near Mint, not "NM and above".
+
+### Bulk buying via Cardmarket
+
+Each binder on `/collection` has a "🛒 Cardmarket" button next to its
+plain copy button. Clicking it copies that set's missing cards to the
+clipboard in Cardmarket's import format and shows a toast with the
+next-step instructions and a link to
+[Cardmarket's Wants page](https://www.cardmarket.com/en/Lorcana/Wants).
+The pasted lines look like:
+
+```
+1x Elsa - Spirit of Winter (V.1) (The First Chapter)
+1x Elsa - Spirit of Winter (V.2) (The First Chapter)
+1x Sisu - Divine Water Dragon (V.1) (Rise of the Floodborn)
+…
+```
+
+This is Cardmarket's documented deck-list format. `(V.N)` selects the
+printing within a set — V.1 is the standard rarity, V.2 is the
+Enchanted reprint, V.3 is the Iconic/Infinity tier. `(Set Name)`
+scopes the lookup to the right expansion so a TFC card doesn't match
+a Fabled reprint of the same name.
+
+Why per-binder and not a single full-collection button? **Cardmarket
+caps a wantlist at ~150 entries**, so a full-collection dump would
+partial-fail on most collections. One binder per wantlist (or per
+import into the same wantlist) keeps every paste under the cap.
+
+Cardmarket models wantlists as named, persistent containers, so the
+first run has a one-time setup. After that, every future bulk-buy
+click reuses the same wantlist:
+
+1. **First time only** — on Cardmarket's Wants page, give your list
+   a name (e.g. "Lorcana Wants") and click **Add list**.
+2. Open that wantlist and click **+ Add Deck List** (Cardmarket's
+   paste-multi-card entry point). Paste from the clipboard, save.
+3. Click **Sellers with the most cards** at the bottom of the
+   wantlist. Cardmarket runs its Shopping Wizard against your list
+   and shows the seller (or small set of sellers) carrying the most
+   cards — that's the bulk-buy optimisation, computed server-side.
+
+Repeat uses: open your existing wantlist, click **+ Add Deck List**
+again, paste the new clipboard contents, save, re-run "Sellers with
+the most cards".
+
+**Two quirks worth knowing:**
+
+- **Multi-printing cards are emitted as separate `(V.N)` lines.**
+  *Belle - Strange but Special* exists in TFC as a Legendary
+  (#142, V.1) and an Enchanted (#214, V.2). The clipboard contains
+  both lines explicitly — Cardmarket adds them as two distinct rows
+  on your wantlist instead of merging into one row with quantity 2.
+- **Default condition floor is `≥ PO` (Poor — any condition).** New
+  wantlist rows accept any condition. Click the row's edit pencil to
+  bump it to `≥ NM` or `≥ EX` if you want Shopping Wizard to filter
+  on condition.
+
 ---
 
 ## Development

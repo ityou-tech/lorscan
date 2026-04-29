@@ -22,6 +22,24 @@
         <span class="binder-stat-sep">/</span>
         <span class="binder-stat-tot">{{ binder.total }}</span>
         <span class="binder-stat-pct">{{ binder.pct }}%</span>
+        {% if binder.buckets.standard.total > 0 %}
+        <span class="stat-chip stat-chip--standard"
+              title="Standard rarities (collector # ≤ 204)">
+          Std {{ binder.buckets.standard.owned }}/{{ binder.buckets.standard.total }}
+        </span>
+        {% endif %}
+        {% if binder.buckets.enchanted.total > 0 %}
+        <span class="stat-chip stat-chip--enchanted"
+              title="Enchanted reprints (collector # 205–216)">
+          Ench {{ binder.buckets.enchanted.owned }}/{{ binder.buckets.enchanted.total }}
+        </span>
+        {% endif %}
+        {% if binder.buckets.iconic.total > 0 %}
+        <span class="stat-chip stat-chip--iconic"
+              title="Iconic / Infinity tier (collector # ≥ 217)">
+          Ic {{ binder.buckets.iconic.owned }}/{{ binder.buckets.iconic.total }}
+        </span>
+        {% endif %}
         {% if binder.owned_count < binder.total %}
         {# JS listens with capture:true so it fires before the click can
            bubble to <summary> and toggle the <details>. No inline
@@ -30,6 +48,25 @@
                 data-copy-binder="{{ binder.set_code }}">
           📋 Copy want-list
         </button>
+        <button type="button" class="copy-want-btn copy-want-btn--inline copy-want-btn--cardmarket"
+                data-cm-trigger="{{ binder.set_code }}"
+                aria-haspopup="menu" aria-expanded="false">
+          🛒 Cardmarket ▾
+        </button>
+        <span class="cm-menu" data-cm-menu="{{ binder.set_code }}" role="menu" hidden>
+          <button type="button" class="cm-menu-item" role="menuitem"
+                  data-copy-cm-binder="{{ binder.set_code }}" data-cm-scope="standard">
+            Standard (≤ 204)
+          </button>
+          <button type="button" class="cm-menu-item" role="menuitem"
+                  data-copy-cm-binder="{{ binder.set_code }}" data-cm-scope="specials">
+            Specials (&gt; 204)
+          </button>
+          <button type="button" class="cm-menu-item" role="menuitem"
+                  data-copy-cm-binder="{{ binder.set_code }}" data-cm-scope="all">
+            All
+          </button>
+        </span>
         {% endif %}
       </div>
     </div>
@@ -50,7 +87,9 @@
       <span class="binder-page-label">Page {{ loop.index }} <span class="binder-page-of">/ {{ binder.pages | length }}</span></span>
       <div class="binder-page-grid">
         {% for card in page %}
-        <article class="pocket {% if card.owned %}pocket--owned{% else %}pocket--missing{% endif %}">
+        <article class="pocket {% if card.owned %}pocket--owned{% else %}pocket--missing{% endif %}"
+                 data-cm-version="{{ card.cardmarket_version }}"
+                 data-card-type="{{ card.card_type }}">
           <div class="pocket-art">
             {% if card.owned %}
               <img src="/card/{{ card.card_id }}/image"
@@ -112,9 +151,9 @@
             {% endif %}
             {% if card.cardtrader_url %}
             <a class="buy-link buy-link--cardtrader"
-               href="{{ cardtrader_buy_url(card.cardtrader_url) }}"
+               href="{{ cardtrader_buy_url(card.cardtrader_url, filters=cardtrader_filters) }}"
                target="_blank" rel="noopener"
-               title="Buy on CardTrader">CT</a>
+               title="Buy on CardTrader (filters applied)">CT</a>
             {% endif %}
           </div>
           {% endif %}
@@ -133,7 +172,9 @@
     <nav class="binder-flip-nav" aria-label="Page navigation">
       <button type="button" class="flip-btn flip-btn--prev" data-flip="prev" aria-label="Previous page">‹</button>
       <span class="flip-indicator">
-        <span class="flip-current" data-flip-current>1</span>
+        <input type="number" class="flip-current" data-flip-current
+               value="1" min="1" max="{{ binder.pages | length }}"
+               aria-label="Current page; type a number and press Enter to jump">
         <span class="flip-sep">/</span>
         <span class="flip-total">{{ binder.pages | length }}</span>
       </span>
