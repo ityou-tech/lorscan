@@ -29,7 +29,13 @@
       p.setAttribute('aria-hidden', isActive ? 'false' : 'true');
     });
     const indicator = book.querySelector('[data-flip-current]');
-    if (indicator) indicator.textContent = String(clamped + 1);
+    if (indicator) {
+      const next = String(clamped + 1);
+      // Indicator is an <input type="number"> so the user can type-to-jump;
+      // fall back to textContent for any future non-input variant.
+      if ('value' in indicator) indicator.value = next;
+      else indicator.textContent = next;
+    }
     const total = all.length;
     const prev = book.querySelector('[data-flip="prev"]');
     const next = book.querySelector('[data-flip="next"]');
@@ -59,6 +65,33 @@
     const dir = btn.dataset.flip;
     const cur = getActive(book);
     setActive(book, dir === 'next' ? cur + 1 : cur - 1);
+  });
+
+  // Type-to-jump: the [data-flip-current] indicator is an <input type=number>.
+  // Commit on `change` (which fires on Enter and on blur) so the user can
+  // tab out, click out, or press Enter — all jump to the typed page.
+  document.addEventListener('change', (e) => {
+    const input = e.target.closest?.('[data-flip-current]');
+    if (!input) return;
+    const book = input.closest('.binder-book');
+    if (!book) return;
+    const total = pages(book).length;
+    const n = parseInt(input.value, 10);
+    if (Number.isNaN(n)) {
+      input.value = String(getActive(book) + 1);
+      return;
+    }
+    setActive(book, Math.max(0, Math.min(n - 1, total - 1)));
+  });
+
+  // Pressing Enter inside the input commits and blurs (so the focus
+  // returns to the document and arrow-key flipping works again).
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    const input = e.target.closest?.('[data-flip-current]');
+    if (!input) return;
+    e.preventDefault();
+    input.blur();
   });
 
   // Keyboard navigation: when a binder is focused (or its pages container),
@@ -252,12 +285,22 @@
 
   // ---------- want-list copy-to-clipboard ----------
   //
-  // Two flavors of button:
-  //   [data-copy-binder="ROF"]  — copies that one set's missing cards
-  //   [data-copy-all]           — copies every missing card across the page
-  // Both read the existing `.pocket--missing` DOM (no separate data layer)
-  // and assemble plain text suitable for pasting into Discord, trade
-  // threads, notes, etc.
+  // Plain-text variant (Discord / notes):
+  //   [data-copy-binder="ROF"]   — one set's missing cards
+  //   [data-copy-all]            — every missing card across the page
+  // Cardmarket Mass-Import variant:
+  //   [data-copy-cm-binder="ROF"] — same scope, Cardmarket "1 Name - Subtitle" lines
+  //   [data-copy-cm-all]          — every missing card, Cardmarket format
+  // Both read the existing `.pocket--missing` DOM (no separate data layer).
+
+  // Cardmarket's Wants index. Mass-Import lives inside a saved wantlist
+  // (under "+ Add Deck List"). After pasting, Cardmarket's "Sellers with
+  // the most cards" button finds the optimal multi-seller cart.
+  // Cardmarket caps wantlists at ~150 entries, so we only expose a
+  // per-binder button — bulk-dumping a whole collection would partial-fail
+  // on big collections.
+  const CARDMARKET_WANTS_URL =
+    'https://www.cardmarket.com/en/Lorcana/Wants';
 
   function formatBinder(binderEl) {
     const summary = binderEl.querySelector(':scope > summary');
@@ -277,13 +320,59 @@
     return lines.join('\n');
   }
 
+  // Cardmarket's exact deck-list import format:
+  //   1x Card Name - Subtitle (V.N) (Set Name)
+  // (V.N) selects the printing within a set: V.1 = standard, V.2 = enchanted
+  // reprint, V.3 = infinity. (Set Name) scopes the lookup to the right
+  // expansion (so a TFC card doesn't match a Fabled reprint).
+  //
+  // `scope` filters by collector number band so the user can copy just the
+  // standard ≤204 cards (skipping pricey V.2/V.3 reprints) or just the
+  // specials. Scope === 'all' (or undefined) emits everything.
+  function formatBinderCardmarket(binderEl, scope) {
+    let missing = Array.from(binderEl.querySelectorAll('.pocket--missing'));
+    if (scope === 'standard') missing = missing.filter(p => collectorNum(p) <= 204);
+    else if (scope === 'specials') missing = missing.filter(p => collectorNum(p) > 204);
+    if (missing.length === 0) return { text: null, count: 0 };
+    const setName = binderEl
+      .querySelector(':scope > summary .binder-name')
+      ?.textContent.trim() || '';
+    const setSuffix = setName ? ` (${setName})` : '';
+    const lines = [];
+    missing.forEach((p) => {
+      const cardName = p.querySelector('.pocket-name')?.textContent.trim() || '';
+      const sub = p.querySelector('.pocket-sub')?.textContent.trim();
+      const full = sub ? `${cardName} - ${sub}` : cardName;
+      if (!full) return;
+      const v = p.dataset.cmVersion;
+      const versionSuffix = v ? ` (V.${v})` : '';
+      lines.push(`1x ${full}${versionSuffix}${setSuffix}`);
+    });
+    return { text: lines.join('\n'), count: lines.length };
+  }
+
+  function collectorNum(pocket) {
+    const id = pocket.querySelector('.pocket-id')?.textContent.trim() || '';
+    const m = (id.split('-')[1] || '').match(/^(\d+)/);
+    return m ? parseInt(m[1], 10) : 0;
+  }
+
   function copyText(text) {
     if (!text) return Promise.resolve(false);
     if (navigator.clipboard && window.isSecureContext) {
       return navigator.clipboard.writeText(text).then(() => true, () => false);
     }
-    // Fallback for non-secure contexts (http://localhost is secure, so this
-    // mostly only fires on plain-IP local networks).
+    return Promise.resolve(copyTextSync(text));
+  }
+
+  // Synchronous copy via legacy execCommand('copy'). Used by the Cardmarket
+  // buttons because they also call window.open(), which transfers focus —
+  // and navigator.clipboard.writeText requires the document to stay focused.
+  // Both calls must happen inside the user-gesture frame, which forces a
+  // synchronous copy path. execCommand is deprecated but every major browser
+  // still supports it.
+  function copyTextSync(text) {
+    if (!text) return false;
     const ta = document.createElement('textarea');
     ta.value = text;
     ta.setAttribute('readonly', '');
@@ -294,30 +383,124 @@
     let ok = false;
     try { ok = document.execCommand('copy'); } catch (_) { /* ignore */ }
     document.body.removeChild(ta);
-    return Promise.resolve(ok);
+    return ok;
   }
 
   function flashToast(msg) {
+    showToast({ text: msg, durationMs: 1600 });
+  }
+
+  // Richer toast for the Cardmarket flow: lingers longer (so the user can
+  // read the next-step instructions) and supports a clickable element built
+  // safely with DOM APIs (no innerHTML, no manual escaping).
+  function showToast({ text, node, durationMs }) {
     const toast = document.getElementById('copy-toast');
     if (!toast) return;
-    toast.textContent = msg;
+    toast.replaceChildren(node || document.createTextNode(text || ''));
     toast.hidden = false;
     toast.classList.add('is-visible');
     clearTimeout(toast._timer);
     toast._timer = setTimeout(() => {
       toast.classList.remove('is-visible');
       setTimeout(() => { toast.hidden = true; }, 220);
-    }, 1600);
+    }, durationMs || 1600);
   }
+
+  function buildCardmarketToast(setLabel, count) {
+    // Two stacked lines: the "copied" confirmation, then a one-step recipe
+    // ending in a clickable "Cardmarket Wants" link the user opens manually.
+    const wrap = document.createElement('div');
+    wrap.className = 'copy-toast-body';
+
+    const line1 = document.createElement('div');
+    line1.textContent = `Copied ${count} cards from ${setLabel}`;
+    wrap.appendChild(line1);
+
+    const line2 = document.createElement('div');
+    line2.className = 'copy-toast-hint';
+    line2.appendChild(document.createTextNode('Paste at '));
+    const a = document.createElement('a');
+    a.href = CARDMARKET_WANTS_URL;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.textContent = 'Cardmarket → Wants';
+    line2.appendChild(a);
+    line2.appendChild(document.createTextNode(' → + Add Deck List'));
+    wrap.appendChild(line2);
+
+    return wrap;
+  }
+
+  function copyAllAcrossBinders(formatter) {
+    const blocks = [];
+    let total = 0;
+    document.querySelectorAll('.binder').forEach((b) => {
+      const block = formatter(b);
+      if (block) {
+        blocks.push(block);
+        total += b.querySelectorAll('.pocket--missing').length;
+      }
+    });
+    return { blocks, total };
+  }
+
+  function closeAllCardmarketMenus() {
+    document.querySelectorAll('[data-cm-menu]').forEach((m) => {
+      m.hidden = true;
+      m.style.top = '';
+      m.style.left = '';
+      m.style.right = '';
+    });
+    document.querySelectorAll('[data-cm-trigger][aria-expanded="true"]').forEach((t) => {
+      t.setAttribute('aria-expanded', 'false');
+    });
+  }
+
+  // Position a fixed-position menu directly below its trigger, right-aligned
+  // with the trigger's right edge. Using `right` lets us avoid measuring the
+  // menu's own width (which would require it to be visible first).
+  function positionCardmarketMenu(trigger, menu) {
+    const rect = trigger.getBoundingClientRect();
+    menu.style.top = `${rect.bottom + 4}px`;
+    menu.style.right = `${window.innerWidth - rect.right}px`;
+    menu.style.left = 'auto';
+  }
+
+  // Scroll or resize while the menu is open would let the trigger drift
+  // away from the (fixed-position) menu. Cheaper to close than reposition.
+  window.addEventListener('scroll', closeAllCardmarketMenus, { passive: true });
+  window.addEventListener('resize', closeAllCardmarketMenus, { passive: true });
 
   // capture:true so we fire before the click bubbles to <summary> and
   // toggles the <details>. stopPropagation here prevents that toggle.
   document.addEventListener('click', (e) => {
     const inline = e.target.closest('[data-copy-binder]');
     const all = e.target.closest('[data-copy-all]');
-    if (!inline && !all) return;
+    const cmTrigger = e.target.closest('[data-cm-trigger]');
+    const inlineCM = e.target.closest('[data-copy-cm-binder]');
+
+    // Outside-click closes any open Cardmarket menu. Skip when the click
+    // is on the trigger or inside a menu — those have their own handlers.
+    if (!cmTrigger && !inlineCM) {
+      closeAllCardmarketMenus();
+    }
+
+    if (!inline && !all && !cmTrigger && !inlineCM) return;
     e.preventDefault();
     e.stopPropagation();
+
+    if (cmTrigger) {
+      const code = cmTrigger.dataset.cmTrigger;
+      const menu = document.querySelector(`[data-cm-menu="${CSS.escape(code)}"]`);
+      const wasOpen = menu && !menu.hidden;
+      closeAllCardmarketMenus();
+      if (menu && !wasOpen) {
+        positionCardmarketMenu(cmTrigger, menu);
+        menu.hidden = false;
+        cmTrigger.setAttribute('aria-expanded', 'true');
+      }
+      return;
+    }
 
     if (inline) {
       const code = inline.dataset.copyBinder;
@@ -329,23 +512,37 @@
       );
     }
 
-    // copy-all: walk every binder on the page in display order.
-    const blocks = [];
-    let total = 0;
-    document.querySelectorAll('.binder').forEach((b) => {
-      const block = formatBinder(b);
-      if (block) {
-        blocks.push(block);
-        total += b.querySelectorAll('.pocket--missing').length;
-      }
-    });
-    if (blocks.length === 0) return flashToast('Nothing to copy');
-    const header = `Lorscana want-list — ${total} cards across ${blocks.length} sets`;
-    const text = `${header}\n\n${blocks.join('\n\n')}\n`;
-    copyText(text).then((ok) =>
-      flashToast(ok ? `Copied ${total}-card want-list` : 'Copy failed')
-    );
+    if (all) {
+      const { blocks, total } = copyAllAcrossBinders(formatBinder);
+      if (blocks.length === 0) return flashToast('Nothing to copy');
+      const header = `Lorscana want-list — ${total} cards across ${blocks.length} sets`;
+      const text = `${header}\n\n${blocks.join('\n\n')}\n`;
+      return copyText(text).then((ok) =>
+        flashToast(ok ? `Copied ${total}-card want-list` : 'Copy failed')
+      );
+    }
+
+    // Per-binder Cardmarket menu item: copy filtered missing cards, show
+    // a lingering instruction toast, close the menu. We deliberately don't
+    // auto-open the Wants tab — Cardmarket caps wantlists at ~150 cards
+    // and the user controls when to switch tabs.
+    if (inlineCM) {
+      const code = inlineCM.dataset.copyCmBinder;
+      const scope = inlineCM.dataset.cmScope || 'all';
+      const binder = document.getElementById(code);
+      const result = binder ? formatBinderCardmarket(binder, scope) : null;
+      closeAllCardmarketMenus();
+      if (!result || !result.text) return flashToast('Nothing to copy');
+      if (!copyTextSync(result.text)) return flashToast('Copy failed');
+      const setLabel = binder.querySelector('.binder-name')?.textContent.trim() || code;
+      showToast({ node: buildCardmarketToast(setLabel, result.count), durationMs: 6000 });
+    }
   }, true);
+
+  // Escape key closes any open Cardmarket dropdown.
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeAllCardmarketMenus();
+  });
 
   // Scroll a freshly-opened binder into focus. We deliberately don't call
   // `initBooks(e.target)` here even though it might seem natural — toggle

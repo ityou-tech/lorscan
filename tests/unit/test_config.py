@@ -3,7 +3,7 @@
 from pathlib import Path
 
 from lorscan.config import load_config
-from lorscan.services.buy_links import DEFAULT_CARDMARKET_FILTERS
+from lorscan.services.buy_links import DEFAULT_CARDMARKET_FILTERS, DEFAULT_CARDTRADER_FILTERS
 
 
 def test_load_config_from_toml(tmp_path: Path):
@@ -112,3 +112,46 @@ def test_user_can_add_extra_buy_link_filter_keys(tmp_path: Path):
     assert cfg.buy_links.cardmarket_filters["isFoil"] == "Y"
     # Defaults still present.
     assert cfg.buy_links.cardmarket_filters["sellerCountry"] == DEFAULT_CARDMARKET_FILTERS["sellerCountry"]
+
+
+def test_default_cardtrader_filters(tmp_path: Path):
+    cfg_path = tmp_path / "config.toml"
+    cfg_path.write_text("")
+    cfg = load_config(toml_path=cfg_path, env={})
+    assert cfg.buy_links.cardtrader_filters == DEFAULT_CARDTRADER_FILTERS
+
+
+def test_cardtrader_filter_overrides_from_toml(tmp_path: Path):
+    """User can populate `[buy_links.cardtrader]` with arbitrary filter keys.
+
+    The exact CardTrader query-param vocabulary is documented in the README;
+    the config layer stays vocabulary-agnostic, so any keys flow through.
+    """
+    cfg_path = tmp_path / "config.toml"
+    cfg_path.write_text(
+        "[buy_links.cardtrader]\n"
+        'language = "en"\n'
+        'condition = "NM"\n'
+        "same_country = true\n"
+    )
+    cfg = load_config(toml_path=cfg_path, env={})
+    f = cfg.buy_links.cardtrader_filters
+    assert f["language"] == "en"
+    assert f["condition"] == "NM"
+    assert f["same_country"] is True
+
+
+def test_cardtrader_and_cardmarket_filters_are_independent(tmp_path: Path):
+    cfg_path = tmp_path / "config.toml"
+    cfg_path.write_text(
+        "[buy_links.cardmarket]\n"
+        "minCondition = 2\n"
+        "[buy_links.cardtrader]\n"
+        'condition = "NM"\n'
+    )
+    cfg = load_config(toml_path=cfg_path, env={})
+    assert cfg.buy_links.cardmarket_filters["minCondition"] == 2
+    assert cfg.buy_links.cardtrader_filters["condition"] == "NM"
+    # Cardmarket defaults preserved, CardTrader-only key not leaking in.
+    assert "condition" not in cfg.buy_links.cardmarket_filters
+    assert "minCondition" not in cfg.buy_links.cardtrader_filters
