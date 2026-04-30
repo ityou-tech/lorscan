@@ -628,15 +628,13 @@ body.lightbox-open { overflow: hidden; }
   cursor: zoom-in;
 }
 
-/* Subtle footer below the binder shelf — currently just the reset
-   collection action, kept out of the header so it doesn't compete with
-   the primary copy-want button. */
+/* Reset action lives below the shelf so it doesn't compete with the
+   header's primary copy button. */
 .collection-footer {
   margin: 40px 0 0;
   text-align: center;
 }
 
-/* Page-level Cardmarket copy button in the collection header. */
 .copy-want-btn {
   display: inline-flex;
   align-items: center;
@@ -668,8 +666,7 @@ body.lightbox-open { overflow: hidden; }
   background: #1d4f9c;
   color: white;
 }
-/* Inline variant — sits inside `.binder-stats` next to the per-set count.
-   Sized down so it doesn't overpower the title row. */
+/* Sized down so it doesn't overpower the title row it sits in. */
 .copy-want-btn--inline {
   margin-left: 12px;
   padding: 3px 9px;

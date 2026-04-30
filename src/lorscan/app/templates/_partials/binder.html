@@ -50,45 +50,23 @@
       </div>
     </div>
     <div class="binder-progress-group" aria-label="Per-bucket completion">
-      {% if binder.buckets.standard.total > 0 %}
-      <div class="binder-progress-row binder-progress-row--standard"
-           title="Standard rarities (collector # ≤ 204)">
-        <span class="binder-progress-label">Std</span>
+      {% for key, label, tooltip in [
+        ('standard', 'Std', 'Standard rarities (collector # ≤ 204)'),
+        ('enchanted', 'Ench', 'Enchanted reprints (collector # 205–216)'),
+        ('iconic', 'Ic', 'Iconic / Infinity tier (collector # ≥ 217)'),
+      ] %}
+      {% set bucket = binder.buckets[key] %}
+      {% if bucket.total > 0 %}
+      <div class="binder-progress-row binder-progress-row--{{ key }}"
+           title="{{ tooltip }}">
+        <span class="binder-progress-label">{{ label }}</span>
         <div class="binder-progress">
-          <div class="binder-progress-fill"
-               style="width: {{ binder.buckets.standard.pct }}%"></div>
+          <div class="binder-progress-fill" style="width: {{ bucket.pct }}%"></div>
         </div>
-        <span class="binder-progress-count">
-          {{ binder.buckets.standard.owned }}/{{ binder.buckets.standard.total }}
-        </span>
+        <span class="binder-progress-count">{{ bucket.owned }}/{{ bucket.total }}</span>
       </div>
       {% endif %}
-      {% if binder.buckets.enchanted.total > 0 %}
-      <div class="binder-progress-row binder-progress-row--enchanted"
-           title="Enchanted reprints (collector # 205–216)">
-        <span class="binder-progress-label">Ench</span>
-        <div class="binder-progress">
-          <div class="binder-progress-fill"
-               style="width: {{ binder.buckets.enchanted.pct }}%"></div>
-        </div>
-        <span class="binder-progress-count">
-          {{ binder.buckets.enchanted.owned }}/{{ binder.buckets.enchanted.total }}
-        </span>
-      </div>
-      {% endif %}
-      {% if binder.buckets.iconic.total > 0 %}
-      <div class="binder-progress-row binder-progress-row--iconic"
-           title="Iconic / Infinity tier (collector # ≥ 217)">
-        <span class="binder-progress-label">Ic</span>
-        <div class="binder-progress">
-          <div class="binder-progress-fill"
-               style="width: {{ binder.buckets.iconic.pct }}%"></div>
-        </div>
-        <span class="binder-progress-count">
-          {{ binder.buckets.iconic.owned }}/{{ binder.buckets.iconic.total }}
-        </span>
-      </div>
-      {% endif %}
+      {% endfor %}
     </div>
   </summary>
 

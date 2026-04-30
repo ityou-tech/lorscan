@@ -298,9 +298,9 @@
     'https://www.cardmarket.com/en/Lorcana/Wants';
 
   // V.N comes from data-cm-version, card type from data-card-type (both set
-  // server-side in collection.py). Scope filtering: `standard` = ≤ 204,
-  // `specials` = enchanted + iconic, anything else = no filter.
-  function formatBinderCardmarket(binderEl, scope) {
+  // server-side in collection.py). Scope `'standard'` = ≤ 204, `'specials'`
+  // = enchanted + iconic, `'all'` (default) = no filter.
+  function formatBinderCardmarket(binderEl, scope = 'all') {
     let missing = Array.from(binderEl.querySelectorAll('.pocket--missing'));
     if (scope === 'standard') {
       missing = missing.filter((p) => p.dataset.cardType === 'standard');
@@ -333,8 +333,8 @@
     return Promise.resolve(copyTextSync(text));
   }
 
-  // execCommand fallback for insecure contexts where navigator.clipboard
-  // is unavailable (e.g. plain http:// over LAN).
+  // execCommand fallback for insecure contexts (plain http:// over LAN)
+  // where navigator.clipboard is unavailable.
   function copyTextSync(text) {
     if (!text) return false;
     const ta = document.createElement('textarea');
@@ -354,8 +354,6 @@
     showToast({ text: msg, durationMs: 1600 });
   }
 
-  // Toast supports a clickable element built with DOM APIs (no innerHTML,
-  // no manual escaping).
   function showToast({ text, node, durationMs }) {
     const toast = document.getElementById('copy-toast');
     if (!toast) return;
@@ -369,9 +367,9 @@
     }, durationMs || 1600);
   }
 
+  // DOM-built (not innerHTML) so the user-facing labels stay safe even if
+  // something flows through them in future.
   function buildCardmarketToast(sourceLabel, count) {
-    // Two stacked lines: the "copied" confirmation, then a one-step recipe
-    // ending in a clickable "Cardmarket Wants" link the user opens manually.
     const wrap = document.createElement('div');
     wrap.className = 'copy-toast-body';
 
@@ -394,13 +392,16 @@
     return wrap;
   }
 
-  // Tracks whether any Cardmarket dropdown is currently open, so the
-  // document-level click handler can skip the close-everything sweep when
-  // there's nothing to close.
-  let anyMenuOpen = false;
+  function copyAndToast(text, sourceLabel, count) {
+    return copyText(text).then((ok) => {
+      if (!ok) return flashToast('Copy failed');
+      showToast({ node: buildCardmarketToast(sourceLabel, count), durationMs: 6000 });
+    });
+  }
 
   function closeAllCardmarketMenus() {
-    if (!anyMenuOpen) return;
+    const open = document.querySelector('[data-cm-menu]:not([hidden])');
+    if (!open) return;
     document.querySelectorAll('[data-cm-menu]').forEach((m) => {
       m.hidden = true;
       m.style.top = '';
@@ -410,7 +411,6 @@
     document.querySelectorAll('[data-cm-trigger][aria-expanded="true"]').forEach((t) => {
       t.setAttribute('aria-expanded', 'false');
     });
-    anyMenuOpen = false;
   }
 
   // Right-align the menu under its trigger using `right` (rather than `left`)
@@ -457,7 +457,6 @@
         positionCardmarketMenu(cmTrigger, menu);
         menu.hidden = false;
         cmTrigger.setAttribute('aria-expanded', 'true');
-        anyMenuOpen = true;
       }
       return;
     }
@@ -469,33 +468,28 @@
       const result = binder ? formatBinderCardmarket(binder, scope) : null;
       closeAllCardmarketMenus();
       if (!result) return flashToast('Nothing to copy');
-      copyText(result.text).then((ok) => {
-        if (!ok) return flashToast('Copy failed');
-        const setLabel = binder.querySelector('.binder-name')?.textContent.trim()
-          || code;
-        showToast({ node: buildCardmarketToast(setLabel, result.count), durationMs: 6000 });
-      });
+      const setLabel = binder.querySelector('.binder-name')?.textContent.trim()
+        || code;
+      copyAndToast(result.text, setLabel, result.count);
       return;
     }
 
-    const blocks = [];
-    let total = 0;
-    let setCount = 0;
-    document.querySelectorAll('.binder').forEach((b) => {
-      const result = formatBinderCardmarket(b);
-      if (result) {
-        blocks.push(result.text);
-        total += result.count;
-        setCount += 1;
-      }
-    });
-    if (blocks.length === 0) return flashToast('Nothing to copy');
-
-    copyText(blocks.join('\n')).then((ok) => {
-      if (!ok) return flashToast('Copy failed');
+    if (allBtn) {
+      const blocks = [];
+      let total = 0;
+      let setCount = 0;
+      document.querySelectorAll('.binder').forEach((b) => {
+        const result = formatBinderCardmarket(b);
+        if (result) {
+          blocks.push(result.text);
+          total += result.count;
+          setCount += 1;
+        }
+      });
+      if (blocks.length === 0) return flashToast('Nothing to copy');
       const label = `${setCount} ${setCount === 1 ? 'set' : 'sets'}`;
-      showToast({ node: buildCardmarketToast(label, total), durationMs: 6000 });
-    });
+      copyAndToast(blocks.join('\n'), label, total);
+    }
   }, true);
 
   // Escape key closes any open Cardmarket dropdown.
