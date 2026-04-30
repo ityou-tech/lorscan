@@ -1,9 +1,25 @@
-# lorscan
+<p align="center">
+  <img src="docs/banner.png" alt="lorscan" width="720">
+</p>
 
-Local Disney Lorcana TCG collection manager. Photographs of binder pages
-go in via the CLI or web UI; **local CLIP embeddings** identify each card
-visually against a catalog synced from `lorcanajson.org`. Fully offline
-after the one-time setup — no API keys, no rate limits, no cost.
+<h1 align="center">lorscan</h1>
+
+<p align="center">
+  <strong>Local-first Disney Lorcana TCG collection manager.</strong><br>
+  Photograph a binder page, get back identified cards. Recognition runs on
+  <strong>local CLIP embeddings</strong> against a catalog synced from
+  <code>lorcanajson.org</code> — fully offline after the one-time setup.<br>
+  No API keys, no rate limits, no cost.
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/python-3.12+-3776AB?logo=python&logoColor=white" alt="Python 3.12+">
+  <img src="https://img.shields.io/badge/packaged%20with-uv-DE5FE9" alt="uv">
+  <img src="https://img.shields.io/badge/lint-ruff-D7FF64?logo=ruff&logoColor=black" alt="Ruff">
+  <img src="https://img.shields.io/badge/web-FastAPI-009688?logo=fastapi&logoColor=white" alt="FastAPI">
+  <img src="https://img.shields.io/badge/recognition-OpenCLIP%20ViT--B%2F32-FF6F00" alt="OpenCLIP ViT-B/32">
+  <img src="https://img.shields.io/badge/runs-offline-2ea44f" alt="Offline">
+</p>
 
 > **Status:** Plan 1 + Plan 2 MVP + Phase A (CLIP recognition) — fast
 > local scanning, web UI, scan persistence, /collection with Cardmarket
@@ -54,6 +70,13 @@ uv run lorscan index-images
 
 # Run the web UI on http://localhost:8000 (auto-reload on by default)
 uv run lorscan serve
+
+# Debug a single photo: dumps edge map, contour overlay, and CLIP top-5
+# with vs. without card-boundary warping
+uv run lorscan diag path/to/photo.jpg
+
+# Print the installed version
+uv run lorscan version
 ```
 
 ### Set codes
@@ -87,9 +110,6 @@ hunt down, treated identically to a common.
 
 (Exact list depends on what `lorcanajson.org` currently exposes.)
 
-If you mistype a set code, `lorscan scan` fails fast with a "Did you
-mean: …?" hint based on what's actually in your catalog.
-
 ### Manual image overrides
 
 The LorcanaJSON migration (April 2026) sources image URLs from the
@@ -98,8 +118,8 @@ released sets — the manual-override workaround is **typically not
 needed** any more. The mechanism is kept as a fallback for the rare
 case where Ravensburger's CDN drops a hash on a brand-new release.
 
-If `lorscan index-images` reports `Skipping card <SET>-<NUM>` for a
-card you care about, drop a replacement image at:
+If `lorscan index-images` ends with a `warning: N image(s) failed to
+download` block listing a card you care about, drop a replacement image at:
 
 ```
 ~/.lorscan/overrides/<card_id>.<ext>     # .jpg .jpeg .png .webp .avif
@@ -156,10 +176,11 @@ collector-number level (printed in tiny text at each card's bottom-left).
 - **Native phone resolution**: lorscan auto-transcodes HEIC → JPEG at
   quality 92 with no resize.
 
-Even with collector numbers unreadable, the matcher uses cards' name +
-your selected `--set` to resolve most cells. Cards with title-only
-matches in the chosen set succeed; cards whose name appears more than
-once in the set surface as `(ambiguous: N candidates)` for manual pick.
+Recognition is purely visual — there's no OCR step — so anything that
+helps CLIP see the whole card art is what helps. When you know which
+binder you've photographed, the **Restrict to set** dropdown on `/scan`
+narrows the catalog to one expansion and eliminates most cross-set
+false positives.
 
 ---
 
@@ -324,10 +345,12 @@ src/lorscan/
 ├── services/
 │   ├── catalog.py            # LorcanaJSON sync (sets + cards + external links)
 │   ├── lorcana_json/         # LorcanaJSON-specific fetcher, mapper, set-code map
+│   ├── sets.py               # canonical Lorcana release order
 │   ├── buy_links.py          # Cardmarket/CardTrader URL builders
 │   ├── photos.py             # hash, save, HEIC→JPEG transcode
 │   ├── embeddings.py         # OpenCLIP wrapper + CardImageIndex
 │   ├── image_cache.py        # async catalog-image downloader
+│   ├── card_detection.py     # Canny + contour card-boundary warp (used by `diag`)
 │   ├── visual_scan.py        # tile-and-CLIP scanner
 │   └── scan_result.py        # ParsedCard, ParsedScan, MatchResult dataclasses
 └── storage/
@@ -340,11 +363,11 @@ src/lorscan/
 
 ## Roadmap
 
-See `docs/superpowers/notes/TODO.md` for the running list. Highlights:
+Tracked on [GitHub Issues](https://github.com/ityou-tech/lorscan/issues). Headline items:
 
 - **Tile mode**: split a 3×3 photo into 9 single-card scans for
   legible collector numbers (~9× pixels per card).
-- **3D page-flip binder visualization**: per the design spec §6.
+- **3D page-flip binder visualization** (per the design spec §6).
 - **Photo-quality doctor**: pre-flight readability check.
 - **Background scanning** with progress polling.
 
