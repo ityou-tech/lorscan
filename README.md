@@ -27,7 +27,9 @@ uv run lorscan sync-catalog    # ~2,300 cards, ~10s
 uv run lorscan index-images    # CLIP index, 1–2 min on Apple Silicon
 ```
 
-After that, no network needed.
+The catalog sync and image index pull from `lorcanajson.org` over the
+internet. After that, scanning is fully local — typically you run
+`lorscan serve` on a Mac mini or Synology and reach the web UI over LAN.
 
 ## Self-hosting
 
