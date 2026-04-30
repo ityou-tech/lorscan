@@ -13,17 +13,6 @@ _MIGRATION_010_SQL = (
 )
 
 
-def _stub_marketplace_listings(db: Database) -> None:
-    # Migration 010 SQL also deletes from `marketplace_listings`. The
-    # marketplaces feature was removed in migration 011, which drops the
-    # table — so by the time the `db` fixture finishes migrating, the table
-    # is gone. Recreate a card_id-only stub so re-running 010 against the
-    # latest schema keeps exercising the same DELETE path.
-    db.connection.execute(
-        "CREATE TABLE IF NOT EXISTS marketplace_listings (card_id TEXT)"
-    )
-
-
 def _seed_legacy(db: Database) -> None:
     db.connection.execute(
         "INSERT INTO sets (set_code, name, total_cards, synced_at) VALUES "
@@ -44,10 +33,9 @@ def _seed_legacy(db: Database) -> None:
     db.connection.commit()
 
 
-def test_legacy_ink_rows_removed(db: Database):
+def test_legacy_ink_rows_removed(db: Database, stub_marketplace_listings):
     _seed_legacy(db)
 
-    _stub_marketplace_listings(db)
     db.connection.executescript(_MIGRATION_010_SQL)
 
     sets = db.connection.execute(
@@ -69,7 +57,7 @@ def test_legacy_ink_rows_removed(db: Database):
     assert items == []
 
 
-def test_non_ink_data_untouched(db: Database):
+def test_non_ink_data_untouched(db: Database, stub_marketplace_listings):
     """Sets / cards / collection that don't match the cleanup pattern
     survive the migration unchanged."""
     db.connection.execute(
@@ -86,7 +74,6 @@ def test_non_ink_data_untouched(db: Database):
     )
     db.connection.commit()
 
-    _stub_marketplace_listings(db)
     db.connection.executescript(_MIGRATION_010_SQL)
 
     cards = db.connection.execute("SELECT card_id FROM cards").fetchall()

@@ -311,22 +311,17 @@ def test_collection_pocket_omits_buy_link_when_url_absent(client: TestClient):
     assert "Pinocchio" in body
 
 
-def test_collection_pocket_shows_both_cm_and_ct_buy_links(
+def test_collection_empty_pocket_shows_cardtrader_link_when_url_present(
     client: TestClient,
 ):
-    """Both CM and CT pocket icons render when both URLs are present."""
+    """CT counterpart of the cardmarket-link test above."""
     cfg = client.app.state.config
     db = Database.connect(str(cfg.db_path))
     db.migrate()
     try:
         db.connection.execute(
-            "UPDATE cards SET cardmarket_url = ?, cardtrader_url = ? "
-            "WHERE card_id = 'rof-001'",
-            (
-                "https://www.cardmarket.com/en/Lorcana/Products/Singles/"
-                "Rise-of-the-Floodborn/Pinocchio-Wooden-Rascal",
-                "https://www.cardtrader.com/cards/pinocchio-wooden-rascal",
-            ),
+            "UPDATE cards SET cardtrader_url = ? WHERE card_id = 'rof-001'",
+            ("https://www.cardtrader.com/cards/pinocchio-wooden-rascal",),
         )
         db.connection.commit()
     finally:
@@ -334,9 +329,7 @@ def test_collection_pocket_shows_both_cm_and_ct_buy_links(
 
     response = client.get("/collection")
     assert response.status_code == 200
-    body = response.text
-    assert "buy-link--cardmarket" in body
-    assert "buy-link--cardtrader" in body
+    assert "buy-link--cardtrader" in response.text
 
 
 def test_scan_apply_adds_matched_cards_to_collection(client: TestClient):
