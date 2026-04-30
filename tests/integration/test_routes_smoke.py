@@ -240,33 +240,6 @@ def test_collection_header_shows_cards_needed_stat(client: TestClient):
     assert "sets unfinished" in body
 
 
-def test_collection_header_shows_closest_strip_when_applicable(client: TestClient):
-    """Closest-to-complete strip renders when at least one set is in 50-99% range."""
-    from lorscan.storage.models import Card, CardSet
-    cfg = client.app.state.config
-    db = Database.connect(str(cfg.db_path))
-    db.migrate()
-    try:
-        # Seed a small set with 2 cards, then own 1 of them = 50% completion.
-        db.upsert_set(CardSet(set_code="MINI", name="Mini Set", total_cards=2))
-        db.upsert_card(Card(
-            card_id="mini-1", set_code="MINI", collector_number="1",
-            name="A", subtitle=None, rarity="Common",
-        ))
-        db.upsert_card(Card(
-            card_id="mini-2", set_code="MINI", collector_number="2",
-            name="B", subtitle=None, rarity="Common",
-        ))
-        db.upsert_collection_item(card_id="mini-1", quantity_delta=1)
-    finally:
-        db.close()
-
-    response = client.get("/collection")
-    body = response.text
-    assert "closest" in body.lower() or "Closest" in body
-    assert "Mini Set" in body
-
-
 def test_missing_route_is_gone(client: TestClient):
     response = client.get("/missing")
     assert response.status_code == 404
@@ -361,14 +334,14 @@ def test_scan_apply_adds_matched_cards_to_collection(client: TestClient):
 
 
 def test_collection_renders_global_copy_want_button(client: TestClient):
-    """The global copy-want-list button is rendered when there are missing
-    cards (data-copy-all attribute is the JS hook)."""
+    """The global Cardmarket copy button is rendered when there are missing
+    cards (data-copy-cm-all attribute is the JS hook)."""
     response = client.get("/collection")
     assert response.status_code == 200
     body = response.text
     # The seeded catalog has 2 cards, none owned — so cards_needed > 0.
-    assert "data-copy-all" in body
-    assert "Copy full want-list" in body
+    assert "data-copy-cm-all" in body
+    assert "Copy Cardmarket want-list" in body
     # Toast div is also present so the copy success feedback works.
     assert 'id="copy-toast"' in body
 

@@ -183,27 +183,32 @@ nav a:hover {
    ============================================================ */
 .page-header {
   margin: 0 4px 24px;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 16px;
 }
-.page-header h1 { margin: 0; }
+.page-header h1 { margin: 0 0 12px; }
 .page-header .subtitle {
   margin: 6px 0 0;
   color: var(--text-soft);
   font-size: 1rem;
-  flex-basis: 100%;
 }
-.page-header-meta {
+/* Stats clustered on the left, primary action button on the right.
+   `space-between` keeps them anchored to opposite edges; `flex-wrap`
+   lets the button drop below the stats on narrow viewports. */
+.page-header-row {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.page-header-stats {
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--space-xl);
 }
 .meta-stat {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 2px;
 }
 .meta-stat-num {
@@ -623,73 +628,13 @@ body.lightbox-open { overflow: hidden; }
   cursor: zoom-in;
 }
 
-/* "Closest to complete" highlight strip on /collection — surfaces the few
-   sets the user could realistically finish next, ordered most-complete
-   first. Tile is a clickable deep-link to the set's binder. */
-.closest-strip {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px 16px;
-  margin: 0 0 16px;
-  padding: 12px 14px;
-  background: var(--surface);
-  border: 2px solid var(--success);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-block-sm);
-}
-.closest-label {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.10em;
-  color: var(--success);
-  flex: 0 0 auto;
-}
-.closest-tiles {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  flex: 1 1 auto;
-}
-.closest-tile {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  background: white;
-  border: 2px solid var(--primary);
-  border-radius: var(--radius-sm);
-  text-decoration: none;
-  color: var(--primary);
-  box-shadow: var(--shadow-block-sm);
-  transition: transform 0.05s, box-shadow 0.10s;
-  font-size: 13px;
-}
-.closest-tile:hover {
-  transform: translate(-1px, -1px);
-  box-shadow: var(--shadow-block);
-}
-.closest-tile-pct {
-  font-family: var(--font-display);
-  font-size: 16px;
-  color: var(--success);
-}
-.closest-tile-name {
-  font-family: var(--font-display);
-  letter-spacing: 0.02em;
-}
-.closest-tile-need {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--text-muted);
+/* Reset action lives below the shelf so it doesn't compete with the
+   header's primary copy button. */
+.collection-footer {
+  margin: 40px 0 0;
+  text-align: center;
 }
 
-/* Copy-want-list buttons: page-level (in header) + per-binder (inline in
-   the binder summary). Both share `.copy-want-btn`; the inline variant
-   is sized smaller and styled to read against the secondary-colored
-   summary bar. */
 .copy-want-btn {
   display: inline-flex;
   align-items: center;
@@ -710,52 +655,30 @@ body.lightbox-open { overflow: hidden; }
   transform: translate(-1px, -1px);
   box-shadow: var(--shadow-block);
 }
+
+/* Cardmarket-flavored copy button — Cardmarket's blue + 🛒 icon so it
+   reads as "fills a shopping cart" rather than a paste buffer. */
+.copy-want-btn--cardmarket {
+  border-color: #1d4f9c;
+  color: #1d4f9c;
+}
+.copy-want-btn--cardmarket:hover {
+  background: #1d4f9c;
+  color: white;
+}
+/* Sized down so it doesn't overpower the title row it sits in. */
 .copy-want-btn--inline {
   margin-left: 12px;
-  padding: 4px 10px;
+  padding: 3px 9px;
   font-size: 11px;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   background: rgba(255, 255, 255, 0.92);
-  /* Inside the secondary-colored binder summary, the button needs a
-     dark border to read; on hover it goes solid white. */
+  box-shadow: 2px 2px 0 var(--primary);
 }
 .copy-want-btn--inline:hover { background: white; }
 
-/* Card-type breakdown chips next to the binder progress total. Three
-   tints differentiate Std / Ench / Iconic at a glance without needing
-   to read the labels. Hover reveals the tooltip explaining the bands. */
-.stat-chip {
-  display: inline-block;
-  margin-left: 8px;
-  padding: 2px 8px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  background: rgba(255, 255, 255, 0.12);
-  color: var(--secondary-on);
-  cursor: help;
-}
-.stat-chip--standard {
-  background: rgba(255, 255, 255, 0.18);
-}
-.stat-chip--enchanted {
-  /* warm amber to evoke the Enchanted-rarity card frame */
-  background: rgba(243, 165, 53, 0.55);
-  border-color: rgba(243, 165, 53, 0.85);
-  color: #1a0f00;
-}
-.stat-chip--iconic {
-  /* cool teal — distinct from amber so the two never blur together */
-  background: rgba(64, 211, 191, 0.55);
-  border-color: rgba(64, 211, 191, 0.85);
-  color: #001a17;
-}
-
 /* Cardmarket scope dropdown menu. position:fixed (with JS-set coords)
-   so it escapes the binder's `overflow: hidden` — anything :absolute
+   so it escapes the binder's `overflow: hidden` — anything position:absolute
    inside a binder gets cropped at its rounded-corner edge. */
 .cm-menu {
   position: fixed;
@@ -765,14 +688,14 @@ body.lightbox-open { overflow: hidden; }
   min-width: 180px;
   padding: 4px;
   background: white;
-  border: 2px solid var(--primary);
+  border: 2px solid #1d4f9c;
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-block);
 }
 .cm-menu[hidden] { display: none; }
 .cm-menu-item {
   background: white;
-  color: var(--primary);
+  color: #1d4f9c;
   border: none;
   padding: 8px 12px;
   font-family: var(--font-display);
@@ -783,24 +706,8 @@ body.lightbox-open { overflow: hidden; }
   border-radius: 4px;
 }
 .cm-menu-item:hover {
-  background: var(--secondary);
-  color: var(--secondary-on);
-}
-
-/* Cardmarket-flavored copy button — same shape as the plain copy-want
-   button but tinted with Cardmarket's blue so the two affordances read as
-   different actions at a glance. The icon (🛒) reinforces "this fills a
-   shopping cart, not a paste buffer". */
-.copy-want-btn--cardmarket {
-  border-color: #1d4f9c;
-  color: #1d4f9c;
-}
-.copy-want-btn--cardmarket:hover {
   background: #1d4f9c;
   color: white;
-}
-.copy-want-btn--inline.copy-want-btn--cardmarket {
-  margin-left: 6px;
 }
 
 /* Toast that briefly confirms a copy. Anchored to the bottom-right of
@@ -893,65 +800,6 @@ body.lightbox-open { overflow: hidden; }
 }
 
 /* ============================================================
-   BINDER NAVIGATION (sticky chip strip)
-   ============================================================ */
-.binder-nav {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  margin: 0 -24px 24px;
-  padding: 10px 24px;
-  background: rgba(223, 231, 255, 0.92);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border-bottom: 2px solid var(--primary);
-  scrollbar-width: thin;
-}
-.binder-nav-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  background: white;
-  border: 2px solid var(--primary);
-  border-radius: var(--radius-sm);
-  color: var(--text);
-  font-size: 12px;
-  white-space: nowrap;
-  text-decoration: none;
-  transition: transform 0.05s, box-shadow 0.10s;
-  box-shadow: var(--shadow-block-sm);
-}
-.binder-nav-tab:hover {
-  transform: translate(-1px, -1px);
-  box-shadow: 3px 3px 0 var(--primary);
-  color: var(--secondary);
-}
-.binder-nav-tab--empty { opacity: 0.55; }
-.binder-nav-chapter {
-  font-family: var(--font-display);
-  font-size: 0.95rem;
-  color: var(--secondary);
-  min-width: 1.4em;
-  text-align: right;
-}
-.binder-nav-name {
-  font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: 11px;
-  letter-spacing: 0.05em;
-}
-.binder-nav-count {
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.05em;
-}
-
-/* ============================================================
    BINDER SHELF + BOOK
    ============================================================ */
 .binder-shelf {
@@ -983,24 +831,12 @@ body.lightbox-open { overflow: hidden; }
   border-bottom: 2px solid var(--primary);
 }
 .binder-summary::-webkit-details-marker { display: none; }
-.binder-summary::before {
-  content: '▸';
-  position: absolute;
-  left: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--secondary-on);
-  font-size: 14px;
-  transition: transform 0.18s ease;
-}
-.binder[open] > .binder-summary::before { transform: translateY(-50%) rotate(90deg); }
 
 .binder-spine {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 16px;
-  padding-left: 18px;
 }
 .binder-title {
   display: flex;
@@ -1051,9 +887,38 @@ body.lightbox-open { overflow: hidden; }
   font-size: 11px;
 }
 
-/* Slim progress strip */
-.binder-progress {
+/* Stacked per-bucket progress bars (Std / Ench / Ic). Each row is
+   [label] [track] [count], all rows share fixed-width label and count
+   columns so the tracks line up across rows and across binders. */
+.binder-progress-group {
   margin: 10px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.binder-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.05em;
+  cursor: help;
+}
+.binder-progress-label {
+  flex: 0 0 32px;
+  color: rgba(255, 255, 255, 0.78);
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.binder-progress-count {
+  flex: 0 0 60px;
+  text-align: right;
+  color: rgba(255, 255, 255, 0.70);
+}
+.binder-progress {
+  flex: 1 1 auto;
   height: 5px;
   background: rgba(28, 32, 43, 0.30);
   border-radius: 2px;
@@ -1063,6 +928,19 @@ body.lightbox-open { overflow: hidden; }
   height: 100%;
   background: var(--success);
   transition: width 0.35s ease;
+}
+/* Per-bucket fills mirror the previous chip palette: white for Std (the
+   baseline), amber for Enchanted (warm rarity frame), teal for Iconic
+   (cool top tier). Higher alpha than chips because a 5px sliver needs
+   the saturation to read against the dark track. */
+.binder-progress-row--standard .binder-progress-fill {
+  background: rgba(255, 255, 255, 0.85);
+}
+.binder-progress-row--enchanted .binder-progress-fill {
+  background: #f3a535;
+}
+.binder-progress-row--iconic .binder-progress-fill {
+  background: #40d3bf;
 }
 
 /* ============================================================

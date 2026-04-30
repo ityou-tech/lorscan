@@ -63,13 +63,6 @@ async def collection_index(request: Request) -> HTMLResponse:
         distinct_owned = sum(b["owned_count"] for b in binders)
         cards_needed = total_catalog - distinct_owned
         unfinished_sets = sum(1 for b in binders if b["owned_count"] < b["total"])
-
-        # "Closest to complete" strip — top 3 sets in the 50-99% range.
-        closest = [
-            {**b, "missing_count": b["total"] - b["owned_count"]}
-            for b in binders
-            if 50.0 <= b["pct"] < 100.0
-        ][:3]
     finally:
         db.close()
 
@@ -83,7 +76,6 @@ async def collection_index(request: Request) -> HTMLResponse:
             "distinct_owned": distinct_owned,
             "cards_needed": cards_needed,
             "unfinished_sets": unfinished_sets,
-            "closest": closest,
             "cardmarket_filters": cfg.buy_links.cardmarket_filters,
             "cardtrader_filters": cfg.buy_links.cardtrader_filters,
         },
@@ -148,7 +140,7 @@ def _build_binders(db: Database) -> list[dict]:
             card["cardmarket_version"] = version_seen[key]
             card["card_type"] = _classify_card_type(card["collector_number"])
 
-        buckets: dict[str, dict[str, int]] = {
+        buckets: dict[str, dict[str, float]] = {
             "standard": {"owned": 0, "total": 0},
             "enchanted": {"owned": 0, "total": 0},
             "iconic": {"owned": 0, "total": 0},
@@ -158,6 +150,11 @@ def _build_binders(db: Database) -> list[dict]:
             b["total"] += 1
             if card["owned"]:
                 b["owned"] += 1
+        for bucket in buckets.values():
+            bucket["pct"] = (
+                round(bucket["owned"] / bucket["total"] * 100, 1)
+                if bucket["total"] else 0
+            )
         owned_count = sum(1 for c in cards if c["owned"])
         pages = [cards[i : i + page_size] for i in range(0, len(cards), page_size)]
         chapter = release_index(s["set_code"])
