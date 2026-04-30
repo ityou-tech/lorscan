@@ -2,87 +2,56 @@
   <img src="docs/banner.png" alt="lorscan" width="720">
 </p>
 
-<h1 align="center">lorscan</h1>
-
-<p align="center">
-  <strong>Local-first Disney Lorcana TCG collection manager.</strong><br>
-  Photograph a binder page, get back identified cards. Recognition runs on
-  <strong>local CLIP embeddings</strong> against a catalog synced from
-  <code>lorcanajson.org</code> — fully offline after the one-time setup.<br>
-  No API keys, no rate limits, no cost.
-</p>
-
 <p align="center">
   <img src="https://img.shields.io/badge/python-3.12+-3776AB?logo=python&logoColor=white" alt="Python 3.12+">
+  <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT License">
   <img src="https://img.shields.io/badge/packaged%20with-uv-DE5FE9" alt="uv">
   <img src="https://img.shields.io/badge/lint-ruff-D7FF64?logo=ruff&logoColor=black" alt="Ruff">
   <img src="https://img.shields.io/badge/web-FastAPI-009688?logo=fastapi&logoColor=white" alt="FastAPI">
-  <img src="https://img.shields.io/badge/recognition-OpenCLIP%20ViT--B%2F32-FF6F00" alt="OpenCLIP ViT-B/32">
-  <img src="https://img.shields.io/badge/runs-offline-2ea44f" alt="Offline">
 </p>
 
-> **Status:** Plan 1 + Plan 2 MVP + Phase A (CLIP recognition) — fast
-> local scanning, web UI, scan persistence, /collection with Cardmarket
-> and CardTrader buy-link icons, accept-into-collection workflow.
+# lorscan
 
----
+Local Lorcana collection manager. Take a photo of a binder page, get the
+cards back. Recognition runs offline with OpenCLIP ViT-B-32 against a
+catalog synced from [lorcanajson.org](https://lorcanajson.org).
 
 ## Setup
 
 ```bash
-# Clone + install
-git clone https://github.com/ityou-tech/lorscan.git
-cd lorscan
+git clone https://github.com/ityou-tech/lorscana.git
+cd lorscana
 uv sync
 
-# Initial catalog sync (~2300 cards across 11 sets, takes ~10s)
-uv run lorscan sync-catalog
-
-# Build the local CLIP image index (downloads catalog images + computes
-# embeddings; ~1–2 minutes on Apple Silicon, fully offline thereafter)
-uv run lorscan index-images
+uv run lorscan sync-catalog    # ~2,300 cards, ~10s
+uv run lorscan index-images    # CLIP index, 1–2 min on Apple Silicon
 ```
 
-That's it. Nothing else to configure. No API keys, no auth.
-
----
+After that, no network needed.
 
 ## Self-hosting
 
-Two supported deployment paths:
-
-- **Mac (autostart)** — best for an always-on Mac mini or laptop on Apple Silicon. One command: `./deploy/macmini/install.sh`. See [docs/deploy/macmini.md](docs/deploy/macmini.md).
-- **Docker / Synology** — containerized build for any Linux host or Synology NAS with Container Manager. `docker compose up -d --build` from the repo root.
-
----
+- **Mac (autostart)** — `./deploy/macmini/install.sh`. Details in
+  [docs/deploy/macmini.md](docs/deploy/macmini.md).
+- **Docker / Synology** — `docker compose up -d --build` from the repo root.
 
 ## CLI
 
 ```bash
-# Identify cards in a photo (local CLIP, ~1 second)
-uv run lorscan scan path/to/binder-page.jpg
-
-# Refresh the local catalog
-uv run lorscan sync-catalog
-
-# Rebuild the CLIP index (run after sync-catalog adds new sets)
-uv run lorscan index-images
-
-# Run the web UI on http://localhost:8000 (auto-reload on by default)
-uv run lorscan serve
-
-# Debug a single photo: dumps edge map, contour overlay, and CLIP top-5
-# with vs. without card-boundary warping
-uv run lorscan diag path/to/photo.jpg
-
-# Print the installed version
+uv run lorscan scan path/to/binder-page.jpg   # identify cards (~1s)
+uv run lorscan sync-catalog                   # refresh catalog
+uv run lorscan index-images                   # rebuild CLIP index
+uv run lorscan serve                          # web UI on :8000
+uv run lorscan diag path/to/photo.jpg         # debug recognition
 uv run lorscan version
 ```
 
+`diag` dumps the edge map, contour overlay, and CLIP top-5 with vs.
+without card-boundary warping. Useful when a photo is matching badly.
+
 ### Set codes
 
-After `sync-catalog`, the local DB carries the canonical 3-letter set
-codes in official Ravensburger numeric order:
+The local DB stores 3-letter codes in official release order:
 
 | #  | Code | Name                  |
 | -- | ---- | --------------------- |
@@ -102,116 +71,91 @@ codes in official Ravensburger numeric order:
 | 14 | HYC  | Hyperia City          |
 | Q1 | Q1   | Illumineer's Quest    |
 
-Each main set ships ~204 numbered cards plus higher-numbered enchanteds
-(typically 205-223), iconics, and a handful of promos with their own
-numbering. `lorscan` imports all of them — when a "missing" pocket on
-`/collection` shows an enchanted, it's just another collector number to
-hunt down, treated identically to a common.
+Each main set has ~204 numbered cards plus enchanteds (205–223), iconics,
+and some promos. lorscan imports all of them, so an enchanted in a "missing"
+pocket on `/collection` is just another card to track down.
 
-(Exact list depends on what `lorcanajson.org` currently exposes.)
+(The exact list depends on what `lorcanajson.org` currently exposes.)
 
 ### Manual image overrides
 
-The LorcanaJSON migration (April 2026) sources image URLs from the
-official Lorcana app data feed, which currently has 100% coverage on
-released sets — the manual-override workaround is **typically not
-needed** any more. The mechanism is kept as a fallback for the rare
-case where Ravensburger's CDN drops a hash on a brand-new release.
+Since the LorcanaJSON migration in April 2026, image URLs come from the
+official Lorcana app data feed and coverage on released sets sits at 100%.
+The override mechanism stays as a fallback for the rare CDN hash drop on
+a brand-new set.
 
-If `lorscan index-images` ends with a `warning: N image(s) failed to
-download` block listing a card you care about, drop a replacement image at:
+If `lorscan index-images` ends with a `warning: N image(s) failed to download`
+block listing a card you care about, drop a replacement at:
 
 ```
 ~/.lorscan/overrides/<card_id>.<ext>     # .jpg .jpeg .png .webp .avif
 ```
 
 `<card_id>` is the `<SET>-<NUMBER>` form printed in the warning (e.g.
-`WHI-102.jpg`). Overrides win over both the upstream URL and any
-previously-cached download, and they live outside the `cache/` subtree
-so a cache wipe won't nuke them. Note that an override *suppresses* the
-upstream fetch entirely, so once Ravensburger publishes a working URL
-for the card you'll want to remove the override to pick up the (often
-higher-resolution) official image.
+`WHI-102.jpg`). Overrides win over the upstream URL and any cached download,
+and live outside `cache/` so they survive cache wipes. An override suppresses
+the upstream fetch entirely, so once Ravensburger publishes a working URL,
+remove the override to pick up the (usually higher-resolution) official image.
 
-[Lorcast](https://lorcast.com/) remains a useful third-party catalog
-when LorcanaJSON itself is missing an image — its API at
-`https://api.lorcast.com/v0/cards/{set_num}/{collector_num}` returns
-AVIF URLs that Pillow 11+ can decode directly.
-
----
+[Lorcast](https://lorcast.com/) is a useful third-party catalog when
+LorcanaJSON itself is missing an image. Their API at
+`https://api.lorcast.com/v0/cards/{set_num}/{collector_num}` returns AVIF
+URLs that Pillow 11+ decodes directly.
 
 ## Web UI
 
-`uv run lorscan serve` opens the local UI on port 8000. Two pages:
+`uv run lorscan serve` opens the UI on port 8000. Two pages:
 
-- **Scan** — upload a photo, pick a set from a dropdown of friendly names,
-  see the per-cell recognition + match table inline. Recent scans list
-  underneath, click any to revisit.
-- **Collection** — every card per set with quantity controls on owned
-  pockets and "+ Add" / `CM` / `CT` icons on missing pockets. Page
-  header shows cards-needed, sets-unfinished, and the "closest to
-  complete" highlight strip. Per-binder and global "📋 Copy want-list"
-  buttons.
+- **Scan** — upload a photo, optionally pick a set from the dropdown, see
+  per-cell recognition inline. Recent scans are listed underneath, click
+  one to revisit.
+- **Collection** — every card per set, with quantity controls on owned
+  pockets and "+ Add" / `CM` / `CT` icons on missing pockets. The header
+  shows cards-needed, sets-unfinished, and a "closest to complete" strip.
+  Per-binder and global "📋 Copy want-list" buttons.
 
-After a scan finishes, the **Accept matched cards into collection**
-button atomically increments quantities for every cell with a confirmed
-catalog match. Re-applying a scan is a no-op (idempotent).
+After a scan, **Accept matched cards into collection** atomically bumps
+quantities for every confirmed match. Re-applying the same scan is a no-op.
 
-While a scan is running you'll see a full-page loading overlay with a
-spinner and progress messages — the submit button is disabled so you
-can't double-submit.
-
----
+A scan-in-progress overlay disables the submit button so you can't
+double-submit.
 
 ## Photo tips
 
-The recognition pipeline is bottlenecked by photo quality at the
-collector-number level (printed in tiny text at each card's bottom-left).
+The pipeline cares about how clearly CLIP can see the card art:
 
-- **Closer crop**: fill the frame with the binder page; no margins.
-- **Direct overhead angle**: avoid perspective.
-- **Diffuse lighting**: side glare on plastic sleeves is the #1
-  readability killer.
-- **Skip sleeves if safe**: the plastic always degrades clarity.
-- **Native phone resolution**: lorscan auto-transcodes HEIC → JPEG at
-  quality 92 with no resize.
+- Fill the frame, no margins around the page.
+- Direct overhead angle, no perspective.
+- Diffuse lighting. Side glare on plastic sleeves is the #1 readability killer.
+- Skip sleeves when safe.
+- Native phone resolution. lorscan auto-transcodes HEIC → JPEG at quality 92,
+  no resize.
 
-Recognition is purely visual — there's no OCR step — so anything that
-helps CLIP see the whole card art is what helps. When you know which
-binder you've photographed, the **Restrict to set** dropdown on `/scan`
-narrows the catalog to one expansion and eliminates most cross-set
-false positives.
-
----
+Recognition is purely visual (no OCR), so the **Restrict to set** dropdown
+on `/scan` is the most useful knob you have. It narrows the catalog to one
+expansion and removes most cross-set false positives.
 
 ## How recognition works
 
-`lorscan index-images` downloads every catalog card image from
-`lorcanajson.org`, runs each through OpenCLIP ViT-B-32, and saves a
-512-dim L2-normalized embedding per card to `~/.lorscan/embeddings.npz`
-(~5MB for ~2300 cards).
+`lorscan index-images` runs every catalog image through OpenCLIP ViT-B-32
+and saves a 512-dim L2-normalized embedding per card to
+`~/.lorscan/embeddings.npz` (~5 MB for ~2,300 cards).
 
-At scan time, `lorscan` tiles your binder photo into 9 cells (with a
-small inset to ignore sleeve edges), embeds each cell through the same
-CLIP model, and finds the nearest neighbor in the catalog by cosine
-similarity. ~500ms total per binder page on Apple Silicon. Confidence
-scoring: similarity ≥ 0.85 → high, ≥ 0.70 → medium, < 0.70 → low.
+At scan time, lorscan tiles the photo into 9 cells (small inset to ignore
+sleeve edges), embeds each cell, and finds the nearest neighbor by cosine
+similarity. About 500 ms per binder page on Apple Silicon.
 
-Empty sleeves come back as `clip_low_confidence` because their
-embeddings don't resemble any card.
-
----
+Confidence: ≥ 0.85 high, ≥ 0.70 medium, < 0.70 low. Empty sleeves come back
+low-confidence because their embeddings don't match anything.
 
 ## Buy missing cards
 
-Every card in the catalog carries direct links to its Cardmarket,
-CardTrader, and TCGplayer product pages (sourced from LorcanaJSON's
-`externalLinks` block). On `/collection`, empty pockets show small
-`CM` / `CT` icons — clicking opens the marketplace product page with
-your preferred filters pre-applied.
+Each catalog card carries Cardmarket, CardTrader, and TCGplayer product
+links (sourced from LorcanaJSON's `externalLinks`). On `/collection`,
+empty pockets show `CM` / `CT` icons that open the marketplace product page
+with your filters pre-applied.
 
-The default Cardmarket filter set is tuned for a Netherlands-based
-collector:
+The default Cardmarket filter is set up for a Netherlands collector:
 
 | Filter            | Default                 |
 | ----------------- | ----------------------- |
@@ -220,22 +164,22 @@ collector:
 | Language          | English (1)             |
 | Min condition     | Excellent and above (3) |
 
-Override any of these in `~/.lorscan/config.toml`:
+Override in `~/.lorscan/config.toml`:
 
 ```toml
 [buy_links.cardmarket]
-sellerCountry = [23, 5, 21]   # widen to NL + DE + BE
-minCondition  = 2              # near-mint and above only
+sellerCountry = [23, 5, 21]   # NL + DE + BE
+minCondition  = 2              # near-mint and above
 isFoil        = "Y"            # foils only
 ```
 
-Pass a list to repeat a query parameter (Cardmarket honours repeated
-`sellerCountry` and `language`). Any keys not in the default set
-flow through to the URL untouched, so you can surface filters lorscan
-doesn't default (`isReverseHolo`, `isAltered`, etc.).
+A list value repeats the query parameter (Cardmarket honours repeated
+`sellerCountry` and `language`). Keys not in the default set flow through
+untouched, so filters lorscan doesn't expose by default
+(`isReverseHolo`, `isAltered`, …) still work.
 
-CardTrader uses a separate filter section with its own vocabulary
-(extracted from their card-page `filter.json` schema):
+CardTrader uses its own filter vocabulary, taken from their card-page
+`filter.json` schema:
 
 | Filter      | Type    | Values |
 | ----------- | ------- | ------ |
@@ -245,8 +189,7 @@ CardTrader uses a separate filter section with its own vocabulary
 | `signed`    | boolean | `true` / `false` |
 | `altered`   | boolean | `true` / `false` |
 
-Default ships `language = "en"`. Override or extend in
-`~/.lorscan/config.toml`:
+Default is `language = "en"`. Override in `~/.lorscan/config.toml`:
 
 ```toml
 [buy_links.cardtrader]
@@ -255,21 +198,18 @@ condition = "Near Mint"
 foil      = false
 ```
 
-**Seller country on CardTrader**: their "Same Country" toggle is
-applied **client-side** off the country in your CardTrader profile —
-not via URL params — so lorscan can't pre-filter to NL sellers the
-way it can on Cardmarket. Set your country in your CardTrader
-account once and stay logged in when clicking the buy-link if you
-want country-locked listings. Unlike Cardmarket, CardTrader's
+CardTrader's "Same Country" toggle is client-side, applied off your profile
+country rather than via URL params, so lorscan can't pre-filter to NL
+sellers. Set your country in your CardTrader account once and stay logged
+in when clicking buy-links if you want country-locked listings. Their
 condition filter is also single-value (not a min-floor), so
 `condition = "Near Mint"` shows only Near Mint, not "NM and above".
 
 ### Bulk buying via Cardmarket
 
-Each binder on `/collection` has a "🛒 Cardmarket" button next to its
-plain copy button. Clicking it copies that set's missing cards to the
-clipboard in Cardmarket's import format and shows a toast with the
-next-step instructions and a link to
+Each binder on `/collection` has a "🛒 Cardmarket" button next to its plain
+copy button. Clicking copies that set's missing cards to the clipboard in
+Cardmarket's deck-list format and shows a toast linking to
 [Cardmarket's Wants page](https://www.cardmarket.com/en/Lorcana/Wants).
 The pasted lines look like:
 
@@ -280,47 +220,37 @@ The pasted lines look like:
 …
 ```
 
-This is Cardmarket's documented deck-list format. `(V.N)` selects the
-printing within a set — V.1 is the standard rarity, V.2 is the
-Enchanted reprint, V.3 is the Iconic/Infinity tier. `(Set Name)`
-scopes the lookup to the right expansion so a TFC card doesn't match
-a Fabled reprint of the same name.
+`(V.N)` selects the printing within a set: V.1 standard, V.2 Enchanted,
+V.3 Iconic/Infinity. `(Set Name)` scopes the lookup to the right expansion
+so a TFC card doesn't match a Fabled reprint of the same name.
 
-Why per-binder and not a single full-collection button? **Cardmarket
-caps a wantlist at ~150 entries**, so a full-collection dump would
-partial-fail on most collections. One binder per wantlist (or per
-import into the same wantlist) keeps every paste under the cap.
+It's per-binder rather than one full-collection button because Cardmarket
+caps a wantlist at ~150 entries. One binder per wantlist (or per import
+into the same wantlist) keeps every paste under the cap.
 
-Cardmarket models wantlists as named, persistent containers, so the
-first run has a one-time setup. After that, every future bulk-buy
-click reuses the same wantlist:
+Cardmarket models wantlists as named, persistent containers, so the first
+run has a one-time setup. After that, every bulk-buy click reuses the same
+wantlist:
 
-1. **First time only** — on Cardmarket's Wants page, give your list
-   a name (e.g. "Lorcana Wants") and click **Add list**.
-2. Open that wantlist and click **+ Add Deck List** (Cardmarket's
-   paste-multi-card entry point). Paste from the clipboard, save.
-3. Click **Sellers with the most cards** at the bottom of the
-   wantlist. Cardmarket runs its Shopping Wizard against your list
-   and shows the seller (or small set of sellers) carrying the most
-   cards — that's the bulk-buy optimisation, computed server-side.
+1. **First time only** — on Cardmarket's Wants page, name your list
+   (e.g. "Lorcana Wants") and click **Add list**.
+2. Open it, click **+ Add Deck List**, paste from the clipboard, save.
+3. Click **Sellers with the most cards** at the bottom of the wantlist.
+   Cardmarket runs Shopping Wizard and shows the seller (or small set
+   of sellers) covering the most cards.
 
-Repeat uses: open your existing wantlist, click **+ Add Deck List**
-again, paste the new clipboard contents, save, re-run "Sellers with
-the most cards".
+Repeat use: open the existing wantlist, **+ Add Deck List**, paste, save,
+re-run **Sellers with the most cards**.
 
-**Two quirks worth knowing:**
+A couple of quirks:
 
-- **Multi-printing cards are emitted as separate `(V.N)` lines.**
-  *Belle - Strange but Special* exists in TFC as a Legendary
-  (#142, V.1) and an Enchanted (#214, V.2). The clipboard contains
-  both lines explicitly — Cardmarket adds them as two distinct rows
-  on your wantlist instead of merging into one row with quantity 2.
-- **Default condition floor is `≥ PO` (Poor — any condition).** New
-  wantlist rows accept any condition. Click the row's edit pencil to
-  bump it to `≥ NM` or `≥ EX` if you want Shopping Wizard to filter
-  on condition.
-
----
+- **Multi-printing cards become separate `(V.N)` lines.** *Belle - Strange
+  but Special* exists in TFC as a Legendary (#142, V.1) and an Enchanted
+  (#214, V.2). The clipboard contains both lines explicitly; Cardmarket
+  adds them as two distinct rows instead of merging.
+- **Default condition floor is `≥ PO` (Poor — any condition).** Click a
+  row's edit pencil to bump it to `≥ NM` or `≥ EX` if you want Shopping
+  Wizard to filter on condition.
 
 ## Development
 
@@ -328,14 +258,14 @@ the most cards".
 uv sync
 uv run pytest
 uv run ruff check src tests
-uv run lorscan serve   # auto-reload is on by default
+uv run lorscan serve
 ```
 
 Project structure:
 
 ```
 src/lorscan/
-├── cli.py             # entry point (scan, serve, sync-catalog, index-images, version)
+├── cli.py             # entry point (scan, serve, sync-catalog, index-images, diag, version)
 ├── config.py          # TOML + env-var loader
 ├── app/               # FastAPI web UI
 │   ├── main.py
@@ -359,20 +289,10 @@ src/lorscan/
     └── migrations/    # 001-011 SQL migrations
 ```
 
----
-
 ## Roadmap
 
-Tracked on [GitHub Issues](https://github.com/ityou-tech/lorscan/issues). Headline items:
-
-- **Tile mode**: split a 3×3 photo into 9 single-card scans for
-  legible collector numbers (~9× pixels per card).
-- **3D page-flip binder visualization** (per the design spec §6).
-- **Photo-quality doctor**: pre-flight readability check.
-- **Background scanning** with progress polling.
-
----
+Tracked on [GitHub Issues](https://github.com/ityou-tech/lorscana/issues).
 
 ## License
 
-Private. (Plan 3 — pre-release polish.)
+MIT — see [LICENSE](LICENSE).
