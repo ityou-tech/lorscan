@@ -41,7 +41,7 @@ def _seed_legacy_typo(db: Database) -> None:
     db.connection.commit()
 
 
-def test_legacy_card_id_typo_renamed_with_fk_refs(db: Database):
+def test_legacy_card_id_typo_renamed_with_fk_refs(db: Database, stub_marketplace_listings):
     """A row with card_id='URs-190' (lowercase 's' typo) gets renamed to
     'URS-190' so later upserts at (set_code='URS', collector_number='190')
     don't collide on UNIQUE. FK refs in collection_items and scan_results
@@ -68,7 +68,7 @@ def test_legacy_card_id_typo_renamed_with_fk_refs(db: Database):
     assert sr["matched_card_id"] == "URS-190"
 
 
-def test_correctly_cased_card_ids_unchanged(db: Database):
+def test_correctly_cased_card_ids_unchanged(db: Database, stub_marketplace_listings):
     """A normal card with matching prefix (`TFC-001` for set_code 'TFC')
     must NOT be touched by migration 009."""
     db.connection.execute(
@@ -90,7 +90,7 @@ def test_correctly_cased_card_ids_unchanged(db: Database):
     assert row["card_id"] == "TFC-001"
 
 
-def test_migration_is_idempotent(db: Database):
+def test_migration_is_idempotent(db: Database, stub_marketplace_listings):
     """Re-running 009 on already-clean data is a no-op."""
     db.connection.execute(
         "INSERT INTO sets (set_code, name, total_cards, synced_at) "

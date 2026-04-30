@@ -33,7 +33,7 @@ def _seed_legacy(db: Database) -> None:
     db.connection.commit()
 
 
-def test_legacy_ink_rows_removed(db: Database):
+def test_legacy_ink_rows_removed(db: Database, stub_marketplace_listings):
     _seed_legacy(db)
 
     db.connection.executescript(_MIGRATION_010_SQL)
@@ -57,7 +57,7 @@ def test_legacy_ink_rows_removed(db: Database):
     assert items == []
 
 
-def test_non_ink_data_untouched(db: Database):
+def test_non_ink_data_untouched(db: Database, stub_marketplace_listings):
     """Sets / cards / collection that don't match the cleanup pattern
     survive the migration unchanged."""
     db.connection.execute(

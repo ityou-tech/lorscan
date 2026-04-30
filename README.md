@@ -5,9 +5,9 @@ go in via the CLI or web UI; **local CLIP embeddings** identify each card
 visually against a catalog synced from `lorcanajson.org`. Fully offline
 after the one-time setup — no API keys, no rate limits, no cost.
 
-> **Status:** Plan 1 + Plan 2 MVP + Phase A (CLIP recognition) + Plan 3
-> (marketplace stock) — fast local scanning, web UI, scan persistence,
-> /collection with marketplace badges, accept-into-collection workflow.
+> **Status:** Plan 1 + Plan 2 MVP + Phase A (CLIP recognition) — fast
+> local scanning, web UI, scan persistence, /collection with Cardmarket
+> and CardTrader buy-link icons, accept-into-collection workflow.
 
 ---
 
@@ -128,10 +128,10 @@ AVIF URLs that Pillow 11+ can decode directly.
   see the per-cell recognition + match table inline. Recent scans list
   underneath, click any to revisit.
 - **Collection** — every card per set with quantity controls on owned
-  pockets and "+ Add" / "€X · Bazaar" / `CM` / `CT` badges on missing
-  pockets. Page header shows cards-needed, sets-unfinished, the
-  marketplace refreshed-at line, and the "closest to complete"
-  highlight strip. Per-binder and global "📋 Copy want-list" buttons.
+  pockets and "+ Add" / `CM` / `CT` icons on missing pockets. Page
+  header shows cards-needed, sets-unfinished, and the "closest to
+  complete" highlight strip. Per-binder and global "📋 Copy want-list"
+  buttons.
 
 After a scan finishes, the **Accept matched cards into collection**
 button atomically increments quantities for every cell with a confirmed
@@ -181,60 +181,13 @@ embeddings don't resemble any card.
 
 ---
 
-## Marketplace stock
-
-`lorscan` can scrape known card shops to surface "available to buy" data
-on the empty pockets in `/collection`. Currently supports
-[Bazaar of Magic](https://www.bazaarofmagic.eu).
-
-```bash
-uv run lorscan marketplaces refresh    # ~10–15 min full sweep
-uv run lorscan marketplaces status     # last-sweep summary
-```
-
-Refresh whenever you want fresh prices — there is no background
-scheduler. The page header on `/collection` shows when the data was
-last refreshed.
-
-### Adding new sets
-
-To extend which Lorcana sets get scraped, edit
-[`data/bazaarofmagic_set_map.toml`](data/bazaarofmagic_set_map.toml)
-and add a new `[[set]]` block:
-
-```toml
-[[set]]
-code = "AZS"
-category_id = "1234567"   # from the URL on Bazaar's per-set page
-category_path = "/nl-NL/c/azurite-sea/1234567"
-```
-
-The next `lorscan marketplaces refresh` upserts the new mapping
-automatically. Sets not listed here are silently skipped.
-
-### Limitations (v1)
-
-- Strict matching only: a listing whose collector number is missing
-  from the title is silently dropped. Most cleanly-listed shops (like
-  Bazaar) hit ≈100% match rate; messier shops like eBay would need a
-  fuzzy matcher (not yet built).
-- Only Bazaar of Magic is supported. The `services/marketplaces/`
-  scaffolding makes adding another shop straightforward — implement a
-  new adapter that satisfies the `ShopAdapter` Protocol.
-- Per-detail HTTP errors are silently dropped (counted in the sweep's
-  `errors` total but no per-card visibility).
-
----
-
 ## Buy missing cards
 
 Every card in the catalog carries direct links to its Cardmarket,
 CardTrader, and TCGplayer product pages (sourced from LorcanaJSON's
 `externalLinks` block). On `/collection`, empty pockets show small
-`CM` / `CT` icons next to any Bazaar price badge — clicking opens the
-marketplace product page with your preferred filters pre-applied. The
-buy links coexist with the Bazaar badge rather than acting as a
-fallback, so you can compare across marketplaces side-by-side.
+`CM` / `CT` icons — clicking opens the marketplace product page with
+your preferred filters pre-applied.
 
 The default Cardmarket filter set is tuned for a Netherlands-based
 collector:
@@ -361,7 +314,7 @@ Project structure:
 
 ```
 src/lorscan/
-├── cli.py             # entry point (scan, serve, sync-catalog, index-images, marketplaces, version)
+├── cli.py             # entry point (scan, serve, sync-catalog, index-images, version)
 ├── config.py          # TOML + env-var loader
 ├── app/               # FastAPI web UI
 │   ├── main.py
@@ -376,20 +329,11 @@ src/lorscan/
 │   ├── embeddings.py         # OpenCLIP wrapper + CardImageIndex
 │   ├── image_cache.py        # async catalog-image downloader
 │   ├── visual_scan.py        # tile-and-CLIP scanner
-│   ├── scan_result.py        # ParsedCard, ParsedScan, MatchResult dataclasses
-│   └── marketplaces/         # marketplace stock scraping (Plan 3)
-│       ├── base.py            # ShopAdapter Protocol + Listing dataclass
-│       ├── bazaarofmagic.py   # Bazaar adapter (parser + crawler)
-│       ├── matching.py        # strict (set,collector) → card_id
-│       ├── orchestrator.py    # run_sweep
-│       └── seed.py            # TOML loader for per-set categories
+│   └── scan_result.py        # ParsedCard, ParsedScan, MatchResult dataclasses
 └── storage/
     ├── db.py          # SQLite wrapper (only place SQL lives)
     ├── models.py      # CardSet, Card, CollectionItem, Binder
-    └── migrations/    # 001-008 SQL migrations
-
-data/                  # bundled non-Python data
-└── bazaarofmagic_set_map.toml
+    └── migrations/    # 001-011 SQL migrations
 ```
 
 ---

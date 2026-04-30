@@ -231,43 +231,6 @@ def test_collection_index_empty_state(client: TestClient):
     assert "No cards yet" in response.text
 
 
-def test_collection_renders_marketplace_badge(client: TestClient):
-    """When a matched in-stock listing exists, /collection shows a price badge
-    on the corresponding empty pocket."""
-    from datetime import UTC, datetime
-
-    cfg = client.app.state.config
-    db = Database.connect(str(cfg.db_path))
-    db.migrate()
-    try:
-        mp = db.get_marketplace_by_slug("bazaarofmagic")
-        # rof-001 is seeded by _seed_db at the top of this file (Pinocchio Wooden Rascal).
-        db.upsert_listing(
-            marketplace_id=mp["id"],
-            external_id="9999",
-            card_id="rof-001",
-            finish="regular",
-            price_cents=400,
-            currency="EUR",
-            in_stock=True,
-            url="https://www.bazaarofmagic.eu/nl-NL/p/x/9999",
-            title="Pinocchio (#1)",
-            fetched_at=datetime.now(UTC).isoformat(),
-        )
-    finally:
-        db.close()
-
-    response = client.get("/collection")
-    assert response.status_code == 200
-    body = response.text
-    # Price formatted Dutch-style (€4,00) AND link to the product page.
-    assert "€4,00" in body, "Expected Dutch-format €4,00"
-    assert 'href="https://www.bazaarofmagic.eu/nl-NL/p/x/9999"' in body
-    assert 'target="_blank"' in body
-    # The shop name appears.
-    assert "Bazaar" in body
-
-
 def test_collection_header_shows_cards_needed_stat(client: TestClient):
     """Page header gains 'X cards needed' meta-stat (catalog total - distinct owned)."""
     response = client.get("/collection")
@@ -275,25 +238,6 @@ def test_collection_header_shows_cards_needed_stat(client: TestClient):
     body = response.text
     assert "cards needed" in body
     assert "sets unfinished" in body
-
-
-def test_collection_header_shows_refreshed_at_when_sweep_done(client: TestClient):
-    """If a sweep has run, the page header shows the refreshed-at line."""
-    cfg = client.app.state.config
-    db = Database.connect(str(cfg.db_path))
-    db.migrate()
-    try:
-        mp = db.get_marketplace_by_slug("bazaarofmagic")
-        sweep_id = db.start_marketplace_sweep(mp["id"])
-        db.finish_marketplace_sweep(
-            sweep_id, listings_seen=10, listings_matched=8, errors=0, status="ok",
-        )
-    finally:
-        db.close()
-
-    response = client.get("/collection")
-    body = response.text
-    assert "Marketplace data refreshed" in body or "refreshed" in body.lower()
 
 
 def test_collection_header_shows_closest_strip_when_applicable(client: TestClient):
@@ -367,37 +311,17 @@ def test_collection_pocket_omits_buy_link_when_url_absent(client: TestClient):
     assert "Pinocchio" in body
 
 
-def test_collection_pocket_shows_buy_links_alongside_bazaar_listing(
+def test_collection_empty_pocket_shows_cardtrader_link_when_url_present(
     client: TestClient,
 ):
-    """Buy links coexist with a Bazaar listing — not a fallback."""
-    from datetime import UTC, datetime
-
+    """CT counterpart of the cardmarket-link test above."""
     cfg = client.app.state.config
     db = Database.connect(str(cfg.db_path))
     db.migrate()
     try:
         db.connection.execute(
-            "UPDATE cards SET cardmarket_url = ?, cardtrader_url = ? "
-            "WHERE card_id = 'rof-001'",
-            (
-                "https://www.cardmarket.com/en/Lorcana/Products/Singles/"
-                "Rise-of-the-Floodborn/Pinocchio-Wooden-Rascal",
-                "https://www.cardtrader.com/cards/pinocchio-wooden-rascal",
-            ),
-        )
-        mp = db.get_marketplace_by_slug("bazaarofmagic")
-        db.upsert_listing(
-            marketplace_id=mp["id"],
-            external_id="bz-side-by-side",
-            card_id="rof-001",
-            finish="regular",
-            price_cents=450,
-            currency="EUR",
-            in_stock=True,
-            url="https://www.bazaarofmagic.eu/p/x/sbs",
-            title="Pinocchio (#1)",
-            fetched_at=datetime.now(UTC).isoformat(),
+            "UPDATE cards SET cardtrader_url = ? WHERE card_id = 'rof-001'",
+            ("https://www.cardtrader.com/cards/pinocchio-wooden-rascal",),
         )
         db.connection.commit()
     finally:
@@ -405,11 +329,7 @@ def test_collection_pocket_shows_buy_links_alongside_bazaar_listing(
 
     response = client.get("/collection")
     assert response.status_code == 200
-    body = response.text
-    # All three marketplace markers visible at once.
-    assert "buy-link--cardmarket" in body
-    assert "buy-link--cardtrader" in body
-    assert "€4,50" in body  # Bazaar price badge still renders
+    assert "buy-link--cardtrader" in response.text
 
 
 def test_scan_apply_adds_matched_cards_to_collection(client: TestClient):
@@ -438,38 +358,6 @@ def test_scan_apply_adds_matched_cards_to_collection(client: TestClient):
     coll_response = client.get("/collection")
     assert "No cards yet" not in coll_response.text
     assert "Hermes" in coll_response.text
-
-
-def test_collection_renders_scan_cta_even_when_badges_exist(client: TestClient):
-    """When collection is empty but listings exist, the 'Go to Scan' CTA
-    must still be visible — empty-state should not be hidden by badges."""
-    from datetime import UTC, datetime
-
-    cfg = client.app.state.config
-    db = Database.connect(str(cfg.db_path))
-    db.migrate()
-    try:
-        mp = db.get_marketplace_by_slug("bazaarofmagic")
-        db.upsert_listing(
-            marketplace_id=mp["id"],
-            external_id="9999",
-            card_id="rof-001",
-            finish="regular",
-            price_cents=400,
-            currency="EUR",
-            in_stock=True,
-            url="https://www.bazaarofmagic.eu/nl-NL/p/x/9999",
-            title="Pinocchio (#1)",
-            fetched_at=datetime.now(UTC).isoformat(),
-        )
-    finally:
-        db.close()
-
-    response = client.get("/collection")
-    body = response.text
-    assert "No cards yet" in body
-    assert "Go to Scan" in body
-    assert "€4,00" in body
 
 
 def test_collection_renders_global_copy_want_button(client: TestClient):

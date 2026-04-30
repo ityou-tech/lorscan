@@ -133,14 +133,6 @@
             </form>
           </div>
           {% else %}
-          {% if card.badge %}
-          <a href="{{ card.badge.url }}" target="_blank" rel="noopener"
-             class="pocket-badge"
-             title="In stock at {{ card.badge.shop_name }}">
-            €{{ '%.2f' | format(card.badge.price_cents / 100) | replace('.', ',') }}
-            · {{ card.badge.shop_name }}
-          </a>
-          {% endif %}
           {% if card.cardmarket_url or card.cardtrader_url %}
           <div class="buy-links">
             {% if card.cardmarket_url %}

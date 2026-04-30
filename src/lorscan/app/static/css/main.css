@@ -1740,37 +1740,10 @@ input.flip-current:focus {
 .empty-state p { max-width: 480px; margin: 0 auto var(--space-md); color: var(--text-soft); }
 
 /* ============================================================
-   MARKETPLACE BADGES + REFRESH BANNER (Task 12)
+   BUY-LINK ICONS (Cardmarket / CardTrader)
    ============================================================ */
-/* Price badge on empty pockets — links to the in-stock listing on a
-   matched marketplace. Uses the project's chunky border + hard-shadow
-   tokens so it reads as another Tetris-style block. */
-.pocket-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  margin-bottom: 6px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--primary);
-  background: white;
-  border: 1.5px solid var(--primary);
-  border-radius: 12px;
-  text-decoration: none;
-  white-space: nowrap;
-  box-shadow: 1px 1px 0 var(--primary);
-  transition: background 0.10s ease, color 0.10s ease, transform 0.05s;
-}
-.pocket-badge:hover {
-  background: var(--secondary);
-  color: var(--secondary-on);
-  transform: translate(-1px, -1px);
-}
-
-/* Cardmarket / CardTrader deep-link icons on empty pockets. Sit alongside
-   the Bazaar pocket-badge (when present) as equal citizens — the user is
-   comparing across marketplaces, not falling back. */
+/* Deep-link icons on empty pockets — clicking opens the product page on
+   the chosen marketplace with the user's filters pre-applied. */
 .buy-links {
   display: flex;
   gap: 4px;
@@ -1806,29 +1779,6 @@ input.flip-current:focus {
   background: rgba(28, 32, 43, 0.03);
   border-top: 1px dashed rgba(28, 32, 43, 0.15);
   text-align: center;
-}
-
-/* Refreshed-at line under the /collection page header. Soft surface
-   panel anchored by a vibrant left rail in the design's accent color. */
-.marketplace-refreshed {
-  margin: 8px 0 16px;
-  padding: 8px 12px;
-  font-family: var(--font-display);
-  font-size: 0.9rem;
-  letter-spacing: 0.02em;
-  color: var(--text);
-  background: var(--surface-pale);
-  border: 2px solid var(--primary);
-  border-left: 6px solid var(--secondary);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  box-shadow: var(--shadow-block-sm);
-}
-.marketplace-refreshed code {
-  background: rgba(28, 32, 43, 0.08);
-  padding: 1px 6px;
-  border-radius: 3px;
-  font-size: 0.85rem;
-  color: var(--primary);
 }
 
 /* ============================================================

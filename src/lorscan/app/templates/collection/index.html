@@ -46,14 +46,6 @@
 {% endif %}
 
 {% if binders %}
-{% if last_sweep %}
-<p class="marketplace-refreshed">
-  Marketplace data refreshed
-  <time datetime="{{ last_sweep.finished_at }}">{{ last_sweep.finished_at[:10] }}</time>.
-  Run <code>lorscan marketplaces refresh</code> to update.
-</p>
-{% endif %}
-
 {% if closest %}
 <section class="closest-strip" aria-label="Sets closest to complete">
   <span class="closest-label">Closest to complete</span>

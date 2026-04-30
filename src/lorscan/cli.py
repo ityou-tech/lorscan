@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import os
-import sqlite3
 import sys
 from pathlib import Path
 
@@ -60,20 +59,6 @@ def main(argv: list[str] | None = None) -> int:
         help="Auto-reload on file changes (default: on; use --no-reload to disable)",
     )
 
-    mp_p = sub.add_parser("marketplaces", help="Scrape & query marketplace stock.")
-    mp_sub = mp_p.add_subparsers(dest="mp_command", required=True)
-
-    refresh_p = mp_sub.add_parser("refresh", help="Run a full sweep across enabled shops.")
-    refresh_p.add_argument("--shop", default=None, help="Limit to one shop slug")
-    refresh_p.add_argument(
-        "--set",
-        dest="set_code",
-        default=None,
-        help="Limit to one set code (e.g. ROF)",
-    )
-
-    mp_sub.add_parser("status", help="Print last-sweep summary per shop.")
-
     sub.add_parser("version", help="Print version and exit.")
 
     args = parser.parse_args(argv)
@@ -101,16 +86,6 @@ def main(argv: list[str] | None = None) -> int:
             port=args.port,
             reload=args.reload,
         )
-    elif args.command == "marketplaces":
-        cfg = load_config(env=os.environ)
-        if args.mp_command == "refresh":
-            return marketplaces_refresh_command(
-                config=cfg, shop_slug=args.shop, set_code=args.set_code,
-            )
-        elif args.mp_command == "status":
-            return marketplaces_status_command(config=cfg)
-        else:
-            raise AssertionError(f"unhandled mp_command: {args.mp_command!r}")
     return 2
 
 
@@ -511,127 +486,4 @@ def sync_catalog_command(*, config: Config) -> int:
         )
     )
     db.close()
-    return 0
-
-
-def marketplaces_refresh_command(
-    *,
-    config: Config,
-    shop_slug: str | None,
-    set_code: str | None,
-) -> int:
-    """Sweep enabled shops for current stock and store the listings."""
-    db = Database.connect(str(config.db_path))
-    db.migrate()
-    try:
-        # Upsert the bundled TOML before sweeping so adding a new set is
-        # just a TOML edit + re-run.
-        from lorscan.services.marketplaces.seed import load_set_map
-
-        seed_path = (
-            Path(__file__).resolve().parents[2]
-            / "data"
-            / "bazaarofmagic_set_map.toml"
-        )
-        if seed_path.exists():
-            mp = db.get_marketplace_by_slug("bazaarofmagic")
-            if mp is not None:
-                for entry in load_set_map(seed_path):
-                    try:
-                        db.upsert_set_category(
-                            marketplace_id=mp["id"],
-                            set_code=entry.set_code,
-                            category_id=entry.category_id,
-                            category_path=entry.category_path,
-                        )
-                    except sqlite3.IntegrityError:
-                        # set_code not in the catalog yet — silently skip;
-                        # a future `lorscan sync-catalog` will fix it.
-                        print(
-                            f"  warning: skipping unknown set {entry.set_code!r} "
-                            f"(run `lorscan sync-catalog` first)",
-                            file=sys.stderr,
-                        )
-        else:
-            print(
-                f"warning: seed file not found at {seed_path} — "
-                f"marketplace_set_categories will not be auto-populated. "
-                f"If running from source, check data/bazaarofmagic_set_map.toml; "
-                f"if pip-installed, this is a known packaging gap.",
-                file=sys.stderr,
-            )
-
-        try:
-            result = asyncio.run(
-                _run_marketplace_sweep(db, shop_slug=shop_slug, set_code=set_code)
-            )
-        except RuntimeError as e:
-            print(f"error: {e}", file=sys.stderr)
-            return 1
-    finally:
-        db.close()
-
-    print(
-        f"Sweep #{result.sweep_id}: {result.status} — "
-        f"{result.listings_matched}/{result.listings_seen} listings matched, "
-        f"{result.errors} errors."
-    )
-    return 0 if result.status in ("ok", "partial") else 1
-
-
-async def _run_marketplace_sweep(
-    db: Database,
-    *,
-    shop_slug: str | None,
-    set_code: str | None,
-):
-    """Thin async wrapper so tests can patch this single symbol."""
-    from lorscan.services.marketplaces.bazaarofmagic import BazaarAdapter
-    from lorscan.services.marketplaces.orchestrator import run_sweep
-
-    if shop_slug not in (None, "bazaarofmagic"):
-        raise ValueError(f"unknown shop: {shop_slug!r}")
-
-    def printer(set_code: str, seen: int, matched: int) -> None:
-        if seen == 0:
-            print(f"  {set_code}: crawling…", flush=True)
-        else:
-            print(
-                f"  {set_code}: {seen} listings seen ({matched} matched so far)",
-                flush=True,
-            )
-
-    return await run_sweep(
-        db,
-        adapter=BazaarAdapter(),
-        base_url="https://www.bazaarofmagic.eu",
-        only_set=set_code,
-        on_progress=printer,
-    )
-
-
-def marketplaces_status_command(*, config: Config) -> int:
-    """Print one line per known marketplace summarizing the last sweep."""
-    db = Database.connect(str(config.db_path))
-    db.migrate()
-    try:
-        mp = db.get_marketplace_by_slug("bazaarofmagic")
-        if mp is None:
-            print("No marketplaces configured.")
-            return 0
-        sweep = db.get_latest_finished_sweep(mp["id"])
-        if sweep is None:
-            print(
-                f"{mp['display_name']}: no sweep yet. "
-                f"Run `lorscan marketplaces refresh`."
-            )
-            return 0
-        print(
-            f"{mp['display_name']}: last sweep at {sweep['finished_at']} — "
-            f"status={sweep['status']}, "
-            f"matched={sweep['listings_matched']}/{sweep['listings_seen']}, "
-            f"errors={sweep['errors']}."
-        )
-    finally:
-        db.close()
     return 0
