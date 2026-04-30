@@ -4,34 +4,31 @@
 {% if request.query_params.get('reset') %}
 <div class="flash">Collection cleared. Catalog and scan history kept.</div>
 {% endif %}
-<section class="page-header">
+<section class="page-header page-header--collection">
   <h1>Collection</h1>
-  <div class="page-header-meta">
-    <div class="meta-stat">
-      <span class="meta-stat-num">{{ total }}</span>
-      <span class="meta-stat-label">cards owned</span>
+  <div class="page-header-row">
+    <div class="page-header-stats">
+      <div class="meta-stat">
+        <span class="meta-stat-num">{{ total }}</span>
+        <span class="meta-stat-label">cards owned</span>
+      </div>
+      <div class="meta-stat">
+        <span class="meta-stat-num">{{ distinct_owned }}</span>
+        <span class="meta-stat-label">distinct cards</span>
+      </div>
+      <div class="meta-stat">
+        <span class="meta-stat-num">{{ cards_needed }}</span>
+        <span class="meta-stat-label">cards needed</span>
+      </div>
+      <div class="meta-stat">
+        <span class="meta-stat-num">{{ unfinished_sets }}</span>
+        <span class="meta-stat-label">sets unfinished</span>
+      </div>
     </div>
-    <div class="meta-stat">
-      <span class="meta-stat-num">{{ distinct_owned }}</span>
-      <span class="meta-stat-label">distinct cards</span>
-    </div>
-    <div class="meta-stat">
-      <span class="meta-stat-num">{{ cards_needed }}</span>
-      <span class="meta-stat-label">cards needed</span>
-    </div>
-    <div class="meta-stat">
-      <span class="meta-stat-num">{{ unfinished_sets }}</span>
-      <span class="meta-stat-label">sets unfinished</span>
-    </div>
-    {% if total > 0 %}
-    <form method="post" action="/collection/reset" style="display:inline"
-          onsubmit="return confirm('Delete every card from your collection? This wipes all {{ total }} owned cards. Catalog and scan history are kept.');">
-      <button type="submit" class="reset-link">↺ Reset collection</button>
-    </form>
-    {% endif %}
     {% if cards_needed > 0 %}
-    <button type="button" class="primary copy-want-btn" data-copy-all>
-      📋 Copy full want-list
+    <button type="button" class="primary copy-want-btn copy-want-btn--cardmarket"
+            data-copy-cm-all>
+      🛒 Copy Cardmarket want-list
     </button>
     {% endif %}
   </div>
@@ -46,36 +43,20 @@
 {% endif %}
 
 {% if binders %}
-{% if closest %}
-<section class="closest-strip" aria-label="Sets closest to complete">
-  <span class="closest-label">Closest to complete</span>
-  <div class="closest-tiles">
-    {% for c in closest %}
-    <a href="#{{ c.set_code }}" class="closest-tile">
-      <span class="closest-tile-pct">{{ c.pct }}%</span>
-      <span class="closest-tile-name">{{ c.name }}</span>
-      <span class="closest-tile-need">{{ c.missing_count }} missing</span>
-    </a>
-    {% endfor %}
-  </div>
-</section>
-{% endif %}
-
-<nav class="binder-nav">
-  {% for b in binders %}
-  <a href="#{{ b.set_code }}" class="binder-nav-tab{% if b.owned_count == 0 %} binder-nav-tab--empty{% endif %}">
-    {% if b.chapter %}<span class="binder-nav-chapter">{{ b.chapter }}</span>{% endif %}
-    <span class="binder-nav-name">{{ b.set_code }}</span>
-    <span class="binder-nav-count">{{ b.owned_count }}/{{ b.total }}</span>
-  </a>
-  {% endfor %}
-</nav>
-
 <div class="binder-shelf">
   {% for binder in binders %}
     {% include "_partials/binder.html" %}
   {% endfor %}
 </div>
+{% endif %}
+
+{% if total > 0 %}
+<footer class="collection-footer">
+  <form method="post" action="/collection/reset"
+        onsubmit="return confirm('Delete every card from your collection? This wipes all {{ total }} owned cards. Catalog and scan history are kept.');">
+    <button type="submit" class="reset-link">↺ Reset collection</button>
+  </form>
+</footer>
 {% endif %}
 <div id="copy-toast" class="copy-toast" role="status" aria-live="polite" hidden>Copied to clipboard</div>
 {% endblock %}

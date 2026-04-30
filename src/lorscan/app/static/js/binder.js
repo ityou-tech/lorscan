@@ -285,48 +285,28 @@
 
   // ---------- want-list copy-to-clipboard ----------
   //
-  // Plain-text variant (Discord / notes):
-  //   [data-copy-binder="ROF"]   — one set's missing cards
-  //   [data-copy-all]            — every missing card across the page
-  // Cardmarket Mass-Import variant:
-  //   [data-copy-cm-binder="ROF"] — same scope, Cardmarket "1 Name - Subtitle" lines
-  //   [data-copy-cm-all]          — every missing card, Cardmarket format
-  // Both read the existing `.pocket--missing` DOM (no separate data layer).
+  // Page-level [data-copy-cm-all] dumps every `.pocket--missing` across all
+  // binders in Cardmarket Mass-Import format (`1x Name - Subtitle (V.N) (Set
+  // Name)`). Per-binder [data-cm-trigger] opens a scope dropdown whose items
+  // (`[data-copy-cm-binder]` + `[data-cm-scope]`) copy a filtered slice of
+  // that one set. Reads DOM directly — no separate data layer.
+  //
+  // Cardmarket caps a single wantlist at ~150 entries; the user splits
+  // across multiple wantlists by hand if needed.
 
-  // Cardmarket's Wants index. Mass-Import lives inside a saved wantlist
-  // (under "+ Add Deck List"). After pasting, Cardmarket's "Sellers with
-  // the most cards" button finds the optimal multi-seller cart.
-  // Cardmarket caps wantlists at ~150 entries, so we only expose a
-  // per-binder button — bulk-dumping a whole collection would partial-fail
-  // on big collections.
   const CARDMARKET_WANTS_URL =
     'https://www.cardmarket.com/en/Lorcana/Wants';
 
-  function formatBinder(binderEl) {
-    const summary = binderEl.querySelector(':scope > summary');
-    const name = summary?.querySelector('.binder-name')?.textContent.trim() || '';
-    const code = summary?.querySelector('.binder-set-code')?.textContent.trim() || '';
-    const missing = binderEl.querySelectorAll('.pocket--missing');
-    if (missing.length === 0) return null;
-
-    const lines = [`${name} (${code}) — ${missing.length} missing`];
-    missing.forEach((p) => {
-      const id = p.querySelector('.pocket-id')?.textContent.trim() || '';
-      const cardName = p.querySelector('.pocket-name')?.textContent.trim() || '';
-      const sub = p.querySelector('.pocket-sub')?.textContent.trim();
-      const tail = sub ? `${cardName} — ${sub}` : cardName;
-      lines.push(`${id.padEnd(8)}${tail}`);
-    });
-    return { text: lines.join('\n'), count: missing.length };
-  }
-
-  // Cardmarket deck-list format: `1x Name - Subtitle (V.N) (Set Name)`.
-  // V.N is set on each pocket as data-cm-version by the server; scope
-  // filtering uses data-card-type (single source of truth in collection.py).
+  // V.N comes from data-cm-version, card type from data-card-type (both set
+  // server-side in collection.py). Scope filtering: `standard` = ≤ 204,
+  // `specials` = enchanted + iconic, anything else = no filter.
   function formatBinderCardmarket(binderEl, scope) {
     let missing = Array.from(binderEl.querySelectorAll('.pocket--missing'));
-    if (scope === 'standard') missing = missing.filter(p => p.dataset.cardType === 'standard');
-    else if (scope === 'specials') missing = missing.filter(p => p.dataset.cardType !== 'standard');
+    if (scope === 'standard') {
+      missing = missing.filter((p) => p.dataset.cardType === 'standard');
+    } else if (scope === 'specials') {
+      missing = missing.filter((p) => p.dataset.cardType !== 'standard');
+    }
     if (missing.length === 0) return null;
     const setName = binderEl
       .querySelector(':scope > summary .binder-name')
@@ -353,10 +333,8 @@
     return Promise.resolve(copyTextSync(text));
   }
 
-  // Synchronous copy: navigator.clipboard.writeText requires the document
-  // to stay focused, but the Cardmarket flow used to pair the copy with a
-  // window.open() that transferred focus. execCommand is the only path
-  // that runs synchronously inside the user-gesture frame.
+  // execCommand fallback for insecure contexts where navigator.clipboard
+  // is unavailable (e.g. plain http:// over LAN).
   function copyTextSync(text) {
     if (!text) return false;
     const ta = document.createElement('textarea');
@@ -376,9 +354,8 @@
     showToast({ text: msg, durationMs: 1600 });
   }
 
-  // Richer toast for the Cardmarket flow: lingers longer (so the user can
-  // read the next-step instructions) and supports a clickable element built
-  // safely with DOM APIs (no innerHTML, no manual escaping).
+  // Toast supports a clickable element built with DOM APIs (no innerHTML,
+  // no manual escaping).
   function showToast({ text, node, durationMs }) {
     const toast = document.getElementById('copy-toast');
     if (!toast) return;
@@ -392,14 +369,14 @@
     }, durationMs || 1600);
   }
 
-  function buildCardmarketToast(setLabel, count) {
+  function buildCardmarketToast(sourceLabel, count) {
     // Two stacked lines: the "copied" confirmation, then a one-step recipe
     // ending in a clickable "Cardmarket Wants" link the user opens manually.
     const wrap = document.createElement('div');
     wrap.className = 'copy-toast-body';
 
     const line1 = document.createElement('div');
-    line1.textContent = `Copied ${count} cards from ${setLabel}`;
+    line1.textContent = `Copied ${count} cards from ${sourceLabel}`;
     wrap.appendChild(line1);
 
     const line2 = document.createElement('div');
@@ -417,22 +394,9 @@
     return wrap;
   }
 
-  function copyAllAcrossBinders(formatter) {
-    const blocks = [];
-    let total = 0;
-    document.querySelectorAll('.binder').forEach((b) => {
-      const result = formatter(b);
-      if (result) {
-        blocks.push(result.text);
-        total += result.count;
-      }
-    });
-    return { blocks, total };
-  }
-
-  // Tracks whether any Cardmarket menu is currently open, so the click-handler
-  // can skip the close-everything sweep when there's nothing to close. Without
-  // this guard, every document click triggers two `querySelectorAll` scans.
+  // Tracks whether any Cardmarket dropdown is currently open, so the
+  // document-level click handler can skip the close-everything sweep when
+  // there's nothing to close.
   let anyMenuOpen = false;
 
   function closeAllCardmarketMenus() {
@@ -449,36 +413,38 @@
     anyMenuOpen = false;
   }
 
-  // Position a fixed-position menu directly below its trigger, right-aligned
-  // with the trigger's right edge. Using `right` lets us avoid measuring the
-  // menu's own width (which would require it to be visible first).
+  // Right-align the menu under its trigger using `right` (rather than `left`)
+  // so we don't need the menu's own width — which would require it visible
+  // first to measure. `documentElement.clientWidth` excludes the vertical
+  // scrollbar, matching the initial containing block that `position: fixed`
+  // resolves against; using `window.innerWidth` would offset the menu by
+  // the scrollbar width.
   function positionCardmarketMenu(trigger, menu) {
     const rect = trigger.getBoundingClientRect();
     menu.style.top = `${rect.bottom + 4}px`;
-    menu.style.right = `${window.innerWidth - rect.right}px`;
+    menu.style.right = `${document.documentElement.clientWidth - rect.right}px`;
     menu.style.left = 'auto';
   }
 
-  // Scroll or resize while the menu is open would let the trigger drift
-  // away from the (fixed-position) menu. Cheaper to close than reposition.
+  // Scrolling/resizing while open would let the (fixed-position) menu drift
+  // away from its (flow-positioned) trigger — cheaper to close than to track.
   window.addEventListener('scroll', closeAllCardmarketMenus, { passive: true });
   window.addEventListener('resize', closeAllCardmarketMenus, { passive: true });
 
-  // capture:true so we fire before the click bubbles to <summary> and
-  // toggles the <details>. stopPropagation here prevents that toggle.
+  // capture:true so we fire before the click bubbles to <summary> and toggles
+  // the <details>. stopPropagation here suppresses that activation.
   document.addEventListener('click', (e) => {
-    const inline = e.target.closest('[data-copy-binder]');
-    const all = e.target.closest('[data-copy-all]');
+    const allBtn = e.target.closest('[data-copy-cm-all]');
     const cmTrigger = e.target.closest('[data-cm-trigger]');
-    const inlineCM = e.target.closest('[data-copy-cm-binder]');
+    const cmItem = e.target.closest('[data-copy-cm-binder]');
 
-    // Outside-click closes any open Cardmarket menu. Skip when the click
-    // is on the trigger or inside a menu — those have their own handlers.
-    if (!cmTrigger && !inlineCM) {
+    // Outside-click closes any open dropdown. Skip when the click is on a
+    // trigger or inside a menu — those have their own paths.
+    if (!cmTrigger && !cmItem) {
       closeAllCardmarketMenus();
     }
 
-    if (!inline && !all && !cmTrigger && !inlineCM) return;
+    if (!allBtn && !cmTrigger && !cmItem) return;
     e.preventDefault();
     e.stopPropagation();
 
@@ -496,40 +462,40 @@
       return;
     }
 
-    if (inline) {
-      const code = inline.dataset.copyBinder;
-      const binder = document.getElementById(code);
-      const result = binder ? formatBinder(binder) : null;
-      if (!result) return flashToast('Nothing to copy');
-      return copyText(result.text).then((ok) =>
-        flashToast(ok ? `Copied ${code} want-list` : 'Copy failed')
-      );
-    }
-
-    if (all) {
-      const { blocks, total } = copyAllAcrossBinders(formatBinder);
-      if (blocks.length === 0) return flashToast('Nothing to copy');
-      const header = `Lorscana want-list — ${total} cards across ${blocks.length} sets`;
-      const text = `${header}\n\n${blocks.join('\n\n')}\n`;
-      return copyText(text).then((ok) =>
-        flashToast(ok ? `Copied ${total}-card want-list` : 'Copy failed')
-      );
-    }
-
-    // Per-binder Cardmarket menu item: copy filtered cards + show a
-    // lingering toast. No auto-tab — Cardmarket caps wantlists at ~150
-    // entries and the user picks when to switch tabs.
-    if (inlineCM) {
-      const code = inlineCM.dataset.copyCmBinder;
-      const scope = inlineCM.dataset.cmScope || 'all';
+    if (cmItem) {
+      const code = cmItem.dataset.copyCmBinder;
+      const scope = cmItem.dataset.cmScope || 'all';
       const binder = document.getElementById(code);
       const result = binder ? formatBinderCardmarket(binder, scope) : null;
       closeAllCardmarketMenus();
       if (!result) return flashToast('Nothing to copy');
-      if (!copyTextSync(result.text)) return flashToast('Copy failed');
-      const setLabel = binder.querySelector('.binder-name')?.textContent.trim() || code;
-      showToast({ node: buildCardmarketToast(setLabel, result.count), durationMs: 6000 });
+      copyText(result.text).then((ok) => {
+        if (!ok) return flashToast('Copy failed');
+        const setLabel = binder.querySelector('.binder-name')?.textContent.trim()
+          || code;
+        showToast({ node: buildCardmarketToast(setLabel, result.count), durationMs: 6000 });
+      });
+      return;
     }
+
+    const blocks = [];
+    let total = 0;
+    let setCount = 0;
+    document.querySelectorAll('.binder').forEach((b) => {
+      const result = formatBinderCardmarket(b);
+      if (result) {
+        blocks.push(result.text);
+        total += result.count;
+        setCount += 1;
+      }
+    });
+    if (blocks.length === 0) return flashToast('Nothing to copy');
+
+    copyText(blocks.join('\n')).then((ok) => {
+      if (!ok) return flashToast('Copy failed');
+      const label = `${setCount} ${setCount === 1 ? 'set' : 'sets'}`;
+      showToast({ node: buildCardmarketToast(label, total), durationMs: 6000 });
+    });
   }, true);
 
   // Escape key closes any open Cardmarket dropdown.
@@ -557,20 +523,13 @@
     scrollBinderIntoFocus(e.target, 'smooth');
   }, true);
 
-  // Scroll the open binder's summary to just below the sticky `.binder-nav`
-  // (or the topbar on pages without nav). This collapses the chrome above
-  // the binder so the 3×3 page grid actually fits the viewport — a 1080px
-  // viewport has ~370px of chrome above the second open binder when sat at
-  // scroll-Y=0, but only ~133px once `.binder-nav` is pinned at top:0.
+  // Scroll the open binder's summary to just below the topbar so the
+  // 3×3 page grid sits in the viewport instead of below the fold.
   function scrollBinderIntoFocus(binder, behavior) {
     const summary = binder.querySelector(':scope > summary');
     if (!summary) return;
-    const nav = document.querySelector('.binder-nav');
     const topbar = document.querySelector('.topbar');
-    // The nav is `position: sticky; top: 0`. Once we scroll past the
-    // page header it pins, so the available headroom is its height. If
-    // there's no nav (e.g. /scan), fall back to the topbar.
-    const headroom = (nav ? nav.offsetHeight : 0) || (topbar ? topbar.offsetHeight : 0);
+    const headroom = topbar ? topbar.offsetHeight : 0;
     const targetY = window.scrollY + summary.getBoundingClientRect().top - headroom - 8;
     window.scrollTo({ top: Math.max(0, targetY), behavior: behavior || 'auto' });
   }
