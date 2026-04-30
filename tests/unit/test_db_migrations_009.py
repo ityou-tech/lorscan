@@ -13,6 +13,17 @@ _MIGRATION_009_SQL = (
 )
 
 
+def _stub_marketplace_listings(db: Database) -> None:
+    # Migration 009 SQL also rewrites `marketplace_listings.card_id`. The
+    # marketplaces feature was removed in migration 011, which drops the
+    # table — so by the time the `db` fixture finishes migrating, the table
+    # is gone. Recreate a card_id-only stub so re-running 009 against the
+    # latest schema keeps exercising the same UPDATE path.
+    db.connection.execute(
+        "CREATE TABLE IF NOT EXISTS marketplace_listings (card_id TEXT)"
+    )
+
+
 def _seed_legacy_typo(db: Database) -> None:
     """Insert a legacy `URs-190` row (typo) plus FK refs in collection_items
     and scan_results — mirrors the real-world breakage migration 009 fixes."""
@@ -50,6 +61,7 @@ def test_legacy_card_id_typo_renamed_with_fk_refs(db: Database):
 
     # Re-apply 009 manually — running migrations are idempotent for this
     # rename pattern (the temp-table query yields zero rows after the fix).
+    _stub_marketplace_listings(db)
     db.connection.executescript(_MIGRATION_009_SQL)
 
     rows = db.connection.execute(
@@ -82,6 +94,7 @@ def test_correctly_cased_card_ids_unchanged(db: Database):
     )
     db.connection.commit()
 
+    _stub_marketplace_listings(db)
     db.connection.executescript(_MIGRATION_009_SQL)
 
     row = db.connection.execute(
@@ -103,6 +116,7 @@ def test_migration_is_idempotent(db: Database):
     )
     db.connection.commit()
 
+    _stub_marketplace_listings(db)
     db.connection.executescript(_MIGRATION_009_SQL)
     db.connection.executescript(_MIGRATION_009_SQL)
 

@@ -58,10 +58,10 @@ def map_lorcana_json_card(raw: dict[str, Any]) -> CardRecord:
     card_id format: `<SET>-<NNN>[suffix]` with 3-digit zero-padding for
     purely numeric collector numbers (e.g. `TFC-001`, `TFC-127`, `ARI-205`,
     `ITI-004a`). The 3-digit pad matches the format the prior
-    lorcana-api.com importer wrote, so existing `cards`, `collection_items`,
-    and `marketplace_listings` rows continue to round-trip without a
-    renaming migration. `collector_number` carries the same suffix
-    (`4a`/`4b`/...) so the binder pocket prints what's on the physical card.
+    lorcana-api.com importer wrote, so existing `cards` and
+    `collection_items` rows continue to round-trip without a renaming
+    migration. `collector_number` carries the same suffix (`4a`/`4b`/...)
+    so the binder pocket prints what's on the physical card.
     """
     numeric_set = str(raw["setCode"])
     set_code = to_lorscan_set_code(numeric_set)
