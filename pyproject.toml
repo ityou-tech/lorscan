@@ -1,8 +1,10 @@
 [project]
 name = "lorscan"
 version = "0.1.0"
-description = "Local Lorcana collection manager with Claude-vision card recognition"
+description = "Local Lorcana collection manager with offline CLIP card recognition"
 readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "Enri Peters", email = "enri@ityou.tech" }]
 requires-python = ">=3.12"
 dependencies = [
     "httpx>=0.28",
