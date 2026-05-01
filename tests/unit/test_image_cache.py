@@ -6,10 +6,13 @@ import asyncio
 import io
 from pathlib import Path
 
+import httpx
 import pytest
+import respx
 from PIL import Image
 
 from lorscan.services.image_cache import (
+    URL_HASH_LEN,
     cache_path_for,
     fetch_all,
     find_override,
@@ -23,9 +26,24 @@ def _png_bytes(color: tuple[int, int, int] = (10, 20, 30)) -> bytes:
     return buf.getvalue()
 
 
-def test_cache_path_for_uses_url_suffix(tmp_path: Path):
+def test_cache_path_for_embeds_url_hash_and_suffix(tmp_path: Path):
     p = cache_path_for("WHI-102", "https://example.com/x.jpg?v=1", cache_dir=tmp_path)
-    assert p == tmp_path / "WHI-102.jpg"
+    assert p.parent == tmp_path
+    assert p.suffix == ".jpg"
+    # Filename shape: <card_id>.<hash>.<ext>
+    card_part, _, hash_part = p.stem.rpartition(".")
+    assert card_part == "WHI-102"
+    assert len(hash_part) == URL_HASH_LEN
+    int(hash_part, 16)  # hash must be hex
+
+
+def test_cache_path_for_changes_when_url_changes(tmp_path: Path):
+    """The whole point of including the URL hash: a different URL for the
+    same card_id must yield a different cache path, otherwise stale bytes
+    can never be invalidated."""
+    p1 = cache_path_for("ROJ-032", "https://cdn/set8/32_aaa.jpg", cache_dir=tmp_path)
+    p2 = cache_path_for("ROJ-032", "https://cdn/promo2/32_bbb.jpg", cache_dir=tmp_path)
+    assert p1 != p2
 
 
 def test_find_override_returns_first_matching_extension(tmp_path: Path):
@@ -90,3 +108,34 @@ def test_find_override_supports_common_image_formats(tmp_path: Path, ext: str):
     target = tmp_path / f"WIN-169{ext}"
     target.write_bytes(b"\x00\x01\x02\x03")
     assert find_override("WIN-169", overrides_dir=tmp_path) == target
+
+
+def test_fetch_all_purges_legacy_cache_when_url_changes(tmp_path: Path):
+    """Regression test for the promo-art-poisoning bug: when an earlier
+    sync wrote `<card_id>.<ext>` (legacy hashless naming) or a file under
+    a stale URL hash, a fresh fetch with a new URL must remove those
+    stale bytes — otherwise the embedding index keeps loading them."""
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir()
+    legacy = cache_dir / "ROJ-032.jpg"
+    legacy.write_bytes(_png_bytes(color=(1, 2, 3)))
+
+    new_url = "https://cdn/set8/32_correct.jpg"
+    new_bytes = _png_bytes(color=(99, 99, 99))
+
+    with respx.mock(assert_all_called=True) as m:
+        m.get(new_url).mock(return_value=httpx.Response(200, content=new_bytes))
+        results = asyncio.run(
+            fetch_all([("ROJ-032", new_url)], cache_dir=cache_dir)
+        )
+
+    assert len(results) == 1
+    r = results[0]
+    assert r.error is None
+    # Fresh download landed at a hashed path, not the legacy one.
+    assert r.path is not None
+    assert r.path != legacy
+    assert r.path.exists()
+    assert r.path.read_bytes() == new_bytes
+    # Stale legacy bytes are gone.
+    assert not legacy.exists()

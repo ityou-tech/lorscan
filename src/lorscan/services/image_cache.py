@@ -1,7 +1,14 @@
 """Local cache of catalog card images.
 
 Fetches each card's `image_url` once and saves to:
-    ~/.lorscan/cache/images/<card_id>.<ext>
+    ~/.lorscan/cache/images/<card_id>.<url_hash>.<ext>
+
+The `<url_hash>` is a short hash of the image URL — when the catalog
+gives the same `card_id` a different URL on a later sync (e.g. a stale
+promo URL gets replaced with the correct main-set URL), the cache key
+changes and the next fetch redownloads instead of silently serving the
+old bytes. Old-format files (or files under any earlier URL hash) are
+purged on first re-fetch.
 
 Manual overrides (any image format Pillow can read) take precedence:
     ~/.lorscan/overrides/<card_id>.<ext>
@@ -22,6 +29,8 @@ Used by:
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import hashlib
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -30,6 +39,15 @@ import httpx
 DEFAULT_CONCURRENCY = 16
 DEFAULT_TIMEOUT_SECONDS = 30
 OVERRIDE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp", ".avif")
+URL_HASH_LEN = 8
+
+
+def _safe_id(card_id: str) -> str:
+    return card_id.replace("/", "_").replace("\\", "_")
+
+
+def _url_hash(image_url: str) -> str:
+    return hashlib.sha256(image_url.encode("utf-8")).hexdigest()[:URL_HASH_LEN]
 
 
 @dataclass(frozen=True)
@@ -41,17 +59,45 @@ class FetchResult:
 
 
 def cache_path_for(card_id: str, image_url: str, *, cache_dir: Path) -> Path:
-    """Pick the local cache path for a card. Suffix derived from URL."""
+    """Pick the local cache path for a card.
+
+    The filename embeds a short hash of `image_url` as
+    `<card_id>.<hash>.<ext>`. When the catalog hands the same `card_id` a
+    different URL on a later sync (a recovered upstream typo, a new
+    main-set URL replacing a stale promo URL, etc.), the cache key
+    changes — so the file-existence check in `_fetch_one` misses and
+    forces a re-download instead of silently returning the old bytes.
+
+    The previous scheme keyed on `card_id` alone, which let stale promo
+    art masquerade as main-set art indefinitely once it was cached.
+    """
     suffix = Path(image_url.split("?")[0]).suffix.lower() or ".png"
-    safe_id = card_id.replace("/", "_").replace("\\", "_")
-    return cache_dir / f"{safe_id}{suffix}"
+    return cache_dir / f"{_safe_id(card_id)}.{_url_hash(image_url)}{suffix}"
+
+
+def _purge_stale_cache_files(card_id: str, *, keep: Path, cache_dir: Path) -> None:
+    """Remove leftover cache files for `card_id` whose URL hash differs
+    from `keep` (or that pre-date the URL-hash naming scheme entirely).
+    Quietly ignores filesystem races and missing parent dirs."""
+    if not cache_dir.is_dir():
+        return
+    for stale in cache_dir.glob(f"{_safe_id(card_id)}.*"):
+        if stale == keep:
+            continue
+        with contextlib.suppress(OSError):
+            stale.unlink()
 
 
 def find_override(card_id: str, *, overrides_dir: Path) -> Path | None:
-    """Return a user-supplied override image for `card_id` if one exists."""
+    """Return a user-supplied override image for `card_id` if one exists.
+
+    Overrides are keyed by `card_id` only (no URL hash) — they're authored
+    by humans dropping files into the overrides dir, so there's no URL to
+    track and the simpler `<card_id>.<ext>` layout matches what users
+    type."""
     if not overrides_dir.is_dir():
         return None
-    safe_id = card_id.replace("/", "_").replace("\\", "_")
+    safe_id = _safe_id(card_id)
     for ext in OVERRIDE_EXTENSIONS:
         candidate = overrides_dir / f"{safe_id}{ext}"
         if candidate.is_file() and candidate.stat().st_size > 0:
@@ -81,6 +127,7 @@ async def _fetch_one(
             resp.raise_for_status()
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(resp.content)
+            _purge_stale_cache_files(card_id, keep=target, cache_dir=cache_dir)
             return FetchResult(card_id=card_id, path=target)
         except Exception as e:
             return FetchResult(card_id=card_id, path=None, error=str(e))
